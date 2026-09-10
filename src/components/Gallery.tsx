@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface GalleryProps {
   user: any;
@@ -27,29 +29,44 @@ export function Gallery({ user }: GalleryProps) {
   }
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div className="text-center py-20 text-sm text-muted-foreground">Loading...</div>;
   }
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6">Gallery</h2>
+    <div className="max-w-7xl mx-auto space-y-8">
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-4xl font-black uppercase tracking-tighter text-foreground">Gallery</h2>
+        <Badge variant="outline">{images.length} image{images.length === 1 ? "" : "s"}</Badge>
+      </div>
 
       {images.length === 0 ? (
-        <p className="text-gray-500">No images generated yet.</p>
+        <Card>
+          <CardContent className="py-16 text-center">
+            <p className="text-sm text-muted-foreground">
+              No images yet. Run a generation to fill this space.
+            </p>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {images.map((img) => (
-            <div key={img.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-              <img
-                src={img.image_url}
-                alt={img.prompt}
-                className="w-full h-48 object-cover"
-              />
-              <div className="p-4">
-                <p className="text-sm text-gray-600 truncate">{img.prompt}</p>
-                <p className="text-xs text-gray-400 mt-2">
-                  {new Date(img.created_at).toLocaleDateString()}
-                </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 border-2 border-foreground">
+          {images.map((img, idx) => (
+            <div
+              key={img.id}
+              className={`bg-card ${idx !== images.length - 1 ? "border-b-2 md:border-b-2 md:border-r-2 lg:border-r-2 border-foreground" : ""} ${(idx + 1) % 3 !== 0 ? "lg:border-r-2 border-foreground" : ""} md:[&:nth-child(2n)]:border-r-0 lg:[&:nth-child(3n)]:border-r-0 md:[&:nth-child(2n+1)]:border-r-2 lg:[&:nth-child(3n+2)]:border-r-2`}
+            >
+              <div className="aspect-square overflow-hidden bg-muted border-b-2 border-foreground">
+                <img
+                  src={img.image_url}
+                  alt={img.prompt}
+                  className="w-full h-full object-cover block"
+                />
+              </div>
+              <div className="p-4 space-y-2">
+                <p className="text-sm line-clamp-2 text-foreground">{img.prompt}</p>
+                <div className="flex items-center justify-between text-xs text-muted-foreground tabular-nums">
+                  <span>{new Date(img.created_at).toLocaleDateString()}</span>
+                  {img.seed !== null && img.seed !== undefined && <span>seed {img.seed}</span>}
+                </div>
               </div>
             </div>
           ))}

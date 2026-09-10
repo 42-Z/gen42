@@ -1,4 +1,18 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export function Admin() {
   const [users, setUsers] = useState<any[]>([]);
@@ -95,134 +109,142 @@ export function Admin() {
   }
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div className="text-center py-20 text-sm text-muted-foreground">Loading...</div>;
   }
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6">Admin Panel</h2>
+    <div className="max-w-7xl mx-auto space-y-8">
+      <div>
+        <h2 className="text-4xl font-black uppercase tracking-tighter text-foreground">Admin</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Manage users, credits, and HuggingFace API keys.
+        </p>
+      </div>
 
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold">Total Generations</h3>
-            <p className="text-3xl font-bold">{stats.totalGenerations}</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border-2 border-foreground">
+          <div className="p-5 border-b-2 md:border-b-2 md:border-r-2 border-foreground">
+            <div className="text-xs uppercase tracking-widest text-muted-foreground">Total generations</div>
+            <div className="text-4xl font-black tabular-nums mt-2 text-foreground">{stats.totalGenerations}</div>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold">Today's Generations</h3>
-            <p className="text-3xl font-bold">{stats.todayGenerations}</p>
+          <div className="p-5 border-b-2 md:border-b-0 md:border-r-2 border-foreground">
+            <div className="text-xs uppercase tracking-widest text-muted-foreground">Today</div>
+            <div className="text-4xl font-black tabular-nums mt-2 text-foreground">{stats.todayGenerations}</div>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold">Active Keys</h3>
-            <p className="text-3xl font-bold">
+          <div className="p-5">
+            <div className="text-xs uppercase tracking-widest text-muted-foreground">Active keys</div>
+            <div className="text-4xl font-black tabular-nums mt-2 text-foreground">
               {stats.keyUsage?.filter((k: any) => k.is_active).length || 0}
-            </p>
+            </div>
           </div>
         </div>
       )}
 
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h3 className="text-lg font-bold mb-4">Users</h3>
-        <div className="mb-4 flex gap-4">
-          <select
-            value={creditUserId}
-            onChange={(e) => setCreditUserId(e.target.value)}
-            className="px-3 py-2 border rounded-lg"
-          >
-            <option value="">Select user</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.email} (Balance: {u.balance})
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            value={creditAmount}
-            onChange={(e) => setCreditAmount(Number(e.target.value))}
-            placeholder="Amount (минус = списание)"
-            className="px-3 py-2 border rounded-lg"
-          />
-          <button
-            onClick={addCredits}
-            className="bg-green-500 text-white px-4 py-2 rounded-lg"
-          >
-            Add Credits
-          </button>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Users</CardTitle>
+          <CardDescription>Adjust user credit balance. Negative amount deducts.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_160px] gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="user-select">User</Label>
+              <Select
+                id="user-select"
+                value={creditUserId}
+                onChange={(e) => setCreditUserId(e.target.value)}
+              >
+                <option value="">Choose user</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.email} (balance {u.balance})
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                value={creditAmount}
+                onChange={(e) => setCreditAmount(Number(e.target.value))}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button onClick={addCredits} className="w-full">Apply</Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-lg font-bold mb-4">API Keys</h3>
-        <div className="mb-4 flex gap-4">
-          <input
-            type="text"
-            value={newKeyName}
-            onChange={(e) => setNewKeyName(e.target.value)}
-            placeholder="Key name"
-            className="px-3 py-2 border rounded-lg"
-          />
-          <input
-            type="text"
-            value={newKeyValue}
-            onChange={(e) => setNewKeyValue(e.target.value)}
-            placeholder="hf_... ключ"
-            className="px-3 py-2 border rounded-lg flex-1"
-          />
-          <button
-            onClick={addKey}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg"
-          >
-            Add Key
-          </button>
-        </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>API keys</CardTitle>
+          <CardDescription>HuggingFace tokens used to call the Krea-2 Space.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-[200px_1fr_160px] gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="key-name">Name</Label>
+              <Input
+                id="key-name"
+                value={newKeyName}
+                onChange={(e) => setNewKeyName(e.target.value)}
+                placeholder="prod-1"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="key-value">Token</Label>
+              <Input
+                id="key-value"
+                value={newKeyValue}
+                onChange={(e) => setNewKeyValue(e.target.value)}
+                placeholder="hf_..."
+              />
+            </div>
+            <div className="flex items-end">
+              <Button onClick={addKey} className="w-full">Add key</Button>
+            </div>
+          </div>
 
-        <table className="w-full">
-          <thead>
-            <tr className="border-b">
-              <th className="text-left py-2">Name</th>
-              <th className="text-left py-2">Key</th>
-              <th className="text-left py-2">Used Today</th>
-              <th className="text-left py-2">Limit</th>
-              <th className="text-left py-2">Status</th>
-              <th className="text-left py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {keys.map((k) => (
-              <tr key={k.id} className="border-b">
-                <td className="py-2">{k.name}</td>
-                <td className="py-2">{k.key}</td>
-                <td className="py-2">{k.used_today}</td>
-                <td className="py-2">{k.daily_limit}</td>
-                <td className="py-2">
-                  <span
-                    className={`px-2 py-1 rounded text-sm ${
-                      k.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {k.is_active ? "Active" : "Inactive"}
-                  </span>
-                </td>
-                <td className="py-2">
-                  <button
-                    onClick={() => resetKey(k.id)}
-                    className="text-blue-500 hover:underline mr-2"
-                  >
-                    Reset
-                  </button>
-                  <button
-                    onClick={() => deleteKey(k.id)}
-                    className="text-red-500 hover:underline"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Key</TableHead>
+                <TableHead className="text-right">Used</TableHead>
+                <TableHead className="text-right">Limit</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {keys.map((k) => (
+                <TableRow key={k.id}>
+                  <TableCell className="font-bold">{k.name}</TableCell>
+                  <TableCell className="font-mono text-xs">{k.key}</TableCell>
+                  <TableCell className="text-right tabular-nums">{k.used_today}</TableCell>
+                  <TableCell className="text-right tabular-nums">{k.daily_limit}</TableCell>
+                  <TableCell>
+                    <Badge variant={k.is_active ? "default" : "destructive"}>
+                      {k.is_active ? "active" : "inactive"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right space-x-2">
+                    <Button variant="ghost" size="sm" onClick={() => resetKey(k.id)}>
+                      Reset
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => deleteKey(k.id)}>
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -1,4 +1,9 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface GenerateProps {
   user: any;
@@ -48,68 +53,88 @@ export function Generate({ user }: GenerateProps) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">Generate Image</h2>
-
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Prompt
-          </label>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg"
-            rows={4}
-            placeholder="Describe the image you want to generate..."
-            maxLength={1000}
-          />
-          <div className="text-right text-sm text-gray-500">
-            {prompt.length}/1000
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Negative Prompt (optional)
-          </label>
-          <textarea
-            value={negativePrompt}
-            onChange={(e) => setNegativePrompt(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg"
-            rows={2}
-            placeholder="What to exclude from the image..."
-          />
-        </div>
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
-
-        <button
-          onClick={handleGenerate}
-          disabled={loading || !prompt.trim()}
-          className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 disabled:opacity-50"
-        >
-          {loading ? "Generating..." : "Generate"}
-        </button>
+    <div className="max-w-4xl mx-auto space-y-8">
+      <div>
+        <h2 className="text-4xl font-black uppercase tracking-tighter text-foreground">Generate</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          One prompt, one credit, ~30 seconds. Krea-2 turbo on ZeroGPU.
+        </p>
       </div>
 
-      {result && (
-        <div className="mt-6 bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-bold mb-4">Result</h3>
-          <img
-            src={result.image_url}
-            alt="Generated"
-            className="w-full rounded-lg"
-          />
-          <div className="mt-4 text-sm text-gray-600">
-            <p>Seed: {result.seed}</p>
-            <p>Duration: {result.duration}ms</p>
+      <Card>
+        <CardHeader>
+          <CardTitle>New image</CardTitle>
+          <CardDescription>Be specific. Describe subject, lighting, mood, composition.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between">
+                <Label htmlFor="prompt">Prompt</Label>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {prompt.length}/1000
+                </span>
+              </div>
+              <Textarea
+                id="prompt"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                rows={4}
+                placeholder="a lone lighthouse on a cliff, fog, night, cinematic, 35mm, kodak portra 400..."
+                maxLength={1000}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="negative">Negative prompt</Label>
+              <Textarea
+                id="negative"
+                value={negativePrompt}
+                onChange={(e) => setNegativePrompt(e.target.value)}
+                rows={2}
+                placeholder="blurry, lowres, watermark, text..."
+              />
+            </div>
+
+            {error && (
+              <div className="border-2 border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
+            <Button
+              onClick={handleGenerate}
+              disabled={loading || !prompt.trim()}
+              size="lg"
+              className="w-full"
+            >
+              {loading ? "Generating..." : "Run generation"}
+            </Button>
           </div>
-        </div>
+        </CardContent>
+      </Card>
+
+      {result && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Result</CardTitle>
+            <CardDescription>
+              <span className="tabular-nums">seed {result.seed}</span>
+              <span className="mx-2">·</span>
+              <span className="tabular-nums">{result.duration}ms</span>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="border-2 border-foreground overflow-hidden">
+              <img src={result.image_url} alt="Generated" className="w-full block" />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge>seed {result.seed}</Badge>
+              <Badge variant="outline">turbo</Badge>
+              <Badge variant="outline">1024×1024</Badge>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
