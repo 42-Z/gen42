@@ -21,7 +21,6 @@ export function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    document.documentElement.classList.add("dark");
     checkSession();
   }, []);
 

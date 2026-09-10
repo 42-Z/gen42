@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@theme inline {
+@theme {
   --color-background: hsl(0 0% 100%);
   --color-foreground: hsl(220 20% 4%);
   --color-card: hsl(0 0% 100%);
@@ -21,6 +21,9 @@
   --color-input: hsl(220 20% 14%);
   --color-ring: hsl(220 20% 4%);
   --radius: 0rem;
+
+  --font-sans: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 }
 
 .dark {
@@ -47,16 +50,12 @@
 
 @layer base {
   html {
-    font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     -webkit-font-smoothing: antialiased;
   }
 
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-  }
-
-  * {
-    border-color: var(--color-border);
   }
 }
