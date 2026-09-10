@@ -10,7 +10,7 @@ const s3Client = new S3Client({
 
 export async function uploadImage(key: string, buffer: Buffer, contentType: string): Promise<void> {
   const file = s3Client.file(key);
-  await file.write(new Response(buffer, {
+  await file.write(new Response(new Uint8Array(buffer), {
     headers: { "Content-Type": contentType },
   }));
 }

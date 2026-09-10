@@ -64,7 +64,7 @@ export const adminRoutes = {
         ORDER BY created_at DESC
       `;
       return Response.json(
-        keys.map((k) => ({ ...k, key: `${k.key.slice(0, 8)}…` })),
+        keys.map((k: any) => ({ ...k, key: `${k.key.slice(0, 8)}…` })),
       );
     }),
 

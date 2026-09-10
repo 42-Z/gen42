@@ -41,7 +41,9 @@ describe("API Keys", () => {
   test("incrementKeyUsage инкрементирует атомарно через SQL", async () => {
     await incrementKeyUsage("k1");
     expect(mockSql).toHaveBeenCalled();
-    const query = mockSql.mock.calls[0][0].join("?");
+    const call = mockSql.mock.calls[0];
+    const strings = call![0] as TemplateStringsArray;
+    const query = strings.join("?");
     expect(query).toContain("used_today + 1");
   });
 });

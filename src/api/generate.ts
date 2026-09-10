@@ -131,7 +131,7 @@ export const generateRoutes = {
       `;
 
       const withUrls = await Promise.all(
-        rows.map(async (row) => ({
+        rows.map(async (row: any) => ({
           ...row,
           image_url: row.image_key ? await getImageUrl(row.image_key) : null,
         })),
