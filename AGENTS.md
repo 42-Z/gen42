@@ -1,106 +1,62 @@
+# AGENTS.md
 
-Default to using Bun instead of Node.js.
+Инструкции для агентов, работающих с этим репозиторием.
 
-- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
-- Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
-- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
-- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
-- Use `bunx <package> <command>` instead of `npx <package> <command>`
-- Bun automatically loads .env, so don't use dotenv.
+## Стек и конвенции
 
-## APIs
+Везде используем Bun вместо Node.js:
 
-- `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
-- `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
-- `Bun.redis` for Redis. Don't use `ioredis`.
-- `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
-- `WebSocket` is built-in. Don't use `ws`.
-- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
-- Bun.$`ls` instead of execa.
+- `bun <file>` вместо `node`/`ts-node`
+- `bun test` вместо jest/vitest
+- `bun install`, `bun run <script>`, `bunx <package>`
+- Bun сам загружает `.env` — dotenv не нужен
 
-## Testing
+API:
 
-Use `bun test` to run tests.
+- `Bun.serve()` с `routes` — никаких express/fastify
+- `postgres` (postgres.js) для Postgres через `src/lib/db.ts` — не смешивать с `Bun.sql`
+- `Bun.s3` для хранилища — не тянуть aws-sdk
+- `Bun.file` вместо `node:fs` readFile/writeFile
 
-```ts#index.test.ts
-import { test, expect } from "bun:test";
+Фронтенд:
 
-test("hello world", () => {
-  expect(1).toBe(1);
-});
+- HTML imports: `index.html` в корне импортирует `./src/frontend.tsx` и `./src/index.css`, Bun bundler собирает сам. Vite не использовать
+- Сервер отдаёт статику из `dist/` (см. `src/server.ts`)
+
+## Команды
+
+```bash
+bun dev              # dev-сервер с hot reload
+bun run build        # сборка фронтенда в dist/
+bun test             # тесты (bun:test)
+bun run db:migrate   # миграции
 ```
 
-## Frontend
+## Архитектура
 
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
+- `src/server.ts` — единственный entrypoint: API-роуты (`/api/auth/*`, `/api/generate`, `/api/generations`, `/api/me`, `/api/admin/*`) + раздача `dist/`. Не создавать отдельные entrypoints
+- `src/api/` — обработчики роутов; `src/lib/` — доменная логика (credits, keys, hf, storage, rate-limit)
+- Ключи HuggingFace живут в таблице `api_keys`, пул с дневными лимитами и ротацией — `src/lib/keys.ts`. Импорт новых: `bun scripts/import-keys.ts` (CSV `name;hf_...`)
+- Баланс пользователя: одна генерация списывает один кредит — `src/lib/credits.ts`
+- Первый пользователь с email из `ADMIN_EMAIL` — админ
 
-Server:
+## Деплой на Vercel
 
-```ts#index.ts
-import index from "./index.html"
+- Фреймворк `bun`, билд `bun run build`, output `dist/`, функция `src/server.ts`
+- **Критичный фикс в `vercel.json`**: NFT-трассировщик резолвит с условием `bun`, рантайм — с `node`; пакеты с разными exports (`@better-auth/telemetry`, `@better-auth/utils`, `@noble/ciphers`, `@noble/hashes`) требуют явного `includeFiles`. При новых подобных ошибках (`Cannot find package 'X'` в рантайме Vercel) — добавлять пакет в brace-глобу `includeFiles`, а не ставить костыли в код
+- Локальная проверка бандла: `vercel build --prod`, затем материализовать файлы из `filePathMap` (`.vercel/output/functions/index.func/.vc-config.json`) в отдельную папку и запускать `bun src/server.mjs` с подложенным `.env`
 
-Bun.serve({
-  routes: {
-    "/": index,
-    "/api/users/:id": {
-      GET: (req) => {
-        return new Response(JSON.stringify({ id: req.params.id }));
-      },
-    },
-  },
-  // optional websocket support
-  websocket: {
-    open: (ws) => {
-      ws.send("Hello, world!");
-    },
-    message: (ws, message) => {
-      ws.send(message);
-    },
-    close: (ws) => {
-      // handle close
-    }
-  },
-  development: {
-    hmr: true,
-    console: true,
-  }
-})
-```
+## Стиль UI
 
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
+- Язык интерфейса — русский, без технических подробностей (стек, версии, параметры API) в текстах для пользователя
+- Контент живёт прямо на странице: никаких карточек-«окошек», в которых умещается весь сайт. Структура — типографика, отступы, тонкие линейки
+- Поля ввода — прозрачные, только нижняя граница (см. `src/components/ui/input.tsx`)
+- Иконки — Tabler (`@tabler/icons-react`), не lucide
+- UI-компоненты — канонический shadcn/ui (`components.json`, iconLibrary: tabler); `cn` только из `@/lib/utils`
+- Декоративная графика — своя SVG (`src/components/graphics.tsx`), не эмодзи
+- Дизайн-система: тёмная фотолаборатория — тёплый чернильный фон, янтарный акцент, зерно плёнки, шрифты Unbounded (display) + Inter Tight. Палитра и утилити-классы в `src/index.css`
 
-```html#index.html
-<html>
-  <body>
-    <h1>Hello, world!</h1>
-    <script type="module" src="./frontend.tsx"></script>
-  </body>
-</html>
-```
+## Безопасность
 
-With the following `frontend.tsx`:
-
-```tsx#frontend.tsx
-import React from "react";
-import { createRoot } from "react-dom/client";
-
-// import .css files directly and it works
-import './index.css';
-
-const root = createRoot(document.body);
-
-export default function Frontend() {
-  return <h1>Hello, world!</h1>;
-}
-
-root.render(<Frontend />);
-```
-
-Then, run index.ts
-
-```sh
-bun --hot ./index.ts
-```
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
+- Секреты (`.env`, `keys.csv` с HF-токенами) не коммитить — они в `.gitignore`. Токены HF хранятся только в БД
+- Не логировать ключи и не отдавать их через API целиком без необходимости
