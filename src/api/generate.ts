@@ -22,14 +22,14 @@ export const generateRoutes = {
       }
 
       if (!checkRateLimit(session.user.id, 10, 60_000)) {
-        return Response.json({ error: "Rate limit exceeded" }, { status: 429 });
+        return Response.json({ error: "Слишком много запросов, подождите минуту" }, { status: 429 });
       }
 
       const body = await req.json();
       const { prompt, negativePrompt, model, width, height, steps, seed } = body;
 
       if (!prompt || prompt.length > 1000) {
-        return Response.json({ error: "Invalid prompt" }, { status: 400 });
+        return Response.json({ error: "Некорректный промпт" }, { status: 400 });
       }
 
       let creditSpent = false;
@@ -108,8 +108,7 @@ export const generateRoutes = {
             { error: "Все ключи исчерпаны, попробуйте позже" },
             { status: 503 },
           );
-        }
-        console.error("Generation error:", error);
+        }        console.error("Generation error:", error);
         return Response.json({ error: "Internal server error" }, { status: 500 });
       }
     },

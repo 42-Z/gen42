@@ -1,4 +1,5 @@
 import { sql } from "./db";
+import { readFile } from "node:fs/promises";
 
 export interface ApiKeyRow {
   id: string;
@@ -59,7 +60,7 @@ export async function incrementKeyUsage(keyId: string): Promise<void> {
 }
 
 export async function importKeysFromCsv(csvPath: string): Promise<number> {
-  const text = await Bun.file(csvPath).text();
+  const text = await readFile(csvPath, "utf-8");
   const rows: { name: string; key: string }[] = [];
 
   for (const line of text.split("\n")) {

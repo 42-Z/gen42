@@ -1,56 +1,33 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: hsl(0 0% 100%);
-  --color-foreground: hsl(220 20% 4%);
-  --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(220 20% 4%);
-  --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(220 20% 4%);
-  --color-primary: hsl(220 20% 4%);
-  --color-primary-foreground: hsl(0 0% 98%);
-  --color-secondary: hsl(220 14% 96%);
-  --color-secondary-foreground: hsl(220 20% 4%);
-  --color-muted: hsl(220 14% 96%);
-  --color-muted-foreground: hsl(220 8% 46%);
-  --color-accent: hsl(220 14% 96%);
-  --color-accent-foreground: hsl(220 20% 4%);
-  --color-destructive: hsl(0 72% 51%);
-  --color-destructive-foreground: hsl(0 0% 98%);
-  --color-border: hsl(220 20% 14%);
-  --color-input: hsl(220 20% 14%);
-  --color-ring: hsl(220 20% 4%);
-  --radius: 0rem;
+  --color-background: hsl(24 10% 6%);
+  --color-foreground: hsl(36 33% 92%);
+  --color-card: hsl(24 9% 9%);
+  --color-card-foreground: hsl(36 33% 92%);
+  --color-popover: hsl(24 9% 9%);
+  --color-popover-foreground: hsl(36 33% 92%);
+  --color-primary: hsl(38 92% 58%);
+  --color-primary-foreground: hsl(24 10% 6%);
+  --color-secondary: hsl(24 8% 14%);
+  --color-secondary-foreground: hsl(36 33% 92%);
+  --color-muted: hsl(24 8% 14%);
+  --color-muted-foreground: hsl(34 12% 58%);
+  --color-accent: hsl(24 8% 14%);
+  --color-accent-foreground: hsl(36 33% 92%);
+  --color-destructive: hsl(8 75% 55%);
+  --color-destructive-foreground: hsl(36 33% 92%);
+  --color-border: hsl(34 14% 22%);
+  --color-input: hsl(34 14% 22%);
+  --color-ring: hsl(38 92% 58%);
 
-  --font-sans: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-}
-
-.dark {
-  --color-background: hsl(220 20% 4%);
-  --color-foreground: hsl(0 0% 98%);
-  --color-card: hsl(220 20% 6%);
-  --color-card-foreground: hsl(0 0% 98%);
-  --color-popover: hsl(220 20% 4%);
-  --color-popover-foreground: hsl(0 0% 98%);
-  --color-primary: hsl(0 0% 98%);
-  --color-primary-foreground: hsl(220 20% 4%);
-  --color-secondary: hsl(220 14% 12%);
-  --color-secondary-foreground: hsl(0 0% 98%);
-  --color-muted: hsl(220 14% 12%);
-  --color-muted-foreground: hsl(220 8% 64%);
-  --color-accent: hsl(220 14% 14%);
-  --color-accent-foreground: hsl(0 0% 98%);
-  --color-destructive: hsl(0 72% 51%);
-  --color-destructive-foreground: hsl(0 0% 98%);
-  --color-border: hsl(0 0% 98%);
-  --color-input: hsl(0 0% 30%);
-  --color-ring: hsl(0 0% 98%);
+  --font-display: "Unbounded", system-ui, sans-serif;
+  --font-sans: "Inter Tight", system-ui, sans-serif;
 }
 
 @layer base {
   html {
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
 
@@ -58,4 +35,66 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
   }
+
+  ::selection {
+    background: var(--color-primary);
+    color: var(--color-primary-foreground);
+  }
+}
+
+@layer utilities {
+  /* Плёночное зерно поверх всего приложения */
+  .film-grain::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0.55;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.34'/%3E%3C/svg%3E");
+  }
+
+  /* Тёплое свечение лампы проявки */
+  .safelight {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, hsl(38 92% 58% / 0.13), transparent 70%),
+      radial-gradient(ellipse 60% 40% at 90% 110%, hsl(18 70% 40% / 0.08), transparent 70%),
+      var(--color-background);
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+  }
+}
+
+@keyframes develop {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+    filter: brightness(2.4) contrast(0.7) blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: brightness(1) contrast(1) blur(0);
+  }
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-develop {
+  animation: develop 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 1.4s ease-in-out infinite;
 }

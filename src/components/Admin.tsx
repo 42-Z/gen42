@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
+import {
+  IconCoins,
+  IconKey,
+  IconPhoto,
+  IconRefresh,
+  IconTrash,
+} from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -109,142 +113,151 @@ export function Admin() {
   }
 
   if (loading) {
-    return <div className="text-center py-20 text-sm text-muted-foreground">Loading...</div>;
+    return <div className="py-20 text-center text-sm text-muted-foreground">Загрузка…</div>;
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
-      <div>
-        <h2 className="text-4xl font-black uppercase tracking-tighter text-foreground">Admin</h2>
+    <div className="mx-auto max-w-7xl">
+      <div className="animate-develop">
+        <h2 className="font-display text-3xl font-bold tracking-tight text-foreground">Админка</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Manage users, credits, and HuggingFace API keys.
+          Управление пользователями, кредитами и HuggingFace-ключами.
         </p>
       </div>
 
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border-2 border-foreground">
-          <div className="p-5 border-b-2 md:border-b-2 md:border-r-2 border-foreground">
-            <div className="text-xs uppercase tracking-widest text-muted-foreground">Total generations</div>
-            <div className="text-4xl font-black tabular-nums mt-2 text-foreground">{stats.totalGenerations}</div>
+        <div className="animate-develop mt-10 grid grid-cols-1 gap-8 border-y border-border py-8 sm:grid-cols-3 [animation-delay:80ms]">
+          <div>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
+              <IconPhoto className="h-4 w-4 text-primary" strokeWidth={1.75} />
+              Всего генераций
+            </div>
+            <div className="mt-3 font-display text-4xl font-bold tabular-nums text-foreground">{stats.totalGenerations}</div>
           </div>
-          <div className="p-5 border-b-2 md:border-b-0 md:border-r-2 border-foreground">
-            <div className="text-xs uppercase tracking-widest text-muted-foreground">Today</div>
-            <div className="text-4xl font-black tabular-nums mt-2 text-foreground">{stats.todayGenerations}</div>
+          <div>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
+              <IconCoins className="h-4 w-4 text-primary" strokeWidth={1.75} />
+              Сегодня
+            </div>
+            <div className="mt-3 font-display text-4xl font-bold tabular-nums text-foreground">{stats.todayGenerations}</div>
           </div>
-          <div className="p-5">
-            <div className="text-xs uppercase tracking-widest text-muted-foreground">Active keys</div>
-            <div className="text-4xl font-black tabular-nums mt-2 text-foreground">
+          <div>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
+              <IconKey className="h-4 w-4 text-primary" strokeWidth={1.75} />
+              Активные ключи
+            </div>
+            <div className="mt-3 font-display text-4xl font-bold tabular-nums text-foreground">
               {stats.keyUsage?.filter((k: any) => k.is_active).length || 0}
             </div>
           </div>
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Users</CardTitle>
-          <CardDescription>Adjust user credit balance. Negative amount deducts.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_160px] gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="user-select">User</Label>
-              <Select
-                id="user-select"
-                value={creditUserId}
-                onChange={(e) => setCreditUserId(e.target.value)}
-              >
-                <option value="">Choose user</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.email} (balance {u.balance})
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="amount">Amount</Label>
-              <Input
-                id="amount"
-                type="number"
-                value={creditAmount}
-                onChange={(e) => setCreditAmount(Number(e.target.value))}
-              />
-            </div>
-            <div className="flex items-end">
-              <Button onClick={addCredits} className="w-full">Apply</Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <section className="animate-develop mt-12 [animation-delay:140ms]">
+        <h3 className="font-display text-xl font-semibold text-foreground">Пользователи</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Изменяйте баланс кредитов. Отрицательное число списывает.
+        </p>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>API keys</CardTitle>
-          <CardDescription>HuggingFace tokens used to call the Krea-2 Space.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-[200px_1fr_160px] gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="key-name">Name</Label>
-              <Input
-                id="key-name"
-                value={newKeyName}
-                onChange={(e) => setNewKeyName(e.target.value)}
-                placeholder="prod-1"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="key-value">Token</Label>
-              <Input
-                id="key-value"
-                value={newKeyValue}
-                onChange={(e) => setNewKeyValue(e.target.value)}
-                placeholder="hf_..."
-              />
-            </div>
-            <div className="flex items-end">
-              <Button onClick={addKey} className="w-full">Add key</Button>
-            </div>
+        <div className="mt-6 grid grid-cols-1 items-end gap-6 sm:grid-cols-[1fr_160px_auto]">
+          <div className="space-y-1.5">
+            <Label htmlFor="user-select">Пользователь</Label>
+            <select
+              id="user-select"
+              value={creditUserId}
+              onChange={(e) => setCreditUserId(e.target.value)}
+              className="w-full border-0 border-b border-border bg-transparent py-2.5 text-sm text-foreground outline-none transition-colors hover:border-muted-foreground/50 focus-visible:border-primary [&>option]:bg-card"
+            >
+              <option value="">Выберите пользователя</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.email} (баланс {u.balance})
+                </option>
+              ))}
+            </select>
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="amount">Количество</Label>
+            <Input
+              id="amount"
+              type="number"
+              value={creditAmount}
+              onChange={(e) => setCreditAmount(Number(e.target.value))}
+            />
+          </div>
+          <Button onClick={addCredits}>Применить</Button>
+        </div>
+      </section>
 
+      <section className="animate-develop mt-14 [animation-delay:200ms]">
+        <h3 className="font-display text-xl font-semibold text-foreground">API-ключи</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Токены HuggingFace для вызова Krea-2 Space.
+        </p>
+
+        <div className="mt-6 grid grid-cols-1 items-end gap-6 sm:grid-cols-[220px_1fr_auto]">
+          <div className="space-y-1.5">
+            <Label htmlFor="key-name">Название</Label>
+            <Input
+              id="key-name"
+              value={newKeyName}
+              onChange={(e) => setNewKeyName(e.target.value)}
+              placeholder="prod-1"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="key-value">Токен</Label>
+            <Input
+              id="key-value"
+              value={newKeyValue}
+              onChange={(e) => setNewKeyValue(e.target.value)}
+              placeholder="hf_..."
+            />
+          </div>
+          <Button onClick={addKey}>Добавить ключ</Button>
+        </div>
+
+        <div className="mt-10">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Key</TableHead>
-                <TableHead className="text-right">Used</TableHead>
-                <TableHead className="text-right">Limit</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Название</TableHead>
+                <TableHead>Ключ</TableHead>
+                <TableHead className="text-right">Использовано</TableHead>
+                <TableHead className="text-right">Лимит</TableHead>
+                <TableHead>Статус</TableHead>
+                <TableHead className="text-right">Действия</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {keys.map((k) => (
                 <TableRow key={k.id}>
-                  <TableCell className="font-bold">{k.name}</TableCell>
+                  <TableCell className="font-semibold">{k.name}</TableCell>
                   <TableCell className="font-mono text-xs">{k.key}</TableCell>
                   <TableCell className="text-right tabular-nums">{k.used_today}</TableCell>
                   <TableCell className="text-right tabular-nums">{k.daily_limit}</TableCell>
                   <TableCell>
-                    <Badge variant={k.is_active ? "default" : "destructive"}>
-                      {k.is_active ? "active" : "inactive"}
-                    </Badge>
+                    <span className="inline-flex items-center gap-1.5 text-xs">
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${k.is_active ? "bg-primary" : "bg-destructive"}`}
+                      />
+                      {k.is_active ? "активен" : "неактивен"}
+                    </span>
                   </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="sm" onClick={() => resetKey(k.id)}>
-                      Reset
+                  <TableCell className="text-right space-x-1">
+                    <Button variant="ghost" size="icon" title="Сбросить лимит" onClick={() => resetKey(k.id)}>
+                      <IconRefresh className="h-4 w-4" />
                     </Button>
-                    <Button variant="destructive" size="sm" onClick={() => deleteKey(k.id)}>
-                      Delete
+                    <Button variant="ghost" size="icon" title="Удалить ключ" onClick={() => deleteKey(k.id)} className="text-destructive hover:text-destructive">
+                      <IconTrash className="h-4 w-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }

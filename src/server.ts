@@ -1,8 +1,28 @@
 import { serve } from "bun";
-import index from "./index.html";
 import { authRoutes } from "./api/auth";
 import { generateRoutes } from "./api/generate";
 import { adminRoutes } from "./api/admin";
+import { join } from "node:path";
+import { existsSync } from "node:fs";
+
+const DIST_DIR = join(process.cwd(), "dist");
+
+async function serveStatic(url: URL): Promise<Response | null> {
+  let pathname = url.pathname;
+  if (pathname === "/") pathname = "/index.html";
+
+  const filePath = join(DIST_DIR, pathname);
+  if (existsSync(filePath)) {
+    return new Response(Bun.file(filePath));
+  }
+
+  const indexPath = join(DIST_DIR, "index.html");
+  if (existsSync(indexPath)) {
+    return new Response(Bun.file(indexPath));
+  }
+
+  return null;
+}
 
 const server = serve({
   routes: {
@@ -17,8 +37,19 @@ const server = serve({
     "/api/admin/keys": adminRoutes["/api/admin/keys"],
     "/api/admin/keys/:id": adminRoutes["/api/admin/keys/:id"],
     "/api/admin/stats": adminRoutes["/api/admin/stats"],
+  },
 
-    "/*": index,
+  fetch: async (req) => {
+    const url = new URL(req.url);
+
+    if (url.pathname.startsWith("/api/")) {
+      return new Response("Not found", { status: 404 });
+    }
+
+    const staticResponse = await serveStatic(url);
+    if (staticResponse) return staticResponse;
+
+    return new Response("Not found", { status: 404 });
   },
 
   error(error) {

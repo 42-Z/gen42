@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DevelopingSpinner, Perforations } from "./graphics";
 
 interface AuthProps {
   onLogin: (user: any) => void;
@@ -37,7 +38,7 @@ export function Auth({ onLogin }: AuthProps) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || data.error || "Authentication failed");
+        throw new Error(data.message || data.error || "Ошибка аутентификации");
       }
 
       const data = await res.json();
@@ -50,82 +51,99 @@ export function Auth({ onLogin }: AuthProps) {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-background">
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <h1 className="text-5xl font-black tracking-tighter text-foreground">gen42</h1>
-          <p className="mt-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
-            image synthesis via krea-2 turbo
+    <div className="safelight film-grain min-h-screen w-full">
+      <div className="mx-auto grid min-h-screen w-full max-w-6xl grid-cols-1 items-center gap-16 px-6 py-16 lg:grid-cols-2 lg:gap-24">
+        <div className="animate-develop flex flex-col items-start">
+          <h1 className="font-display text-6xl font-extrabold tracking-tight text-foreground lg:text-7xl">
+            gen42
+          </h1>
+          <p className="mt-4 max-w-sm text-lg leading-relaxed text-muted-foreground">
+            Генерация изображений. Опишите кадр словами — получите картинку.
           </p>
+          <Perforations className="mt-10 opacity-50" />
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{isLogin ? "Sign in" : "Register"}</CardTitle>
-            <CardDescription>
-              {isLogin ? "Use your credentials to continue" : "Create an account to start generating"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {!isLogin && (
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required={!isLogin}
-                  />
-                </div>
-              )}
+        <div className="animate-develop w-full [animation-delay:120ms]">
+          <h2 className="font-display text-2xl font-semibold text-foreground">
+            {isLogin ? "Вход" : "Регистрация"}
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {isLogin
+              ? "Введите свои данные, чтобы продолжить"
+              : "Создайте аккаунт, чтобы начать генерацию"}
+          </p>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+          <form onSubmit={handleSubmit} className="mt-10 space-y-8">
+            {!isLogin && (
+              <div className="space-y-1.5">
+                <Label htmlFor="name">Имя</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required={!isLogin}
+                  className="text-lg"
                 />
               </div>
+            )}
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={8}
-                />
-              </div>
-
-              {error && (
-                <div className="border-2 border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
-
-              <Button type="submit" disabled={loading} className="w-full" size="lg">
-                {loading ? "..." : isLogin ? "Sign in" : "Create account"}
-              </Button>
-            </form>
-
-            <div className="mt-6 border-t-2 border-foreground pt-4 text-center text-xs">
-              <button
-                type="button"
-                onClick={() => setIsLogin(!isLogin)}
-                className="uppercase tracking-wider font-bold text-foreground underline-offset-4 hover:underline"
-              >
-                {isLogin ? "No account? Register →" : "Already have one? Sign in →"}
-              </button>
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="text-lg"
+              />
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Пароль</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={8}
+                className="text-lg"
+              />
+            </div>
+
+            {error && (
+              <div className="flex items-start gap-2.5 text-sm text-destructive">
+                <IconAlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <Button type="submit" disabled={loading} size="lg" className="w-full">
+              {loading ? (
+                <>
+                  <DevelopingSpinner className="h-4 w-4" />
+                  Проявляем…
+                </>
+              ) : isLogin ? (
+                "Войти"
+              ) : (
+                "Создать аккаунт"
+              )}
+            </Button>
+          </form>
+
+          <div className="mt-8 border-t border-border pt-6">
+            <button
+              type="button"
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-primary hover:underline"
+            >
+              {isLogin ? "Нет аккаунта? Создать" : "Уже есть аккаунт? Войти"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

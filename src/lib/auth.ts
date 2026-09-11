@@ -1,11 +1,11 @@
 import { betterAuth } from "better-auth";
-import { SQL } from "bun";
 import { Kysely } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
+import postgres from "postgres";
 
 const kysely = new Kysely({
   dialect: new PostgresJSDialect({
-    postgres: new SQL(process.env.DATABASE_URL!, { max: 10 }),
+    postgres: postgres(process.env.DATABASE_URL!, { max: 10 }),
   }),
 });
 

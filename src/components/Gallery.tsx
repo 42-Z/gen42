@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { IconPhotoPlus } from "@tabler/icons-react";
+import { FrameCorners } from "./graphics";
 
 interface GalleryProps {
   user: any;
@@ -29,46 +29,57 @@ export function Gallery({ user }: GalleryProps) {
   }
 
   if (loading) {
-    return <div className="text-center py-20 text-sm text-muted-foreground">Loading...</div>;
+    return (
+      <div className="py-20 text-center text-sm text-muted-foreground">Загрузка…</div>
+    );
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-4xl font-black uppercase tracking-tighter text-foreground">Gallery</h2>
-        <Badge variant="outline">{images.length} image{images.length === 1 ? "" : "s"}</Badge>
-      </div>
+    <div className="mx-auto max-w-7xl">
+      <h2 className="font-display text-3xl font-bold tracking-tight text-foreground">
+        Галерея
+      </h2>
 
       {images.length === 0 ? (
-        <Card>
-          <CardContent className="py-16 text-center">
-            <p className="text-sm text-muted-foreground">
-              No images yet. Run a generation to fill this space.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col items-center gap-4 py-28 text-center">
+          <IconPhotoPlus className="h-10 w-10 text-muted-foreground/50" strokeWidth={1.5} />
+          <p className="text-sm text-muted-foreground">
+            Пока пусто. Сделайте первую генерацию — она появится здесь.
+          </p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 border-2 border-foreground">
+        <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
           {images.map((img, idx) => (
-            <div
+            <figure
               key={img.id}
-              className={`bg-card ${idx !== images.length - 1 ? "border-b-2 md:border-b-2 md:border-r-2 lg:border-r-2 border-foreground" : ""} ${(idx + 1) % 3 !== 0 ? "lg:border-r-2 border-foreground" : ""} md:[&:nth-child(2n)]:border-r-0 lg:[&:nth-child(3n)]:border-r-0 md:[&:nth-child(2n+1)]:border-r-2 lg:[&:nth-child(3n+2)]:border-r-2`}
+              className="group animate-develop"
+              style={{ animationDelay: `${Math.min(idx * 60, 400)}ms` }}
             >
-              <div className="aspect-square overflow-hidden bg-muted border-b-2 border-foreground">
+              <div className="relative aspect-square overflow-hidden rounded-md bg-muted">
                 <img
                   src={img.image_url}
                   alt={img.prompt}
-                  className="w-full h-full object-cover block"
+                  loading="lazy"
+                  className="block h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                 />
+                <span className="pointer-events-none absolute left-3 top-3 rounded bg-background/70 px-2 py-0.5 font-display text-[10px] tabular-nums text-foreground/90 backdrop-blur-sm">
+                  №{String(idx + 1).padStart(2, "0")}
+                </span>
+                <FrameCorners className="pointer-events-none absolute right-3 top-3 h-5 w-5 text-foreground/70 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
               </div>
-              <div className="p-4 space-y-2">
-                <p className="text-sm line-clamp-2 text-foreground">{img.prompt}</p>
-                <div className="flex items-center justify-between text-xs text-muted-foreground tabular-nums">
-                  <span>{new Date(img.created_at).toLocaleDateString()}</span>
+              <figcaption className="mt-3 space-y-1">
+                <p className="line-clamp-2 text-sm text-foreground">{img.prompt}</p>
+                <div className="flex items-center justify-between text-xs tabular-nums text-muted-foreground">
+                  <span>
+                    {new Date(img.created_at).toLocaleDateString("ru-RU", {
+                      day: "numeric",
+                      month: "short",
+                    })}
+                  </span>
                   {img.seed !== null && img.seed !== undefined && <span>seed {img.seed}</span>}
                 </div>
-              </div>
-            </div>
+              </figcaption>
+            </figure>
           ))}
         </div>
       )}

@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { IconSparkles, IconPhotoOff } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { DevelopingSpinner, FrameCorners } from "./graphics";
 
 interface GenerateProps {
   user: any;
@@ -11,7 +11,6 @@ interface GenerateProps {
 
 export function Generate({ user }: GenerateProps) {
   const [prompt, setPrompt] = useState("");
-  const [negativePrompt, setNegativePrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
@@ -29,7 +28,6 @@ export function Generate({ user }: GenerateProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt,
-          negativePrompt,
           model: "Turbo",
           width: 1024,
           height: 1024,
@@ -40,7 +38,7 @@ export function Generate({ user }: GenerateProps) {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Generation failed");
+        throw new Error(data.error || "Ошибка генерации");
       }
 
       const data = await res.json();
@@ -53,88 +51,88 @@ export function Generate({ user }: GenerateProps) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div>
-        <h2 className="text-4xl font-black uppercase tracking-tighter text-foreground">Generate</h2>
+    <div className="mx-auto max-w-5xl">
+      <div className="animate-develop">
+        <h2 className="font-display text-3xl font-bold tracking-tight text-foreground">
+          Генерация
+        </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          One prompt, one credit, ~30 seconds. Krea-2 turbo on ZeroGPU.
+          Опишите, что хотите увидеть. Один кредит — одно изображение.
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>New image</CardTitle>
-          <CardDescription>Be specific. Describe subject, lighting, mood, composition.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <div className="flex items-baseline justify-between">
-                <Label htmlFor="prompt">Prompt</Label>
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {prompt.length}/1000
-                </span>
-              </div>
-              <Textarea
-                id="prompt"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                rows={4}
-                placeholder="a lone lighthouse on a cliff, fog, night, cinematic, 35mm, kodak portra 400..."
-                maxLength={1000}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="negative">Negative prompt</Label>
-              <Textarea
-                id="negative"
-                value={negativePrompt}
-                onChange={(e) => setNegativePrompt(e.target.value)}
-                rows={2}
-                placeholder="blurry, lowres, watermark, text..."
-              />
-            </div>
-
-            {error && (
-              <div className="border-2 border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
-
-            <Button
-              onClick={handleGenerate}
-              disabled={loading || !prompt.trim()}
-              size="lg"
-              className="w-full"
-            >
-              {loading ? "Generating..." : "Run generation"}
-            </Button>
+      <div className="animate-develop mt-12 space-y-10 [animation-delay:80ms]">
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <Label htmlFor="prompt" className="text-sm font-medium text-foreground">
+              Промпт
+            </Label>
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {prompt.length}/1000
+            </span>
           </div>
-        </CardContent>
-      </Card>
+          <Textarea
+            id="prompt"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            rows={4}
+            placeholder="одинокий маяк на скале, туман, ночь, кинематографично, 35мм…"
+            maxLength={1000}
+            className="text-lg leading-relaxed"
+          />
+        </div>
+
+        {error && (
+          <div className="flex items-start gap-2.5 text-sm text-destructive">
+            <IconPhotoOff className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <Button
+          onClick={handleGenerate}
+          disabled={loading || !prompt.trim()}
+          size="lg"
+          className="w-full sm:w-auto sm:min-w-64"
+        >
+          {loading ? (
+            <>
+              <DevelopingSpinner className="h-4 w-4" />
+              Проявляем…
+            </>
+          ) : (
+            <>
+              <IconSparkles className="h-4 w-4" />
+              Сгенерировать
+            </>
+          )}
+        </Button>
+      </div>
+
+      {loading && (
+        <div className="animate-develop mt-16 flex flex-col items-center gap-4 border-y border-border py-20">
+          <DevelopingSpinner className="h-10 w-10 text-primary" />
+          <p className="text-sm text-muted-foreground">Кадр проявляется, не трогайте плёнку…</p>
+        </div>
+      )}
 
       {result && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Result</CardTitle>
-            <CardDescription>
-              <span className="tabular-nums">seed {result.seed}</span>
-              <span className="mx-2">·</span>
-              <span className="tabular-nums">{result.duration}ms</span>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="border-2 border-foreground overflow-hidden">
-              <img src={result.image_url} alt="Generated" className="w-full block" />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge>seed {result.seed}</Badge>
-              <Badge variant="outline">turbo</Badge>
-              <Badge variant="outline">1024×1024</Badge>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="animate-develop mt-16">
+          <div className="flex items-baseline justify-between border-t border-border pt-6">
+            <h3 className="font-display text-xl font-semibold text-foreground">Готово</h3>
+            <span className="text-sm tabular-nums text-muted-foreground">
+              Seed: {result.seed}
+            </span>
+          </div>
+          <div className="group relative mt-6 overflow-hidden rounded-md">
+            <img
+              src={result.image_url}
+              alt="Сгенерированное изображение"
+              className="block w-full transition-transform duration-500 group-hover:scale-[1.015]"
+            />
+            <FrameCorners className="pointer-events-none absolute left-3 top-3 h-6 w-6 text-foreground/80 drop-shadow" />
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,5 +1,12 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "bunVersion": "1.4.x",
+  "framework": "bun",
   "buildCommand": "bun run build",
   "outputDirectory": "dist",
-  "framework": null
+  "functions": {
+    "src/server.ts": {
+      "includeFiles": "node_modules/{@better-auth/telemetry,better-auth/node_modules/@better-auth/utils,@noble/ciphers,@noble/hashes}/**"
+    }
+  }
 }

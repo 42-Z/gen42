@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Auth } from "./Auth";
 import { Generate } from "./Generate";
 import { Gallery } from "./Gallery";
 import { Admin } from "./Admin";
+import { DevelopingSpinner } from "./graphics";
 
 interface User {
   id: string;
@@ -44,10 +44,8 @@ export function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-background text-foreground">
-        <span className="text-xs uppercase tracking-[0.5em] text-muted-foreground animate-pulse">
-          loading
-        </span>
+      <div className="safelight film-grain flex min-h-screen w-full items-center justify-center">
+        <DevelopingSpinner className="h-12 w-12 animate-pulse-dot text-primary" />
       </div>
     );
   }
@@ -57,57 +55,49 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-background text-foreground">
-      <header className="border-b-2 border-foreground bg-background sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-5 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-baseline gap-3">
-            <h1 className="text-2xl font-black tracking-tighter uppercase">gen42</h1>
-            <Badge variant="outline">krea-2 turbo</Badge>
-          </div>
+    <div className="safelight film-grain min-h-screen w-full">
+      <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4">
+          <h1 className="font-display text-xl font-bold tracking-tight text-foreground">
+            gen42
+          </h1>
 
-          <nav className="flex items-center gap-2">
+          <nav className="flex items-center gap-1.5">
             <NavButton active={view === "generate"} onClick={() => setView("generate")}>
-              Generate
+              Генерация
             </NavButton>
             <NavButton active={view === "gallery"} onClick={() => setView("gallery")}>
-              Gallery
+              Галерея
             </NavButton>
             {user.isAdmin && (
               <NavButton active={view === "admin"} onClick={() => setView("admin")}>
-                Admin
+                Админка
               </NavButton>
             )}
-            <div className="ml-2 pl-2 border-l-2 border-foreground flex items-center gap-3">
-              <div className="text-xs text-muted-foreground hidden sm:block tabular-nums">
+            <div className="ml-3 flex items-center gap-3 border-l border-border pl-3">
+              <div className="hidden text-sm text-muted-foreground sm:block">
                 {user.email}
               </div>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={async () => {
                   await fetch("/api/auth/sign-out", { method: "POST" });
                   setUser(null);
                 }}
               >
-                Sign out
+                Выйти
               </Button>
             </div>
           </nav>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-12">
+      <main className="mx-auto max-w-7xl px-6 py-12">
         {view === "generate" && <Generate user={user} />}
         {view === "gallery" && <Gallery user={user} />}
         {view === "admin" && user.isAdmin && <Admin />}
       </main>
-
-      <footer className="border-t-2 border-foreground mt-20">
-        <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between text-xs uppercase tracking-widest text-muted-foreground">
-          <span>gen42 · krea-2 turbo · zerogpu</span>
-          <span className="tabular-nums">v0.1</span>
-        </div>
-      </footer>
     </div>
   );
 }
@@ -124,10 +114,10 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border-2 transition-colors ${
+      className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
         active
-          ? "bg-foreground text-background border-foreground"
-          : "bg-transparent text-foreground border-transparent hover:border-foreground"
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
       }`}
     >
       {children}
