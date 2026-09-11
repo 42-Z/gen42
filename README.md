@@ -9,7 +9,7 @@
 - Монолит на Bun: один сервер отдаёт и API, и собранный фронтенд
 - React 19 + Tailwind v4, UI-компоненты shadcn/ui, иконки Tabler
 - Аутентификация Better Auth (email/password), сессии в Postgres
-- База — Neon Postgres, картинки — S3-совместимое хранилище (Bun S3)
+- База — PostgreSQL (любая из `DATABASE_URL`), картинки — S3-совместимое хранилище (Bun S3)
 - Изображения генерирует Krea-2 Space на HuggingFace через пул API-ключей с дневными лимитами и автоматической ротацией
 - Кредиты: у каждого пользователя баланс, одна генерация = один кредит; админ может менять баланс
 - Админка: статистика, управление кредитами и ключами
@@ -29,7 +29,7 @@ bun dev                # http://localhost:3000
 
 | Переменная | Назначение |
 |---|---|
-| `DATABASE_URL` | Neon Postgres (обязателен `sslmode=require`) |
+| `DATABASE_URL` | Строка подключения PostgreSQL |
 | `BETTER_AUTH_SECRET` | Секрет Better Auth, минимум 32 символа |
 | `BETTER_AUTH_URL` | Базовый URL приложения |
 | `ADMIN_EMAIL` | Email, который получает права админа |
