@@ -21,6 +21,7 @@ bun install
 cp .env.example .env   # заполнить переменные
 bun run db:migrate     # создать таблицы
 bun dev                # http://localhost:3000
+bun test               # тесты
 ```
 
 Первый пользователь с email из `ADMIN_EMAIL` становится админом при регистрации.
