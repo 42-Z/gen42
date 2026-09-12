@@ -74,7 +74,12 @@ export async function importKeysFromCsv(csvPath: string): Promise<number> {
 
   if (rows.length === 0) return 0;
 
-  await sql`INSERT INTO api_keys (id, name, key) ${sql(rows.map(r => ({ id: crypto.randomUUID(), ...r })))}
+  await sql`INSERT INTO api_keys ${sql(
+    rows.map((r) => ({ id: crypto.randomUUID(), name: r.name, key: r.key })),
+    "id",
+    "name",
+    "key",
+  )}
     ON CONFLICT (key) DO NOTHING`;
 
   return rows.length;

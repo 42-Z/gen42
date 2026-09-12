@@ -26,6 +26,18 @@ export function App() {
     checkSession();
   }, []);
 
+  async function refreshBalance() {
+    try {
+      const res = await fetch("/api/me");
+      if (res.ok) {
+        const me = await res.json();
+        if (typeof me.balance === "number") setBalance(me.balance);
+      }
+    } catch {
+      /* баланс подтянется при следующей загрузке */
+    }
+  }
+
   async function checkSession() {
     try {
       const res = await fetch("/api/auth/get-session");
@@ -47,6 +59,11 @@ export function App() {
     }
   }
 
+  async function handleLogin(user: any) {
+    setUser(user);
+    await refreshBalance();
+  }
+
   if (loading) {
     return (
       <div className="safelight film-grain flex min-h-screen w-full items-center justify-center">
@@ -56,7 +73,7 @@ export function App() {
   }
 
   if (!user) {
-    return <Auth onLogin={setUser} />;
+    return <Auth onLogin={handleLogin} />;
   }
 
   return (

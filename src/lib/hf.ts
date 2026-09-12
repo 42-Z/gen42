@@ -36,26 +36,22 @@ export async function generateImage(params: GenerateParams, apiKey: string): Pro
     seed = null,
   } = params;
 
-  const submitResponse = await fetch(`${HF_API_BASE}/call/generate`, {
+  const submitResponse = await fetch(`${HF_API_BASE}/call/v2/generate`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      data: [
-        {
-          prompt,
-          negative_prompt: negativePrompt,
-          model,
-          width,
-          height,
-          steps,
-          guidance: 0.0,
-          seed,
-          randomize: seed === null,
-        },
-      ],
+      prompt,
+      negative_prompt: negativePrompt,
+      model,
+      steps,
+      guidance: 0.0,
+      width,
+      height,
+      seed: seed ?? 0,
+      randomize: seed === null,
     }),
   });
 
@@ -74,7 +70,7 @@ export async function generateImage(params: GenerateParams, apiKey: string): Pro
 
   try {
     const resultResponse = await fetch(
-      `${HF_API_BASE}/call/generate/${event_id}`,
+      `${HF_API_BASE}/call/v2/generate/${event_id}`,
       {
         headers: { Authorization: `Bearer ${apiKey}` },
         signal: controller.signal,

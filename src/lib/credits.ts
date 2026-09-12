@@ -19,7 +19,7 @@ export async function addCredits(userId: string, amount: number): Promise<number
   const [row] = await sql`
     INSERT INTO credits (user_id, balance) VALUES (${userId}, ${amount})
     ON CONFLICT (user_id)
-    DO UPDATE SET balance = balance + ${amount}, updated_at = NOW()
+    DO UPDATE SET balance = credits.balance + ${amount}, updated_at = NOW()
     RETURNING balance
   `;
   return row.balance;
