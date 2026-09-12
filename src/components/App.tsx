@@ -5,7 +5,8 @@ import { Auth } from "./Auth";
 import { Generate } from "./Generate";
 import { Gallery } from "./Gallery";
 import { Admin } from "./Admin";
-import { DevelopingSpinner } from "./graphics";
+import { MeshBackground, PopLogo, PopSpinner } from "./graphics";
+import { cn } from "@/lib/utils";
 
 interface User {
   id: string;
@@ -16,15 +17,37 @@ interface User {
 
 type View = "generate" | "gallery" | "admin";
 
+function viewFromHash(): View {
+  const h = window.location.hash.replace(/^#\/?/, "");
+  if (h === "gallery") return "gallery";
+  if (h === "admin") return "admin";
+  return "generate";
+}
+
 export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
-  const [view, setView] = useState<View>("generate");
+  const [view, setView] = useState<View>(() => viewFromHash());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     checkSession();
   }, []);
+
+  useEffect(() => {
+    function onHash() {
+      setView(viewFromHash());
+    }
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  // Админка только для админа: чужим — обратно на генерацию
+  useEffect(() => {
+    if (!loading && user && view === "admin" && !user.isAdmin) {
+      window.location.hash = "#/";
+    }
+  }, [view, user, loading]);
 
   async function refreshBalance() {
     try {
@@ -66,8 +89,9 @@ export function App() {
 
   if (loading) {
     return (
-      <div className="safelight film-grain flex min-h-screen w-full items-center justify-center">
-        <DevelopingSpinner className="h-12 w-12 animate-pulse-dot text-primary" />
+      <div className="pop-noise relative flex min-h-screen w-full items-center justify-center">
+        <MeshBackground />
+        <PopSpinner className="h-12 w-12 text-primary" />
       </div>
     );
   }
@@ -77,33 +101,34 @@ export function App() {
   }
 
   return (
-    <div className="safelight film-grain min-h-screen w-full">
+    <div className="pop-noise relative min-h-screen w-full">
+      <MeshBackground />
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4">
-          <h1 className="font-display text-xl font-bold tracking-tight text-foreground">
-            gen42
-          </h1>
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-4">
+          <a href="#/" aria-label="gen42 — на главную">
+            <PopLogo />
+          </a>
 
-          <nav className="flex flex-wrap items-center gap-1.5">
-            <NavButton active={view === "generate"} onClick={() => setView("generate")}>
+          <nav aria-label="Основная навигация" className="flex flex-wrap items-center gap-1.5">
+            <NavLink href="#/" active={view === "generate"}>
               Генерация
-            </NavButton>
-            <NavButton active={view === "gallery"} onClick={() => setView("gallery")}>
+            </NavLink>
+            <NavLink href="#/gallery" active={view === "gallery"}>
               Галерея
-            </NavButton>
+            </NavLink>
             {user.isAdmin && (
-              <NavButton active={view === "admin"} onClick={() => setView("admin")}>
+              <NavLink href="#/admin" active={view === "admin"}>
                 Админка
-              </NavButton>
+              </NavLink>
             )}
             <div className="ml-3 flex items-center gap-3 border-l border-border pl-3">
               {balance !== null && (
                 <div
-                  className="flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 py-1 pl-2.5 pr-3 text-sm tabular-nums"
+                  className="flex items-center gap-1.5 rounded-full border border-border bg-card py-1 pl-2.5 pr-3 text-sm tabular-nums"
                   title="Один кредит — одно изображение"
                 >
                   <IconCoins
-                    className={`h-4 w-4 ${balance > 0 ? "text-primary" : "text-muted-foreground"}`}
+                    className={cn("h-4 w-4", balance > 0 ? "text-[#ffd54a]" : "text-muted-foreground")}
                     strokeWidth={1.75}
                   />
                   <span className={balance > 0 ? "text-foreground" : "text-destructive"}>
@@ -129,7 +154,7 @@ export function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 py-12">
+      <main className="mx-auto max-w-5xl px-6 py-12">
         {view === "generate" && (
           <Generate user={user} balance={balance} onBalanceChange={setBalance} />
         )}
@@ -140,25 +165,27 @@ export function App() {
   );
 }
 
-function NavButton({
+function NavLink({
+  href,
   active,
-  onClick,
   children,
 }: {
+  href: string;
   active: boolean;
-  onClick: () => void;
   children: React.ReactNode;
 }) {
   return (
-    <button
-      onClick={onClick}
-      className={`rounded-full px-4 py-2 text-sm font-medium transition-all active:scale-[0.97] ${
+    <a
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "rounded-full px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]",
         active
-          ? "bg-primary text-primary-foreground"
+          ? "pop-gradient-bg text-white shadow-[0_10px_30px_-12px_rgb(255_92_168/0.7)]"
           : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-      }`}
+      )}
     >
       {children}
-    </button>
+    </a>
   );
 }

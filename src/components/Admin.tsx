@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PopSkeleton, SparkStar } from "./graphics";
 
 export function Admin() {
   const [users, setUsers] = useState<any[]>([]);
@@ -27,12 +28,14 @@ export function Admin() {
   const [creditUserId, setCreditUserId] = useState("");
   const [creditAmount, setCreditAmount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadData();
   }, []);
 
   async function loadData() {
+    setError("");
     try {
       const [usersRes, keysRes, statsRes] = await Promise.all([
         fetch("/api/admin/users"),
@@ -43,8 +46,12 @@ export function Admin() {
       if (usersRes.ok) setUsers(await usersRes.json());
       if (keysRes.ok) setKeys(await keysRes.json());
       if (statsRes.ok) setStats(await statsRes.json());
-    } catch (error) {
-      console.error("Failed to load admin data:", error);
+      if (!usersRes.ok || !keysRes.ok || !statsRes.ok) {
+        setError("Часть данных не загрузилась. Попробуйте обновить.");
+      }
+    } catch (err) {
+      console.error("Failed to load admin data:", err);
+      setError("Не удалось загрузить данные админки.");
     } finally {
       setLoading(false);
     }
@@ -113,60 +120,90 @@ export function Admin() {
   }
 
   if (loading) {
-    return <div className="py-20 text-center text-sm text-muted-foreground">Загрузка…</div>;
+    return (
+      <div className="mx-auto max-w-5xl">
+        <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground">
+          Админка
+        </h2>
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <PopSkeleton key={i} className="h-32" />
+          ))}
+        </div>
+        <PopSkeleton className="mt-6 h-64" />
+      </div>
+    );
   }
 
+  const statsCards = stats
+    ? [
+        { icon: IconPhoto, label: "Всего генераций", value: stats.totalGenerations },
+        { icon: IconCoins, label: "Сегодня", value: stats.todayGenerations },
+        {
+          icon: IconKey,
+          label: "Активные ключи",
+          value: stats.keyUsage?.filter((k: any) => k.is_active).length || 0,
+        },
+      ]
+    : [];
+
   return (
-    <div className="mx-auto max-w-7xl">
-      <div className="animate-develop">
-        <h2 className="font-display text-3xl font-bold tracking-tight text-foreground">Админка</h2>
+    <div className="mx-auto max-w-5xl">
+      <div className="animate-pop-in">
+        <div className="flex items-center gap-2.5">
+          <SparkStar className="h-6 w-6" />
+          <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground">
+            Админка
+          </h2>
+        </div>
         <p className="mt-2 text-sm text-muted-foreground">
-          Управление пользователями, кредитами и HuggingFace-ключами.
+          Управление пользователями, кредитами и ключами генерации.
         </p>
       </div>
 
-      {stats && (
-        <div className="animate-develop mt-10 grid grid-cols-1 gap-8 border-y border-border py-8 sm:grid-cols-3 [animation-delay:80ms]">
-          <div>
-            <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-              <IconPhoto className="h-4 w-4 text-primary" strokeWidth={1.75} />
-              Всего генераций
-            </div>
-            <div className="mt-3 font-display text-4xl font-bold tabular-nums text-foreground">{stats.totalGenerations}</div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-              <IconCoins className="h-4 w-4 text-primary" strokeWidth={1.75} />
-              Сегодня
-            </div>
-            <div className="mt-3 font-display text-4xl font-bold tabular-nums text-foreground">{stats.todayGenerations}</div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-              <IconKey className="h-4 w-4 text-primary" strokeWidth={1.75} />
-              Активные ключи
-            </div>
-            <div className="mt-3 font-display text-4xl font-bold tabular-nums text-foreground">
-              {stats.keyUsage?.filter((k: any) => k.is_active).length || 0}
-            </div>
-          </div>
+      {error && (
+        <div role="alert" className="mt-6 text-sm text-destructive">
+          {error}{" "}
+          <button
+            type="button"
+            onClick={loadData}
+            className="rounded-full font-medium underline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Попробовать снова
+          </button>
         </div>
       )}
 
-      <section className="animate-develop mt-12 [animation-delay:140ms]">
-        <h3 className="font-display text-xl font-semibold text-foreground">Пользователи</h3>
+      {stats && (
+        <div className="animate-pop-in mt-8 grid grid-cols-1 gap-4 [animation-delay:80ms] sm:grid-cols-3">
+          {statsCards.map((s) => (
+            <div key={s.label} className="pop-card p-6">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                <s.icon className="h-4 w-4 text-primary" strokeWidth={1.75} />
+                {s.label}
+              </div>
+              <div className="mt-3 font-display text-4xl font-extrabold tabular-nums text-foreground">
+                {s.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:140ms] sm:p-8">
+        <h3 className="font-display text-xl font-bold text-foreground">Пользователи</h3>
         <p className="mt-1 text-sm text-muted-foreground">
           Изменяйте баланс кредитов. Отрицательное число списывает.
         </p>
 
-        <div className="mt-6 grid grid-cols-1 items-end gap-6 sm:grid-cols-[1fr_160px_auto]">
+        <div className="mt-6 grid grid-cols-1 items-end gap-4 sm:grid-cols-[1fr_160px_auto]">
           <div className="space-y-1.5">
             <Label htmlFor="user-select">Пользователь</Label>
             <select
               id="user-select"
               value={creditUserId}
               onChange={(e) => setCreditUserId(e.target.value)}
-              className="w-full border-0 border-b border-border bg-transparent py-2.5 text-sm text-foreground outline-none transition-colors hover:border-muted-foreground/50 focus-visible:border-primary [&>option]:bg-card"
+              className="w-full rounded-2xl border border-border bg-secondary/60 px-4 py-2.5 text-sm text-foreground outline-none transition-colors hover:border-primary/50 focus-visible:border-primary [&>option]:bg-card"
             >
               <option value="">Выберите пользователя</option>
               {users.map((u) => (
@@ -189,13 +226,13 @@ export function Admin() {
         </div>
       </section>
 
-      <section className="animate-develop mt-14 [animation-delay:200ms]">
-        <h3 className="font-display text-xl font-semibold text-foreground">API-ключи</h3>
+      <section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:200ms] sm:p-8">
+        <h3 className="font-display text-xl font-bold text-foreground">Ключи генерации</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Токены HuggingFace для вызова Krea-2 Space.
+          Токены сервиса картинок. Показываются в сокращённом виде.
         </p>
 
-        <div className="mt-6 grid grid-cols-1 items-end gap-6 sm:grid-cols-[220px_1fr_auto]">
+        <div className="mt-6 grid grid-cols-1 items-end gap-4 sm:grid-cols-[220px_1fr_auto]">
           <div className="space-y-1.5">
             <Label htmlFor="key-name">Название</Label>
             <Input
@@ -217,7 +254,7 @@ export function Admin() {
           <Button onClick={addKey}>Добавить ключ</Button>
         </div>
 
-        <div className="mt-10">
+        <div className="mt-8 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -239,14 +276,14 @@ export function Admin() {
                   <TableCell className="text-right tabular-nums">{k.used_today}</TableCell>
                   <TableCell className="text-right tabular-nums">{k.daily_limit}</TableCell>
                   <TableCell>
-                    <span className="inline-flex items-center gap-1.5 text-xs">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-xs">
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${k.is_active ? "bg-primary" : "bg-destructive"}`}
                       />
                       {k.is_active ? "активен" : "неактивен"}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right space-x-1">
+                  <TableCell className="space-x-1 text-right">
                     <Button variant="ghost" size="icon" title="Сбросить лимит" onClick={() => resetKey(k.id)}>
                       <IconRefresh className="h-4 w-4" />
                     </Button>

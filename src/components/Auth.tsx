@@ -3,7 +3,14 @@ import { IconAlertTriangle } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DevelopingSpinner, Perforations } from "./graphics";
+import {
+  MeshBackground,
+  PopLogo,
+  PopSpinner,
+  SparkStar,
+  StickerRing,
+  StickerSpiral,
+} from "./graphics";
 
 interface AuthProps {
   onLogin: (user: any) => void;
@@ -51,29 +58,36 @@ export function Auth({ onLogin }: AuthProps) {
   }
 
   return (
-    <div className="safelight film-grain min-h-screen w-full">
-      <div className="mx-auto grid min-h-screen w-full max-w-6xl grid-cols-1 items-center gap-16 px-6 py-16 lg:grid-cols-2 lg:gap-24">
-        <div className="animate-develop flex flex-col items-start">
-          <h1 className="font-display text-6xl font-extrabold tracking-tight text-foreground lg:text-7xl">
-            gen42
-          </h1>
-          <p className="mt-4 max-w-sm text-lg leading-relaxed text-muted-foreground">
-            Генерация изображений. Опишите кадр словами — получите картинку.
+    <div className="pop-noise relative min-h-screen w-full overflow-hidden">
+      <MeshBackground />
+      <SparkStar className="animate-float-slow pointer-events-none absolute left-[8%] top-[14%] h-10 w-10" />
+      <StickerSpiral className="animate-float-slow pointer-events-none absolute bottom-[12%] left-[12%] h-16 w-16 opacity-80 [animation-delay:1.2s]" />
+      <StickerRing className="animate-float-slow pointer-events-none absolute right-[10%] top-[20%] h-20 w-20 opacity-70 [animation-delay:2s]" />
+
+      <div className="mx-auto grid min-h-screen w-full max-w-5xl grid-cols-1 items-center gap-12 px-6 py-16 lg:grid-cols-2 lg:gap-16">
+        <div className="animate-pop-in flex flex-col items-start">
+          <PopLogo className="[&_span]:text-5xl lg:[&_span]:text-6xl" />
+          <p className="mt-5 max-w-sm text-lg leading-relaxed text-muted-foreground">
+            Придумывайте картинки словами — получайте готовые кадры.
+            Одна идея — один кредит.
           </p>
-          <Perforations className="mt-10 opacity-50" />
+          <div className="mt-8 flex items-center gap-2 text-sm text-muted-foreground">
+            <SparkStar className="h-4 w-4" />
+            <span>Начните с примера — дальше само пойдёт</span>
+          </div>
         </div>
 
-        <div className="animate-develop w-full [animation-delay:120ms]">
-          <h2 className="font-display text-2xl font-semibold text-foreground">
-            {isLogin ? "Вход" : "Регистрация"}
-          </h2>
+        <div className="animate-pop-in pop-card w-full p-8 [animation-delay:120ms] sm:p-10">
+          <h1 className="font-display text-2xl font-bold text-foreground">
+            {isLogin ? "С возвращением" : "Давайте знакомиться"}
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {isLogin
               ? "Введите свои данные, чтобы продолжить"
               : "Создайте аккаунт, чтобы начать генерацию"}
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-10 space-y-8">
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             {!isLogin && (
               <div className="space-y-1.5">
                 <Label htmlFor="name">Имя</Label>
@@ -83,7 +97,7 @@ export function Auth({ onLogin }: AuthProps) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required={!isLogin}
-                  className="text-lg"
+                  placeholder="Как вас называть?"
                 />
               </div>
             )}
@@ -96,7 +110,7 @@ export function Auth({ onLogin }: AuthProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="text-lg"
+                placeholder="you@example.com"
               />
             </div>
 
@@ -109,12 +123,12 @@ export function Auth({ onLogin }: AuthProps) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
-                className="text-lg"
+                placeholder="Минимум 8 символов"
               />
             </div>
 
             {error && (
-              <div className="flex items-start gap-2.5 text-sm text-destructive">
+              <div role="alert" className="flex items-start gap-2.5 text-sm text-destructive">
                 <IconAlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{error}</span>
               </div>
@@ -123,8 +137,8 @@ export function Auth({ onLogin }: AuthProps) {
             <Button type="submit" disabled={loading} size="lg" className="w-full">
               {loading ? (
                 <>
-                  <DevelopingSpinner className="h-4 w-4" />
-                  Проявляем…
+                  <PopSpinner className="h-4 w-4" />
+                  Секунду…
                 </>
               ) : isLogin ? (
                 "Войти"
@@ -138,7 +152,7 @@ export function Auth({ onLogin }: AuthProps) {
             <button
               type="button"
               onClick={() => setIsLogin(!isLogin)}
-              className="text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-primary hover:underline"
+              className="rounded-full text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {isLogin ? "Нет аккаунта? Создать" : "Уже есть аккаунт? Войти"}
             </button>
