@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { IconCoins } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { Auth } from "./Auth";
 import { Generate } from "./Generate";
@@ -17,6 +18,7 @@ type View = "generate" | "gallery" | "admin";
 
 export function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
   const [view, setView] = useState<View>("generate");
   const [loading, setLoading] = useState(true);
 
@@ -31,8 +33,11 @@ export function App() {
         const data = await res.json();
         if (data?.user) {
           const meRes = await fetch("/api/me");
-          const me = meRes.ok ? await meRes.json() : { is_admin: false };
+          const me = meRes.ok
+            ? await meRes.json()
+            : { is_admin: false, balance: null };
           setUser({ ...data.user, isAdmin: me.is_admin });
+          setBalance(me.balance ?? null);
         }
       }
     } catch (error) {
@@ -62,7 +67,7 @@ export function App() {
             gen42
           </h1>
 
-          <nav className="flex items-center gap-1.5">
+          <nav className="flex flex-wrap items-center gap-1.5">
             <NavButton active={view === "generate"} onClick={() => setView("generate")}>
               Генерация
             </NavButton>
@@ -75,6 +80,20 @@ export function App() {
               </NavButton>
             )}
             <div className="ml-3 flex items-center gap-3 border-l border-border pl-3">
+              {balance !== null && (
+                <div
+                  className="flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 py-1 pl-2.5 pr-3 text-sm tabular-nums"
+                  title="Один кредит — одно изображение"
+                >
+                  <IconCoins
+                    className={`h-4 w-4 ${balance > 0 ? "text-primary" : "text-muted-foreground"}`}
+                    strokeWidth={1.75}
+                  />
+                  <span className={balance > 0 ? "text-foreground" : "text-destructive"}>
+                    {balance}
+                  </span>
+                </div>
+              )}
               <div className="hidden text-sm text-muted-foreground sm:block">
                 {user.email}
               </div>
@@ -94,7 +113,9 @@ export function App() {
       </header>
 
       <main className="mx-auto max-w-7xl px-6 py-12">
-        {view === "generate" && <Generate user={user} />}
+        {view === "generate" && (
+          <Generate user={user} balance={balance} onBalanceChange={setBalance} />
+        )}
         {view === "gallery" && <Gallery user={user} />}
         {view === "admin" && user.isAdmin && <Admin />}
       </main>
@@ -114,7 +135,7 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+      className={`rounded-full px-4 py-2 text-sm font-medium transition-all active:scale-[0.97] ${
         active
           ? "bg-primary text-primary-foreground"
           : "text-muted-foreground hover:bg-secondary hover:text-foreground"

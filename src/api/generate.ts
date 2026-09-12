@@ -6,7 +6,7 @@ import {
   incrementKeyUsage,
   AllKeysExhaustedError,
 } from "../lib/keys";
-import { deductCredit, refundCredit, InsufficientCreditsError } from "../lib/credits";
+import { deductCredit, refundCredit, getCredits, InsufficientCreditsError } from "../lib/credits";
 import { generateImage, KeyExhaustedError } from "../lib/hf";
 import { uploadImage, getImageUrl } from "../lib/storage";
 import { checkRateLimit } from "../lib/rate-limit";
@@ -146,9 +146,11 @@ export const generateRoutes = {
       if (!session) {
         return Response.json({ user: null, is_admin: false });
       }
+      const balance = await getCredits(session.user.id);
       return Response.json({
         user: { id: session.user.id, email: session.user.email, name: session.user.name },
         is_admin: session.user.email === process.env.ADMIN_EMAIL,
+        balance,
       });
     },
   },

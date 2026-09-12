@@ -98,3 +98,10 @@
 .animate-pulse-dot {
   animation: pulse-dot 1.4s ease-in-out infinite;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-develop,
+  .animate-pulse-dot {
+    animation: none;
+  }
+}

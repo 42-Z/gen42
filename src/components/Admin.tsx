@@ -233,7 +233,9 @@ export function Admin() {
               {keys.map((k) => (
                 <TableRow key={k.id}>
                   <TableCell className="font-semibold">{k.name}</TableCell>
-                  <TableCell className="font-mono text-xs">{k.key}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {k.key.length > 12 ? `${k.key.slice(0, 6)}…${k.key.slice(-4)}` : "•••"}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{k.used_today}</TableCell>
                   <TableCell className="text-right tabular-nums">{k.daily_limit}</TableCell>
                   <TableCell>
