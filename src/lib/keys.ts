@@ -1,5 +1,4 @@
 import { sql } from "./db";
-import { readFile } from "node:fs/promises";
 
 export interface ApiKeyRow {
   id: string;
@@ -57,30 +56,4 @@ export async function incrementKeyUsage(keyId: string): Promise<void> {
     SET used_today = used_today + 1, last_used_at = NOW()
     WHERE id = ${keyId}
   `;
-}
-
-export async function importKeysFromCsv(csvPath: string): Promise<number> {
-  const text = await readFile(csvPath, "utf-8");
-  const rows: { name: string; key: string }[] = [];
-
-  for (const line of text.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const [name, key] = trimmed.split(";");
-    if (name && key?.startsWith("hf_")) {
-      rows.push({ name: name.trim(), key: key.trim() });
-    }
-  }
-
-  if (rows.length === 0) return 0;
-
-  await sql`INSERT INTO api_keys ${sql(
-    rows.map((r) => ({ id: crypto.randomUUID(), name: r.name, key: r.key })),
-    "id",
-    "name",
-    "key",
-  )}
-    ON CONFLICT (key) DO NOTHING`;
-
-  return rows.length;
 }

@@ -18,9 +18,14 @@ describe("HuggingFace client", () => {
 
   test("успешный ответ парсится в imageUrl и seed", async () => {
     const sse = 'event: complete\ndata: [{"url": "https://img.test/1.png"}, 123456]\n';
-    const fetchMock = mock(async (url: string | URL) => {
+    const calls: { url: string; body: any }[] = [];
+    const fetchMock = mock(async (url: string | URL, init?: RequestInit) => {
       const u = String(url);
-      if (u.endsWith("/call/generate")) {
+      calls.push({
+        url: u,
+        body: init?.body ? JSON.parse(String(init.body)) : null,
+      });
+      if (u.endsWith("/call/v2/generate")) {
         return Response.json({ event_id: "abc" });
       }
       return new Response(sse, { status: 200, headers: { "Content-Type": "text/event-stream" } });
@@ -31,5 +36,11 @@ describe("HuggingFace client", () => {
     const result = await generateImage({ prompt: "cat" }, "hf_key");
     expect(result.imageUrl).toBe("https://img.test/1.png");
     expect(result.seed).toBe(123456);
+
+    // payload — именованные поля, без старого data-массива (иначе Space отдаёт event: error)
+    expect(calls[0].url).toContain("/call/v2/generate");
+    expect(calls[0].body.prompt).toBe("cat");
+    expect(calls[0].body.data).toBeUndefined();
+    expect(calls[1].url).toContain("/call/v2/generate/abc");
   });
 });
