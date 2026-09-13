@@ -205,7 +205,10 @@ export function Admin() {
               <SelectTrigger
                 id="user-select"
                 className="w-full rounded-2xl border-border bg-secondary/60"
-                title={users.find((u) => u.id === creditUserId)?.email}
+                title={(() => {
+                  const u = users.find((x) => x.id === creditUserId);
+                  return u ? `${u.email} (баланс ${u.balance})` : undefined;
+                })()}
               >
                 <SelectValue />
               </SelectTrigger>

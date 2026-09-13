@@ -24,7 +24,6 @@ import {
 } from "./graphics";
 
 interface GenerateProps {
-  user: any;
   balance: number | null;
   onBalanceChange: (balance: number) => void;
 }
@@ -38,7 +37,7 @@ const EXAMPLE_PROMPTS = [
 
 const HISTORY_LIMIT = 8;
 
-export function Generate({ user, balance, onBalanceChange }: GenerateProps) {
+export function Generate({ balance, onBalanceChange }: GenerateProps) {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);

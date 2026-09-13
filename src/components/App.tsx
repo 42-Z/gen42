@@ -148,7 +148,7 @@ export function App() {
         {view === "admin" && user.isAdmin ? (
           <Admin />
         ) : (
-          <Generate user={user} balance={balance} onBalanceChange={setBalance} />
+          <Generate balance={balance} onBalanceChange={setBalance} />
         )}
       </main>
     </div>
