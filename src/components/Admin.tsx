@@ -17,6 +17,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PopSkeleton, SparkStar } from "./graphics";
 
 export function Admin() {
@@ -78,6 +85,7 @@ export function Admin() {
   }
 
   async function deleteKey(id: string) {
+    if (!window.confirm("Удалить ключ? Действие необратимо.")) return;
     try {
       const res = await fetch(`/api/admin/keys/${id}`, { method: "DELETE" });
       if (res.ok) {
@@ -156,9 +164,6 @@ export function Admin() {
             Админка
           </h2>
         </div>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Управление пользователями, кредитами и ключами генерации.
-        </p>
       </div>
 
       {error && (
@@ -192,26 +197,22 @@ export function Admin() {
 
       <section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:140ms] sm:p-8">
         <h3 className="font-display text-xl font-bold text-foreground">Пользователи</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Изменяйте баланс кредитов. Отрицательное число списывает.
-        </p>
 
         <div className="mt-6 grid grid-cols-1 items-end gap-4 sm:grid-cols-[1fr_160px_auto]">
           <div className="space-y-1.5">
             <Label htmlFor="user-select">Пользователь</Label>
-            <select
-              id="user-select"
-              value={creditUserId}
-              onChange={(e) => setCreditUserId(e.target.value)}
-              className="w-full rounded-2xl border border-border bg-secondary/60 px-4 py-2.5 text-sm text-foreground outline-none transition-colors hover:border-primary/50 focus-visible:border-primary [&>option]:bg-card"
-            >
-              <option value="">Выберите пользователя</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.email} (баланс {u.balance})
-                </option>
-              ))}
-            </select>
+            <Select value={creditUserId} onValueChange={setCreditUserId}>
+              <SelectTrigger id="user-select" className="w-full rounded-2xl border-border bg-secondary/60">
+                <SelectValue placeholder="Выберите пользователя" />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.email} (баланс {u.balance})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="amount">Количество</Label>
@@ -228,9 +229,6 @@ export function Admin() {
 
       <section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:200ms] sm:p-8">
         <h3 className="font-display text-xl font-bold text-foreground">Ключи генерации</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Токены сервиса картинок. Показываются в сокращённом виде.
-        </p>
 
         <div className="mt-6 grid grid-cols-1 items-end gap-4 sm:grid-cols-[220px_1fr_auto]">
           <div className="space-y-1.5">
@@ -239,7 +237,6 @@ export function Admin() {
               id="key-name"
               value={newKeyName}
               onChange={(e) => setNewKeyName(e.target.value)}
-              placeholder="prod-1"
             />
           </div>
           <div className="space-y-1.5">
@@ -248,7 +245,6 @@ export function Admin() {
               id="key-value"
               value={newKeyValue}
               onChange={(e) => setNewKeyValue(e.target.value)}
-              placeholder="hf_..."
             />
           </div>
           <Button onClick={addKey}>Добавить ключ</Button>
@@ -284,10 +280,10 @@ export function Admin() {
                     </span>
                   </TableCell>
                   <TableCell className="space-x-1 text-right">
-                    <Button variant="ghost" size="icon" title="Сбросить лимит" onClick={() => resetKey(k.id)}>
+                    <Button variant="ghost" size="icon" title="Сбросить лимит" aria-label="Сбросить лимит" onClick={() => resetKey(k.id)}>
                       <IconRefresh className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" title="Удалить ключ" onClick={() => deleteKey(k.id)} className="text-destructive hover:text-destructive">
+                    <Button variant="ghost" size="icon" title="Удалить ключ" aria-label="Удалить ключ" onClick={() => deleteKey(k.id)} className="text-destructive hover:text-destructive">
                       <IconTrash className="h-4 w-4" />
                     </Button>
                   </TableCell>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { IconAlertTriangle } from "@tabler/icons-react";
+import { IconAlertTriangle, IconArrowRight } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,25 +67,12 @@ export function Auth({ onLogin }: AuthProps) {
       <div className="mx-auto grid min-h-screen w-full max-w-5xl grid-cols-1 items-center gap-12 px-6 py-16 lg:grid-cols-2 lg:gap-16">
         <div className="animate-pop-in flex flex-col items-start">
           <PopLogo className="[&_span]:text-5xl lg:[&_span]:text-6xl" />
-          <p className="mt-5 max-w-sm text-lg leading-relaxed text-muted-foreground">
-            Придумывайте картинки словами — получайте готовые кадры.
-            Одна идея — один кредит.
-          </p>
-          <div className="mt-8 flex items-center gap-2 text-sm text-muted-foreground">
-            <SparkStar className="h-4 w-4" />
-            <span>Начните с примера — дальше само пойдёт</span>
-          </div>
         </div>
 
         <div className="animate-pop-in pop-card w-full p-8 [animation-delay:120ms] sm:p-10">
           <h1 className="font-display text-2xl font-bold text-foreground">
-            {isLogin ? "С возвращением" : "Давайте знакомиться"}
+            {isLogin ? "Вход" : "Регистрация"}
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {isLogin
-              ? "Введите свои данные, чтобы продолжить"
-              : "Создайте аккаунт, чтобы начать генерацию"}
-          </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             {!isLogin && (
@@ -97,7 +84,7 @@ export function Auth({ onLogin }: AuthProps) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required={!isLogin}
-                  placeholder="Как вас называть?"
+                  autoComplete="name"
                 />
               </div>
             )}
@@ -110,7 +97,7 @@ export function Auth({ onLogin }: AuthProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="you@example.com"
+                autoComplete="email"
               />
             </div>
 
@@ -123,7 +110,7 @@ export function Auth({ onLogin }: AuthProps) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
-                placeholder="Минимум 8 символов"
+                autoComplete={isLogin ? "current-password" : "new-password"}
               />
             </div>
 
@@ -136,14 +123,12 @@ export function Auth({ onLogin }: AuthProps) {
 
             <Button type="submit" disabled={loading} size="lg" className="w-full">
               {loading ? (
-                <>
-                  <PopSpinner className="h-4 w-4" />
-                  Секунду…
-                </>
-              ) : isLogin ? (
-                "Войти"
+                <PopSpinner className="h-4 w-4" aria-label="Загрузка" />
               ) : (
-                "Создать аккаунт"
+                <>
+                  Продолжить
+                  <IconArrowRight className="h-4 w-4" />
+                </>
               )}
             </Button>
           </form>

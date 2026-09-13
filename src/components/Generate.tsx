@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  IconArrowRight,
   IconCheck,
+  IconChevronLeft,
+  IconChevronRight,
+  IconCoins,
   IconCopy,
   IconDownload,
+  IconPhoto,
   IconPhotoOff,
   IconSparkles,
+  IconX,
 } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,14 +36,51 @@ const EXAMPLE_PROMPTS = [
   "Ретро-автомобиль у моря, пальмы, постер 80-х",
 ];
 
+const HISTORY_LIMIT = 8;
+
 export function Generate({ user, balance, onBalanceChange }: GenerateProps) {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
   const [seedCopied, setSeedCopied] = useState(false);
+  const [history, setHistory] = useState<any[]>([]);
+  const [selected, setSelected] = useState<number | null>(null);
 
   const outOfCredits = balance === 0;
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  useEffect(() => {
+    if (selected === null) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setSelected(null);
+      if (e.key === "ArrowRight")
+        setSelected((s) => (s === null ? s : (s + 1) % history.length));
+      if (e.key === "ArrowLeft")
+        setSelected((s) => (s === null ? s : (s - 1 + history.length) % history.length));
+    }
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [selected, history.length]);
+
+  async function loadHistory() {
+    try {
+      const res = await fetch("/api/generations");
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(Array.isArray(data) ? data.slice(0, HISTORY_LIMIT) : []);
+      }
+    } catch {
+      /* лента просто останется пустой */
+    }
+  }
 
   async function refreshBalance() {
     try {
@@ -81,6 +124,7 @@ export function Generate({ user, balance, onBalanceChange }: GenerateProps) {
       const data = await res.json();
       setResult(data);
       refreshBalance();
+      loadHistory();
     } catch (err: any) {
       setError(err.message);
       refreshBalance();
@@ -89,19 +133,18 @@ export function Generate({ user, balance, onBalanceChange }: GenerateProps) {
     }
   }
 
-  async function handleDownload() {
-    if (!result?.image_url) return;
+  async function downloadImage(url: string, seed: any) {
     try {
-      const res = await fetch(result.image_url);
+      const res = await fetch(url);
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `gen42-${result.seed ?? Date.now()}.png`;
+      a.href = objectUrl;
+      a.download = `gen42-${seed ?? Date.now()}.png`;
       a.click();
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(objectUrl);
     } catch {
-      window.open(result.image_url, "_blank");
+      window.open(url, "_blank");
     }
   }
 
@@ -116,37 +159,27 @@ export function Generate({ user, balance, onBalanceChange }: GenerateProps) {
     }
   }
 
+  function step(dir: 1 | -1) {
+    setSelected((s) => {
+      if (s === null || history.length === 0) return s;
+      return (s + dir + history.length) % history.length;
+    });
+  }
+
+  const selectedImg = selected !== null ? history[selected] : null;
+
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="animate-pop-in text-center">
-        <div className="flex items-center justify-center gap-2">
-          <SparkStar className="h-6 w-6" />
-          <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-            Что нарисуем?
-          </h2>
-          <SparkStar className="h-6 w-6" />
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Опишите картинку словами. Один кредит — одно изображение.
-        </p>
-      </div>
-
-      <div className="animate-pop-in pop-card mt-10 p-6 [animation-delay:80ms] sm:p-8">
+      <div className="animate-pop-in pop-card p-6 sm:p-8">
         <div className="space-y-2">
-          <div className="flex items-baseline justify-between">
-            <Label htmlFor="prompt" className="text-sm font-medium text-foreground">
-              Ваш замысел
-            </Label>
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {prompt.length}/1000
-            </span>
-          </div>
+          <Label htmlFor="prompt" className="text-sm font-medium text-foreground">
+            Промпт
+          </Label>
           <Textarea
             id="prompt"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             rows={4}
-            placeholder="Например: одинокий маяк на скале в тумане, ночь, кинематографично…"
             maxLength={1000}
             className="border-0 bg-transparent px-0 text-lg leading-relaxed"
           />
@@ -158,7 +191,8 @@ export function Generate({ user, balance, onBalanceChange }: GenerateProps) {
               key={ex}
               type="button"
               onClick={() => setPrompt(ex)}
-              className="rounded-full border border-border bg-secondary/60 px-3.5 py-1.5 text-xs text-muted-foreground transition-all hover:border-primary/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              title={ex}
+              className="max-w-full truncate rounded-full border border-border bg-secondary/60 px-3.5 py-1.5 text-xs text-muted-foreground transition-all hover:border-primary/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
             >
               {ex}
             </button>
@@ -172,94 +206,182 @@ export function Generate({ user, balance, onBalanceChange }: GenerateProps) {
           </div>
         )}
 
-        <div className="mt-6">
-          <Button
+        <div className="mt-6 flex items-center justify-between gap-4">
+          <div
+            className="flex items-center gap-1.5 text-muted-foreground"
+            role="img"
+            aria-label="Один кредит — одно изображение"
+          >
+            <IconCoins className="h-5 w-5 text-[#ffd54a]" strokeWidth={1.75} />
+            <IconArrowRight className="h-3.5 w-3.5" />
+            <IconPhoto className="h-5 w-5" strokeWidth={1.75} />
+          </div>
+          <button
+            type="button"
             onClick={handleGenerate}
             disabled={loading || !prompt.trim() || outOfCredits}
-            aria-describedby={outOfCredits ? "balance-hint" : undefined}
-            title={outOfCredits ? "Нет кредитов для генерации" : undefined}
-            size="lg"
-            className="w-full"
+            aria-label={outOfCredits ? "Нет кредитов для генерации" : "Сгенерировать"}
+            className="pop-gradient-bg rounded-full p-4 text-white shadow-[0_12px_36px_-12px_rgb(255_92_168/0.65)] transition-all outline-none hover:brightness-110 focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.94] disabled:pointer-events-none disabled:opacity-40"
           >
             {loading ? (
-              <>
-                <PopSpinner className="h-4 w-4" />
-                Рисуем…
-              </>
+              <PopSpinner className="h-6 w-6" />
             ) : (
-              <>
-                <IconSparkles className="h-4 w-4" />
-                Сгенерировать
-              </>
+              <IconSparkles className="h-6 w-6" />
             )}
-          </Button>
-          {outOfCredits && !loading && (
-            <p id="balance-hint" className="mt-3 text-center text-sm text-muted-foreground">
-              Кредиты закончились — генерация недоступна. Попросите администратора
-              пополнить баланс.
-            </p>
-          )}
+          </button>
         </div>
       </div>
 
       {loading && (
-        <div className="animate-pop-in mt-10" aria-live="polite">
-          <div className="flex items-baseline justify-between">
-            <h3 className="font-display text-xl font-bold text-foreground">Рисуем</h3>
-            <span className="text-sm text-muted-foreground">это займёт несколько секунд</span>
-          </div>
-          <PopSkeleton className="mt-5 aspect-square w-full" />
-          <div className="mt-4 space-y-2">
-            <PopSkeleton className="h-4 w-2/3 !rounded-full" />
-            <PopSkeleton className="h-3 w-1/3 !rounded-full" />
-          </div>
+        <div className="animate-pop-in mt-10" aria-live="polite" aria-label="Генерация идёт">
+          <PopSkeleton className="aspect-square w-full" />
         </div>
       )}
 
-      {!loading && !result && (
-        <div className="animate-pop-in mt-10 flex flex-col items-center gap-3 py-10 text-center [animation-delay:140ms]">
-          <EmptyCanvasArt className="h-44 w-auto" />
-          <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-            Холст ждёт первую идею. Выберите пример выше или опишите своё —
-            результат появится прямо здесь.
-          </p>
+      {!loading && !result && history.length === 0 && (
+        <div className="animate-pop-in mt-10 flex flex-col items-center py-10 [animation-delay:140ms]">
+          <span role="img" aria-label="Пустой холст">
+            <EmptyCanvasArt className="h-44 w-auto" />
+          </span>
         </div>
       )}
 
       {result && (
         <div className="animate-pop-in relative mt-10">
           <StickerBurst className="animate-float-slow absolute -right-4 -top-8 h-16 w-16 sm:-right-8" />
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h3 className="font-display text-xl font-bold text-foreground">Готово</h3>
-            <div className="flex items-center gap-2">
-              {result.seed !== null && result.seed !== undefined && (
-                <button
-                  type="button"
-                  onClick={copySeed}
-                  title="Скопировать seed"
-                  className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm tabular-nums text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
-                >
-                  {seedCopied ? (
-                    <IconCheck className="h-3.5 w-3.5 text-primary" />
-                  ) : (
-                    <IconCopy className="h-3.5 w-3.5" />
-                  )}
-                  Seed: {result.seed}
-                </button>
-              )}
-              <Button variant="outline" size="sm" onClick={handleDownload}>
-                <IconDownload className="h-4 w-4" />
-                Скачать
-              </Button>
-            </div>
-          </div>
-          <div className="pop-card pop-lift group relative mt-5 overflow-hidden p-2">
+          <div className="pop-card pop-lift group relative overflow-hidden p-2">
             <img
               src={result.image_url}
               alt={prompt || "Сгенерированное изображение"}
               className="block w-full rounded-[14px] transition-transform duration-500 group-hover:scale-[1.015]"
             />
           </div>
+          <div className="mt-4 flex items-center justify-end gap-2">
+            {result.seed !== null && result.seed !== undefined && (
+              <button
+                type="button"
+                onClick={copySeed}
+                title="Скопировать seed"
+                aria-label={`Скопировать seed ${result.seed}`}
+                className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm tabular-nums text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              >
+                {seedCopied ? (
+                  <IconCheck className="h-3.5 w-3.5 text-primary" />
+                ) : (
+                  <IconCopy className="h-3.5 w-3.5" />
+                )}
+                {result.seed}
+              </button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => downloadImage(result.image_url, result.seed)}>
+              <IconDownload className="h-4 w-4" />
+              Скачать
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {history.length > 0 && (
+        <section className="mt-12" aria-label="Недавние">
+          <div className="flex items-center gap-2">
+            <SparkStar className="h-4 w-4" />
+            <h2 className="font-display text-lg font-bold text-foreground">Недавние</h2>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {history.map((img, idx) => (
+              <button
+                key={img.id}
+                type="button"
+                onClick={() => setSelected(idx)}
+                title={img.prompt}
+                aria-label={`Открыть изображение: ${img.prompt}`}
+                className="pop-card pop-lift group relative block aspect-square overflow-hidden p-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <img
+                  src={img.image_url}
+                  alt=""
+                  loading="lazy"
+                  className="block h-full w-full rounded-[14px] object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                />
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {selectedImg && (
+        <div
+          className="animate-pop-in fixed inset-0 z-[70] flex items-center justify-center bg-background/90 p-4 backdrop-blur-md sm:p-10"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Просмотр изображения ${selected! + 1} из ${history.length}`}
+          onClick={() => setSelected(null)}
+        >
+          <div
+            className="flex max-h-full w-full max-w-4xl flex-col items-center gap-5 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative min-h-0 w-fit max-w-full">
+              <img
+                src={selectedImg.image_url}
+                alt={selectedImg.prompt}
+                className="max-h-[70dvh] w-auto max-w-full rounded-[22px] border border-border"
+              />
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {selected! + 1} / {history.length}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => downloadImage(selectedImg.image_url, selectedImg.seed)}
+              >
+                <IconDownload className="h-4 w-4" />
+                Скачать
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
+                <IconX className="h-4 w-4" />
+                Закрыть
+              </Button>
+            </div>
+          </div>
+
+          {history.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  step(-1);
+                }}
+                aria-label="Предыдущее изображение"
+                className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-border bg-card/90 p-3 text-foreground transition-all hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95 sm:left-6"
+              >
+                <IconChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  step(1);
+                }}
+                aria-label="Следующее изображение"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-border bg-card/90 p-3 text-foreground transition-all hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95 sm:right-6"
+              >
+                <IconChevronRight className="h-5 w-5" />
+              </button>
+            </>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setSelected(null)}
+            className="absolute right-5 top-5 rounded-full border border-border bg-card/80 p-2 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.95]"
+            aria-label="Закрыть"
+          >
+            <IconX className="h-5 w-5" />
+          </button>
         </div>
       )}
     </div>
