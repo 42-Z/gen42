@@ -31,6 +31,10 @@ export function App() {
   const [balance, setBalance] = useState<number | null>(null);
   const [view, setView] = useState<View>(() => viewFromHash());
   const [loading, setLoading] = useState(true);
+  // Роль (isAdmin) резолвится отдельным запросом /api/me, который может
+  // прийти позже навигации (холодный старт БД). До готовности роли
+  // никого никуда не редиректим.
+  const [rolesReady, setRolesReady] = useState(false);
 
   useEffect(() => {
     checkSession();
@@ -44,12 +48,13 @@ export function App() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  // Админка только для админа: чужим — на главный экран
+  // Админка только для админа: чужим — на главный экран.
+  // Ждём готовности роли, чтобы не выкидывать админа при медленном /api/me.
   useEffect(() => {
-    if (!loading && user && view === "admin" && !user.isAdmin) {
+    if (rolesReady && user && view === "admin" && !user.isAdmin) {
       window.location.hash = "#/";
     }
-  }, [view, user, loading]);
+  }, [view, user, rolesReady]);
 
   async function refreshBalance() {
     try {
@@ -76,6 +81,7 @@ export function App() {
           setUser({ ...data.user, isAdmin: me.is_admin });
           setBalance(me.balance ?? null);
         }
+        setRolesReady(true);
       }
     } catch (error) {
       console.error("Session check failed:", error);
@@ -92,12 +98,14 @@ export function App() {
         const me = await meRes.json();
         setUser({ ...loggedUser, isAdmin: me.is_admin });
         if (typeof me.balance === "number") setBalance(me.balance);
+        setRolesReady(true);
         return;
       }
     } catch {
       /* ниже — запасной путь через refreshBalance */
     }
     await refreshBalance();
+    setRolesReady(true);
   }
 
   async function handleLogout() {
@@ -156,8 +164,16 @@ export function App() {
       </header>
 
       <main className="mx-auto max-w-5xl px-6 py-12">
-        {view === "admin" && user.isAdmin ? (
-          <Admin />
+        {view === "admin" ? (
+          user?.isAdmin ? (
+            <Admin />
+          ) : !rolesReady ? (
+            <div className="flex items-center justify-center py-24" aria-label="Загрузка">
+              <PopSpinner className="h-8 w-8 text-primary" />
+            </div>
+          ) : (
+            <Generate balance={balance} onBalanceChange={setBalance} />
+          )
         ) : (
           <Generate balance={balance} onBalanceChange={setBalance} />
         )}
