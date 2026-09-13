@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
 import {
-  IconArrowRight,
   IconCheck,
   IconChevronLeft,
   IconChevronRight,
   IconCoins,
   IconCopy,
   IconDownload,
-  IconPhoto,
   IconPhotoOff,
   IconSparkles,
   IconX,
@@ -169,7 +167,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="animate-pop-in pop-card p-6 sm:p-8">
+      <div className="animate-pop-in">
         <div className="space-y-2">
           <Label htmlFor="prompt" className="text-sm font-medium text-foreground">
             Промпт
@@ -180,7 +178,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
             onChange={(e) => setPrompt(e.target.value)}
             rows={4}
             maxLength={1000}
-            className="border-0 bg-transparent px-0 text-lg leading-relaxed"
+            className="resize-none rounded-none border-0 border-b border-border bg-transparent px-0 py-2 text-lg leading-relaxed focus-visible:border-primary"
           />
         </div>
 
@@ -205,29 +203,29 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
           </div>
         )}
 
-        <div className="mt-6 flex items-center justify-between gap-4">
-          <div
-            className="flex items-center gap-1.5 text-muted-foreground"
-            role="img"
-            aria-label="Один кредит — одно изображение"
-          >
-            <IconCoins className="h-5 w-5 text-[#ffd54a]" strokeWidth={1.75} />
-            <IconArrowRight className="h-3.5 w-3.5" />
-            <IconPhoto className="h-5 w-5" strokeWidth={1.75} />
-          </div>
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={loading || !prompt.trim() || outOfCredits}
-            aria-label={outOfCredits ? "Нет кредитов для генерации" : "Сгенерировать"}
-            className="pop-gradient-bg rounded-full p-4 text-white shadow-[0_12px_36px_-12px_rgb(255_92_168/0.65)] transition-all outline-none hover:brightness-110 focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.94] disabled:pointer-events-none disabled:opacity-40"
-          >
-            {loading ? (
-              <PopSpinner className="h-6 w-6" />
-            ) : (
-              <IconSparkles className="h-6 w-6" />
-            )}
-          </button>
+        <div className="mt-6 flex items-center justify-end gap-4">
+          <span className="relative">
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={loading || !prompt.trim() || outOfCredits}
+              aria-label={outOfCredits ? "Нет кредитов для генерации" : "Сгенерировать за 1 кредит"}
+              className="pop-gradient-bg rounded-full p-4 text-white shadow-[0_12px_36px_-12px_rgb(255_92_168/0.65)] transition-all outline-none hover:brightness-110 focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.94] disabled:pointer-events-none disabled:opacity-40"
+            >
+              {loading ? (
+                <PopSpinner className="h-6 w-6" />
+              ) : (
+                <IconSparkles className="h-6 w-6" />
+              )}
+            </button>
+            <span
+              aria-hidden="true"
+              className="absolute -right-1.5 -top-1.5 flex items-center gap-0.5 rounded-full bg-[#ffd54a] px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-[#0d0b1e]"
+            >
+              <IconCoins className="h-3 w-3" strokeWidth={2.5} />
+              1
+            </span>
+          </span>
         </div>
       </div>
 
@@ -248,11 +246,11 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
       {result && (
         <div className="animate-pop-in relative mt-10">
           <StickerBurst className="animate-float-slow absolute -right-4 -top-8 h-16 w-16 sm:-right-8" />
-          <div className="pop-card pop-lift group relative overflow-hidden p-2">
+          <div className="group relative overflow-hidden rounded-[14px]">
             <img
               src={result.image_url}
               alt={prompt || "Сгенерированное изображение"}
-              className="block w-full rounded-[14px] transition-transform duration-500 group-hover:scale-[1.015]"
+              className="block w-full transition-transform duration-500 group-hover:scale-[1.015]"
             />
           </div>
           <div className="mt-4 flex items-center justify-end gap-2">
@@ -294,7 +292,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
                 onClick={() => setSelected(idx)}
                 title={img.prompt}
                 aria-label={`Открыть изображение: ${img.prompt}`}
-                className="pop-card pop-lift group relative block aspect-square overflow-hidden p-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="group relative block aspect-square overflow-hidden rounded-[14px] border border-border/60 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <img
                   src={img.image_url}
