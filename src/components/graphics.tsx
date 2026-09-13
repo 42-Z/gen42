@@ -98,21 +98,6 @@ export function EmptyCanvasArt({ className }: { className?: string }) {
   );
 }
 
-/* Пустое состояние галереи — стопка кадров */
-export function EmptyGalleryArt({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 240 180" fill="none" className={className} role="img" aria-label="В галерее пока пусто">
-      <rect x="70" y="44" width="110" height="96" rx="18" fill="#1e1a3d" stroke="#2b2652" strokeWidth="2" transform="rotate(6 125 92)" />
-      <rect x="60" y="38" width="110" height="96" rx="18" fill="#16132e" stroke="#6c5cff" strokeWidth="2" strokeOpacity="0.6" transform="rotate(-5 115 86)" />
-      <path
-        d="M115 62c1 7.3 3.8 11.4 4.8 12.5s4.8 1.1 12.1 2.1c-7.3 1-11.1 1.2-12.1 2.1s-3.8 5.2-4.8 12.5c-1-7.3-3.8-11.4-4.8-12.5s-4.8-1.1-12.1-2.1c7.3-1 11.1-1.2 12.1-2.1s3.8-5.2 4.8-12.5z"
-        fill="#ffd54a"
-      />
-      <circle cx="150" cy="112" r="6" fill="#ff5ca8" />
-    </svg>
-  );
-}
-
 /* Спиннер-искра */
 export function PopSpinner({ className }: { className?: string }) {
   return (

@@ -139,7 +139,7 @@ export function Auth({ onLogin }: AuthProps) {
               onClick={() => setIsLogin(!isLogin)}
               className="rounded-full text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {isLogin ? "Нет аккаунта? Создать" : "Уже есть аккаунт? Войти"}
+              {isLogin ? "Нет аккаунта? Создать" : "Уже есть аккаунт? Продолжить"}
             </button>
           </div>
         </div>

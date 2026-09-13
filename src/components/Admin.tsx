@@ -202,8 +202,12 @@ export function Admin() {
           <div className="space-y-1.5">
             <Label htmlFor="user-select">Пользователь</Label>
             <Select value={creditUserId} onValueChange={setCreditUserId}>
-              <SelectTrigger id="user-select" className="w-full rounded-2xl border-border bg-secondary/60">
-                <SelectValue placeholder="Выберите пользователя" />
+              <SelectTrigger
+                id="user-select"
+                className="w-full rounded-2xl border-border bg-secondary/60"
+                title={users.find((u) => u.id === creditUserId)?.email}
+              >
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {users.map((u) => (
