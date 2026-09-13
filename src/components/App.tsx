@@ -84,8 +84,19 @@ export function App() {
     }
   }
 
-  async function handleLogin(user: any) {
-    setUser(user);
+  async function handleLogin(loggedUser: any) {
+    setUser(loggedUser);
+    try {
+      const meRes = await fetch("/api/me");
+      if (meRes.ok) {
+        const me = await meRes.json();
+        setUser({ ...loggedUser, isAdmin: me.is_admin });
+        if (typeof me.balance === "number") setBalance(me.balance);
+        return;
+      }
+    } catch {
+      /* ниже — запасной путь через refreshBalance */
+    }
     await refreshBalance();
   }
 
