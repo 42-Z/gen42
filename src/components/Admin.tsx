@@ -212,7 +212,12 @@ export function Admin() {
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent
+                position="popper"
+                side="bottom"
+                align="start"
+                className="w-[var(--radix-select-trigger-width)]"
+              >
                 {users.map((u) => (
                   <SelectItem key={u.id} value={u.id}>
                     {u.email} (баланс {u.balance})

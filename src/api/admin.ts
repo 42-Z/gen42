@@ -30,10 +30,10 @@ export const adminRoutes = {
       await checkAdmin(req);
 
       const users = await sql`
-        SELECT u.id, u.email, u.name, u.created_at, COALESCE(c.balance, 0) AS balance
+        SELECT u.id, u.email, u.name, u."createdAt" AS created_at, COALESCE(c.balance, 0) AS balance
         FROM "user" u
         LEFT JOIN credits c ON u.id = c.user_id
-        ORDER BY u.created_at DESC
+        ORDER BY u."createdAt" DESC
       `;
       return Response.json(users);
     }),
