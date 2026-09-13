@@ -26,13 +26,6 @@ interface GenerateProps {
   onBalanceChange: (balance: number) => void;
 }
 
-const EXAMPLE_PROMPTS = [
-  "Рыжий кот-астронавт в иллюминаторе, звёзды, неон",
-  "Уютный домик в лесу осенью, тёплый свет в окнах",
-  "Летающий замок над облаками на закате, акварель",
-  "Ретро-автомобиль у моря, пальмы, постер 80-х",
-];
-
 const HISTORY_LIMIT = 8;
 
 export function Generate({ balance, onBalanceChange }: GenerateProps) {
@@ -169,31 +162,20 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
     <div className="mx-auto max-w-3xl">
       <div className="animate-pop-in">
         <div className="space-y-2">
-          <Label htmlFor="prompt" className="text-sm font-medium text-foreground">
-            Промпт
-          </Label>
+          <div className="flex items-center gap-2">
+            <SparkStar className="h-4 w-4" />
+            <Label htmlFor="prompt" className="font-display text-lg font-bold text-foreground">
+              Промпт
+            </Label>
+          </div>
           <Textarea
             id="prompt"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             rows={4}
             maxLength={1000}
-            className="resize-none rounded-none border-0 border-b border-border bg-transparent px-0 py-2 text-lg leading-relaxed focus-visible:border-primary"
+            className="min-h-36 resize-none text-lg leading-relaxed"
           />
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2" aria-label="Примеры для старта">
-          {EXAMPLE_PROMPTS.map((ex) => (
-            <button
-              key={ex}
-              type="button"
-              onClick={() => setPrompt(ex)}
-              title={ex}
-              className="max-w-full truncate rounded-full border border-border bg-secondary/60 px-3.5 py-1.5 text-xs text-muted-foreground transition-all hover:border-primary/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
-            >
-              {ex}
-            </button>
-          ))}
         </div>
 
         {error && (

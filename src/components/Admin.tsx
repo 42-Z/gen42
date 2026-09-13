@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PopSkeleton, SparkStar } from "./graphics";
+import { DecoScatter } from "./DecoScatter";
 
 export function Admin() {
   const [users, setUsers] = useState<any[]>([]);
@@ -156,7 +157,8 @@ export function Admin() {
     : [];
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="relative mx-auto max-w-5xl">
+      <DecoScatter />
       <div className="animate-pop-in">
         <div className="flex items-center gap-2.5">
           <SparkStar className="h-6 w-6" />

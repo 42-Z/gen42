@@ -11,6 +11,7 @@ import {
   StickerRing,
   StickerSpiral,
 } from "./graphics";
+import { DecoScatter } from "./DecoScatter";
 
 interface AuthProps {
   onLogin: (user: any) => void;
@@ -60,6 +61,7 @@ export function Auth({ onLogin }: AuthProps) {
   return (
     <div className="pop-noise relative min-h-screen w-full overflow-hidden">
       <MeshBackground />
+      <DecoScatter />
       <SparkStar className="animate-float-slow pointer-events-none absolute left-[8%] top-[14%] h-10 w-10" />
       <StickerSpiral className="animate-float-slow pointer-events-none absolute bottom-[12%] left-[12%] h-16 w-16 opacity-80 [animation-delay:1.2s]" />
       <StickerRing className="animate-float-slow pointer-events-none absolute right-[10%] top-[20%] h-20 w-20 opacity-70 [animation-delay:2s]" />

@@ -9,6 +9,7 @@ import { Auth } from "./Auth";
 import { Generate } from "./Generate";
 import { Admin } from "./Admin";
 import { MeshBackground, PopLogo, PopSpinner } from "./graphics";
+import { DecoScatter } from "./DecoScatter";
 import { cn } from "@/lib/utils";
 
 interface User {
@@ -131,6 +132,7 @@ export function App() {
   return (
     <div className="pop-noise relative min-h-screen w-full">
       <MeshBackground />
+      <DecoScatter />
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-4">
           <a href="#/" aria-label="gen42 — на главную">
