@@ -3,11 +3,11 @@ import { sql } from "../lib/db";
 import {
   getAvailableKey,
   deactivateKey,
-  incrementKeyUsage,
+  updateKeyQuota,
   AllKeysExhaustedError,
 } from "../lib/keys";
 import { deductCredit, refundCredit, getCredits, InsufficientCreditsError } from "../lib/credits";
-import { generateImage, KeyExhaustedError } from "../lib/hf";
+import { generateImage, getZeroGPUQuota, KeyExhaustedError } from "../lib/hf";
 import { uploadImage, getImageUrl } from "../lib/storage";
 import { checkRateLimit } from "../lib/rate-limit";
 
@@ -82,7 +82,10 @@ export const generateRoutes = {
              ${model || "Turbo"}, ${width || 1024}, ${height || 1024}, ${steps || 8},
              ${result.seed}, ${imageKey}, 'completed', ${duration}, ${currentKey!.id})
         `;
-        await incrementKeyUsage(currentKey!.id);
+        const quota = await getZeroGPUQuota(currentKey!.key);
+        if (quota) {
+          await updateKeyQuota(currentKey!.id, quota);
+        }
 
         const presignedUrl = await getImageUrl(imageKey);
 
@@ -97,7 +100,10 @@ export const generateRoutes = {
           await refundCredit(session.user.id);
         }
         if (currentKey) {
-          await incrementKeyUsage(currentKey.id);
+          const quota = await getZeroGPUQuota(currentKey.key);
+          if (quota) {
+            await updateKeyQuota(currentKey.id, quota);
+          }
         }
 
         if (error instanceof InsufficientCreditsError) {
