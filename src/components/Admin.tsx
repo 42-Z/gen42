@@ -3,7 +3,6 @@ import {
   IconCoins,
   IconKey,
   IconPhoto,
-  IconRefresh,
   IconTrash,
 } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
@@ -94,17 +93,6 @@ export function Admin() {
       }
     } catch (error) {
       console.error("Failed to delete key:", error);
-    }
-  }
-
-  async function refreshQuota(id: string) {
-    try {
-      const res = await fetch(`/api/admin/keys/${id}`, { method: "POST" });
-      if (res.ok) {
-        loadData();
-      }
-    } catch (error) {
-      console.error("Failed to refresh quota:", error);
     }
   }
 
@@ -271,7 +259,6 @@ export function Admin() {
                 <TableHead>Название</TableHead>
                 <TableHead>Ключ</TableHead>
                 <TableHead>Квота ZeroGPU</TableHead>
-                <TableHead>Статус</TableHead>
                 <TableHead>Сброс</TableHead>
                 <TableHead className="text-right">Действия</TableHead>
               </TableRow>
@@ -306,14 +293,6 @@ export function Admin() {
                       <span className="text-xs text-muted-foreground">не проверено</span>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-xs">
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${k.is_active ? "bg-primary" : "bg-destructive"}`}
-                      />
-                      {k.is_active ? "активен" : "неактивен"}
-                    </span>
-                  </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {k.hf_resets_at
                       ? `сброс ${new Date(k.hf_resets_at).toLocaleString("ru")}`
@@ -322,9 +301,6 @@ export function Admin() {
                         : ""}
                   </TableCell>
                   <TableCell className="space-x-1 text-right">
-                    <Button variant="ghost" size="icon" title="Обновить квоту с HF" aria-label="Обновить квоту" onClick={() => refreshQuota(k.id)}>
-                      <IconRefresh className="h-4 w-4" />
-                    </Button>
                     <Button variant="ghost" size="icon" title="Удалить ключ" aria-label="Удалить ключ" onClick={() => deleteKey(k.id)} className="text-destructive hover:text-destructive">
                       <IconTrash className="h-4 w-4" />
                     </Button>

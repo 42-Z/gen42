@@ -60,11 +60,31 @@ export const adminRoutes = {
       await checkAdmin(req);
 
       const keys = await sql`
-        SELECT id, name, key, is_active,
-               hf_base, hf_current, hf_resets_at, hf_checked_at, created_at
+        SELECT id, name, key, hf_base, hf_current, hf_resets_at, hf_checked_at, created_at
         FROM api_keys
         ORDER BY hf_current DESC NULLS LAST
       `;
+
+      const unchecked = keys.filter((k: any) => k.hf_checked_at === null);
+      await Promise.all(
+        unchecked.map(async (k: any) => {
+          try {
+            const quota = await getZeroGPUQuota(k.key);
+            if (quota) {
+              await updateKeyQuota(k.id, quota);
+              Object.assign(k, {
+                hf_base: quota.base,
+                hf_current: quota.current,
+                hf_resets_at: quota.resetsAt,
+                hf_checked_at: new Date(),
+              });
+            }
+          } catch (e) {
+            console.error(`Auto-refresh quota failed for ${k.name}:`, e);
+          }
+        }),
+      );
+
       return Response.json(
         keys.map((k: any) => ({ ...k, key: `${k.key.slice(0, 8)}…` })),
       );
