@@ -270,8 +270,7 @@ export function Admin() {
               <TableRow>
                 <TableHead>Название</TableHead>
                 <TableHead>Ключ</TableHead>
-                <TableHead className="text-right">Использовано</TableHead>
-                <TableHead className="text-right">Лимит</TableHead>
+                <TableHead>Лимит</TableHead>
                 <TableHead>Статус</TableHead>
                 <TableHead className="text-right">Действия</TableHead>
               </TableRow>
@@ -283,8 +282,19 @@ export function Admin() {
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {k.key}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{k.used_today}</TableCell>
-                  <TableCell className="text-right tabular-nums">{k.daily_limit}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
+                        <div
+                          className={`h-full rounded-full transition-all ${k.used_today >= k.daily_limit ? "bg-destructive" : "bg-primary"}`}
+                          style={{ width: `${Math.min((k.used_today / k.daily_limit) * 100, 100)}%` }}
+                        />
+                      </div>
+                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                        {k.used_today}/{k.daily_limit}
+                      </span>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-xs">
                       <span
