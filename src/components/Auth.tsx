@@ -72,7 +72,7 @@ export function Auth({ onLogin }: AuthProps) {
         </div>
 
         <div className="animate-pop-in pop-card w-full p-8 [animation-delay:120ms] sm:p-10">
-          <h1 className="font-display text-2xl font-bold text-foreground">
+          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
             {isLogin ? "Вход" : "Регистрация"}
           </h1>
 

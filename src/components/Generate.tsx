@@ -228,7 +228,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
       {result && (
         <div className="animate-pop-in relative mt-10">
           <StickerBurst className="animate-float-slow absolute -right-4 -top-8 h-16 w-16 sm:-right-8" />
-          <div className="group relative overflow-hidden rounded-[14px]">
+          <div className="group relative overflow-hidden rounded-[22px]">
             <img
               src={result.image_url}
               alt={prompt || "Сгенерированное изображение"}
@@ -266,7 +266,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
             <SparkStar className="h-4 w-4" />
             <h2 className="font-display text-lg font-bold text-foreground">Недавние</h2>
           </div>
-          <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-4">
             {history.map((img, idx) => (
               <button
                 key={img.id}
@@ -274,13 +274,13 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
                 onClick={() => setSelected(idx)}
                 title={img.prompt}
                 aria-label={`Открыть изображение: ${img.prompt}`}
-                className="group relative block aspect-square overflow-hidden rounded-[14px] border border-border/60 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="group relative block aspect-square overflow-hidden rounded-[22px] border border-border/60 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <img
                   src={img.image_url}
                   alt=""
                   loading="lazy"
-                  className="block h-full w-full rounded-[14px] object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  className="block h-full w-full rounded-[22px] object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                 />
               </button>
             ))}

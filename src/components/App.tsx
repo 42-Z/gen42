@@ -134,7 +134,7 @@ export function App() {
       <MeshBackground />
       <DecoScatter />
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-4">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:flex-wrap sm:gap-4 sm:px-6 sm:py-4">
           <a href="#/" aria-label="gen42 — на главную">
             <PopLogo />
           </a>

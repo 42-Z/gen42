@@ -145,7 +145,7 @@ export function Admin() {
     : [];
 
   return (
-    <div className="relative mx-auto max-w-5xl">
+    <div className="relative mx-auto max-w-5xl overflow-hidden">
       <DecoScatter />
       <div className="animate-pop-in">
         <div className="flex items-center gap-2.5">
@@ -185,7 +185,7 @@ export function Admin() {
         </div>
       )}
 
-      <section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:140ms] sm:p-8">
+      <section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:140ms]">
         <h3 className="font-display text-xl font-bold text-foreground">Пользователи</h3>
 
         <div className="mt-6 grid grid-cols-1 items-end gap-4 sm:grid-cols-[1fr_160px_auto]">
@@ -229,7 +229,7 @@ export function Admin() {
         </div>
       </section>
 
-      <section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:200ms] sm:p-8">
+      <section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:200ms]">
         <h3 className="font-display text-xl font-bold text-foreground">Ключи генерации</h3>
 
         <div className="mt-6 grid grid-cols-1 items-end gap-4 sm:grid-cols-[220px_1fr_auto]">
@@ -253,7 +253,7 @@ export function Admin() {
         </div>
 
         <div className="mt-8 overflow-x-auto">
-          <Table>
+          <Table className="min-w-[640px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Название</TableHead>
@@ -278,7 +278,7 @@ export function Admin() {
                             k.hf_current / k.hf_base > 0.5
                               ? "bg-primary"
                               : k.hf_current / k.hf_base > 0.2
-                                ? "bg-yellow-500"
+                                ? "bg-[#ffd54a]"
                                 : "bg-destructive"
                           }`}
                           style={{ width: `${Math.min((k.hf_current / k.hf_base) * 100, 100)}%` }}
