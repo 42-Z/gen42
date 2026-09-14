@@ -272,32 +272,27 @@ export function Admin() {
                   </TableCell>
                   <TableCell>
                     {k.hf_current != null && k.hf_base != null ? (
-                      <div className="flex items-center gap-3">
-                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
-                          <div
-                            className={`h-full rounded-full transition-all ${
-                              k.hf_current / k.hf_base > 0.5
-                                ? "bg-primary"
-                                : k.hf_current / k.hf_base > 0.2
-                                  ? "bg-yellow-500"
-                                  : "bg-destructive"
-                            }`}
-                            style={{ width: `${Math.min((k.hf_current / k.hf_base) * 100, 100)}%` }}
-                          />
-                        </div>
-                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                          {Math.round(k.hf_current)}s / {k.hf_base}s
-                        </span>
+                      <div className="h-2 w-40 overflow-hidden rounded-full bg-secondary">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            k.hf_current / k.hf_base > 0.5
+                              ? "bg-primary"
+                              : k.hf_current / k.hf_base > 0.2
+                                ? "bg-yellow-500"
+                                : "bg-destructive"
+                          }`}
+                          style={{ width: `${Math.min((k.hf_current / k.hf_base) * 100, 100)}%` }}
+                        />
                       </div>
                     ) : (
-                      <span className="text-xs text-muted-foreground">не проверено</span>
+                      <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {k.hf_resets_at
-                      ? `сброс ${new Date(k.hf_resets_at).toLocaleString("ru")}`
+                      ? new Date(k.hf_resets_at).toLocaleString("ru", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
                       : k.hf_checked_at
-                        ? `проверено ${new Date(k.hf_checked_at).toLocaleString("ru")}`
+                        ? new Date(k.hf_checked_at).toLocaleString("ru", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
                         : ""}
                   </TableCell>
                   <TableCell className="space-x-1 text-right">
