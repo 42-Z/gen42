@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { describe, test, expect, mock, beforeEach, afterEach } from "bun:test";
 
 const originalFetch = globalThis.fetch;
 
@@ -42,5 +42,34 @@ describe("HuggingFace client", () => {
     expect(calls[0].body.prompt).toBe("cat");
     expect(calls[0].body.data).toBeUndefined();
     expect(calls[1].url).toContain("/call/v2/generate/abc");
+  });
+});
+
+describe("getZeroGPUQuota", () => {
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  test("возвращает quota при успешном ответе", async () => {
+    globalThis.fetch = mock(async () =>
+      Response.json({ base: 300, current: 278.5, resetsAt: "2026-09-15T12:00:00Z", overquotaUsed: 0 }),
+    ) as any;
+    const { getZeroGPUQuota } = await import("../hf");
+    const q = await getZeroGPUQuota("hf_test");
+    expect(q).toEqual({ base: 300, current: 278.5, resetsAt: "2026-09-15T12:00:00Z" });
+  });
+
+  test("возвращает null при ошибке API", async () => {
+    globalThis.fetch = mock(async () => new Response("error", { status: 500 })) as any;
+    const { getZeroGPUQuota } = await import("../hf");
+    const q = await getZeroGPUQuota("hf_test");
+    expect(q).toBeNull();
+  });
+
+  test("возвращает null при сетевой ошибке", async () => {
+    globalThis.fetch = mock(async () => { throw new Error("network"); }) as any;
+    const { getZeroGPUQuota } = await import("../hf");
+    const q = await getZeroGPUQuota("hf_test");
+    expect(q).toBeNull();
   });
 });

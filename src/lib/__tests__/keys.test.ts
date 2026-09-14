@@ -15,7 +15,7 @@ mock.module("../db", () => ({ sql: mockSql }));
 const {
   getAvailableKey,
   AllKeysExhaustedError,
-  incrementKeyUsage,
+  updateKeyQuota,
 } = await import("../keys");
 
 describe("API Keys", () => {
@@ -24,13 +24,28 @@ describe("API Keys", () => {
     responses = {};
   });
 
-  test("getAvailableKey возвращает ключ с наибольшим остатком", async () => {
+  test("getAvailableKey возвращает ключ с наибольшим hf_current", async () => {
     responses = { "FROM api_keys": [{
-      id: "k1", name: "top1", key: "hf_x", daily_limit: 100,
-      used_today: 10, is_active: true, last_reset_at: new Date(), created_at: new Date(),
+      id: "k1", name: "top1", key: "hf_x", is_active: true,
+      hf_base: 300, hf_current: 250, hf_resets_at: null, hf_checked_at: null, created_at: new Date(),
     }] };
     const key = await getAvailableKey();
     expect(key.id).toBe("k1");
+  });
+
+  test("getAvailableKey пропускает ключи с hf_current < 60", async () => {
+    // Мок возвращает пустой результат — ключ с hf_current=30 отфильтрован WHERE
+    responses = { "FROM api_keys": [] };
+    await expect(getAvailableKey()).rejects.toThrow(AllKeysExhaustedError);
+  });
+
+  test("getAvailableKey допускает ключи с hf_current IS NULL (фоллбэк)", async () => {
+    responses = { "FROM api_keys": [{
+      id: "k3", name: "unknown", key: "hf_z", is_active: true,
+      hf_base: null, hf_current: null, hf_resets_at: null, hf_checked_at: null, created_at: new Date(),
+    }] };
+    const key = await getAvailableKey();
+    expect(key.id).toBe("k3");
   });
 
   test("getAvailableKey бросает AllKeysExhaustedError без доступных ключей", async () => {
@@ -38,12 +53,15 @@ describe("API Keys", () => {
     await expect(getAvailableKey()).rejects.toThrow(AllKeysExhaustedError);
   });
 
-  test("incrementKeyUsage инкрементирует атомарно через SQL", async () => {
-    await incrementKeyUsage("k1");
+  test("updateKeyQuota записывает данные через SQL", async () => {
+    await updateKeyQuota("k1", { base: 300, current: 200, resetsAt: "2026-09-15T12:00:00Z" });
     expect(mockSql).toHaveBeenCalled();
     const call = mockSql.mock.calls[0];
     const strings = call![0] as TemplateStringsArray;
     const query = strings.join("?");
-    expect(query).toContain("used_today + 1");
+    expect(query).toContain("hf_base");
+    expect(query).toContain("hf_current");
+    expect(query).toContain("hf_resets_at");
+    expect(query).toContain("hf_checked_at");
   });
 });

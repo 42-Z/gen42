@@ -13,6 +13,25 @@ interface GenerateResult {
   seed: number;
 }
 
+export interface ZeroGPUQuota {
+  base: number;
+  current: number;
+  resetsAt: string | null;
+}
+
+export async function getZeroGPUQuota(apiKey: string): Promise<ZeroGPUQuota | null> {
+  try {
+    const res = await fetch("https://huggingface.co/api/spaces/zero-gpu/quota", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return { base: data.base, current: data.current, resetsAt: data.resetsAt };
+  } catch {
+    return null;
+  }
+}
+
 export class KeyExhaustedError extends Error {
   constructor(
     public status: number,

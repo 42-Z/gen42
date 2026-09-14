@@ -97,14 +97,14 @@ export function Admin() {
     }
   }
 
-  async function resetKey(id: string) {
+  async function refreshQuota(id: string) {
     try {
       const res = await fetch(`/api/admin/keys/${id}`, { method: "POST" });
       if (res.ok) {
         loadData();
       }
     } catch (error) {
-      console.error("Failed to reset key:", error);
+      console.error("Failed to refresh quota:", error);
     }
   }
 
@@ -270,8 +270,9 @@ export function Admin() {
               <TableRow>
                 <TableHead>Название</TableHead>
                 <TableHead>Ключ</TableHead>
-                <TableHead>Лимит</TableHead>
+                <TableHead>Квота ZeroGPU</TableHead>
                 <TableHead>Статус</TableHead>
+                <TableHead>Сброс</TableHead>
                 <TableHead className="text-right">Действия</TableHead>
               </TableRow>
             </TableHeader>
@@ -283,17 +284,27 @@ export function Admin() {
                     {k.key}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
-                        <div
-                          className={`h-full rounded-full transition-all ${k.used_today >= k.daily_limit ? "bg-destructive" : "bg-primary"}`}
-                          style={{ width: `${Math.min((k.used_today / k.daily_limit) * 100, 100)}%` }}
-                        />
+                    {k.hf_current != null && k.hf_base != null ? (
+                      <div className="flex items-center gap-3">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              k.hf_current / k.hf_base > 0.5
+                                ? "bg-primary"
+                                : k.hf_current / k.hf_base > 0.2
+                                  ? "bg-yellow-500"
+                                  : "bg-destructive"
+                            }`}
+                            style={{ width: `${Math.min((k.hf_current / k.hf_base) * 100, 100)}%` }}
+                          />
+                        </div>
+                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                          {Math.round(k.hf_current)}s / {k.hf_base}s
+                        </span>
                       </div>
-                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                        {k.used_today}/{k.daily_limit}
-                      </span>
-                    </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">не проверено</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-xs">
@@ -303,8 +314,15 @@ export function Admin() {
                       {k.is_active ? "активен" : "неактивен"}
                     </span>
                   </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {k.hf_resets_at
+                      ? `сброс ${new Date(k.hf_resets_at).toLocaleString("ru")}`
+                      : k.hf_checked_at
+                        ? `проверено ${new Date(k.hf_checked_at).toLocaleString("ru")}`
+                        : ""}
+                  </TableCell>
                   <TableCell className="space-x-1 text-right">
-                    <Button variant="ghost" size="icon" title="Сбросить лимит" aria-label="Сбросить лимит" onClick={() => resetKey(k.id)}>
+                    <Button variant="ghost" size="icon" title="Обновить квоту с HF" aria-label="Обновить квоту" onClick={() => refreshQuota(k.id)}>
                       <IconRefresh className="h-4 w-4" />
                     </Button>
                     <Button variant="ghost" size="icon" title="Удалить ключ" aria-label="Удалить ключ" onClick={() => deleteKey(k.id)} className="text-destructive hover:text-destructive">
