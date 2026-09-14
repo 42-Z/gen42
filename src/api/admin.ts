@@ -1,6 +1,8 @@
 import { auth } from "../lib/auth";
 import { sql } from "../lib/db";
 import { addCredits } from "../lib/credits";
+import { getZeroGPUQuota } from "../lib/hf";
+import { updateKeyQuota } from "../lib/keys";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL!;
 
@@ -58,10 +60,10 @@ export const adminRoutes = {
       await checkAdmin(req);
 
       const keys = await sql`
-        SELECT id, name, key, daily_limit, used_today, is_active,
-               last_used_at, last_reset_at, created_at
+        SELECT id, name, key, is_active,
+               hf_base, hf_current, hf_resets_at, hf_checked_at, created_at
         FROM api_keys
-        ORDER BY created_at DESC
+        ORDER BY hf_current DESC NULLS LAST
       `;
       return Response.json(
         keys.map((k: any) => ({ ...k, key: `${k.key.slice(0, 8)}…` })),
@@ -71,16 +73,16 @@ export const adminRoutes = {
     POST: (req: Request) => adminResponse(async () => {
       await checkAdmin(req);
 
-      const { name, key, daily_limit } = await req.json();
+      const { name, key } = await req.json();
       if (!name || !key?.startsWith("hf_")) {
         return Response.json({ error: "Нужны name и корректный hf_-ключ" }, { status: 400 });
       }
 
       try {
         const [newKey] = await sql`
-          INSERT INTO api_keys (id, name, key, daily_limit)
-          VALUES (${crypto.randomUUID()}, ${name}, ${key}, ${daily_limit || 100})
-          RETURNING id, name, daily_limit, used_today, is_active, created_at
+          INSERT INTO api_keys (id, name, key)
+          VALUES (${crypto.randomUUID()}, ${name}, ${key})
+          RETURNING id, name, is_active, hf_base, hf_current, hf_resets_at, hf_checked_at, created_at
         `;
         return Response.json(newKey);
       } catch (e: any) {
@@ -105,12 +107,18 @@ export const adminRoutes = {
       await checkAdmin(req);
 
       const { id } = (req as any).params;
-      await sql`
-        UPDATE api_keys
-        SET used_today = 0, last_reset_at = NOW(), is_active = TRUE
-        WHERE id = ${id}
-      `;
-      return Response.json({ success: true });
+      const keys = await sql`SELECT key FROM api_keys WHERE id = ${id}`;
+      if (keys.length === 0) {
+        return Response.json({ error: "Ключ не найден" }, { status: 404 });
+      }
+
+      const quota = await getZeroGPUQuota(keys[0].key);
+      if (!quota) {
+        return Response.json({ error: "Не удалось получить квоту с HF" }, { status: 502 });
+      }
+
+      await updateKeyQuota(id, quota);
+      return Response.json({ success: true, quota });
     }),
   },
 
@@ -135,9 +143,9 @@ export const adminRoutes = {
           LIMIT 10
         `,
         sql`
-          SELECT id, name, daily_limit, used_today, is_active
+          SELECT id, name, is_active, hf_base, hf_current, hf_resets_at
           FROM api_keys
-          ORDER BY (daily_limit - used_today) DESC
+          ORDER BY hf_current DESC NULLS LAST
         `,
       ]);
 
