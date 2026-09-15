@@ -53,7 +53,7 @@ bun run db:migrate   # миграции
 ## Хранилище (S3)
 
 - `src/lib/storage.ts` использует `Bun.s3` (`S3Client`). Env: `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`. Bun по умолчанию ходит path-style, что и требуется S3-совместимым провайдерам
-- Прод-хранилище — **Neon Object Storage**: отдельный Neon-проект `gen42-storage` (`us-east-2`), бакет `images` (private), чтение через presigned URL. Проект БД `gen42` в `us-east-1`, а объектное хранилище Neon доступно только в `us-east-2`, поэтому они разные
+- Прод — единый Neon-проект `gen42-storage` (`rapid-water-10723622`, `us-east-2`, ветка `main`): и Postgres (`neondb`), и **Neon Object Storage** (бакет `images`, private, чтение через presigned URL). Старый проект БД `gen42` (`steep-block-68050198`, `us-east-1`) не используется — данные переехали 2026-09-15 (pg_dump/restore, сверены md5 всех 7 таблиц)
 - S3-креды Neon **branch-scoped** и выдаются так (запускать из `/tmp`: `--file` не принимает абсолютный путь):
 
   ```bash
