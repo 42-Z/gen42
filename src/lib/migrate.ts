@@ -1,5 +1,5 @@
-import { sql } from "bun";
 import { readFileSync } from "node:fs";
+import { sql } from "bun";
 
 const script = readFileSync("migrations/custom-tables.sql", "utf8");
 await sql.unsafe(script);

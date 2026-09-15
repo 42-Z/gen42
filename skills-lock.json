@@ -1,0 +1,83 @@
+{
+	"version": 1,
+	"skills": {
+		"before-and-after": {
+			"source": "vercel-labs/before-and-after",
+			"sourceType": "github",
+			"skillPath": "skill/SKILL.md",
+			"computedHash": "d3e059a03864cd72392d24e2b218ea825b3533383418b5dc1f947a9b084e3742"
+		},
+		"better-auth-best-practices": {
+			"source": "better-auth/skills",
+			"sourceType": "github",
+			"skillPath": "better-auth/best-practices/SKILL.md",
+			"computedHash": "0c30be0e118c2b7a0c4c57bd9e63bf110c7e420a79ec6ce7997153f3b1e066ee"
+		},
+		"create-auth": {
+			"source": "better-auth/skills",
+			"sourceType": "github",
+			"skillPath": "better-auth/create-auth/SKILL.md",
+			"computedHash": "9a9b498bc144367b8e237233f89def63fb2bd69e8cafe173eaa58fe3a863cdc4"
+		},
+		"deploy-to-vercel": {
+			"source": "vercel-labs/agent-skills",
+			"sourceType": "github",
+			"skillPath": "skills/deploy-to-vercel/SKILL.md",
+			"computedHash": "d2b5bcc7c09fdb649129ffc7dd7b647ec1b155736974b974292675afd588cb39"
+		},
+		"hf-cli": {
+			"source": "huggingface/skills",
+			"sourceType": "github",
+			"skillPath": "skills/hf-cli/SKILL.md",
+			"computedHash": "3341f90a2ff6683069bef7a9c1bfd16e154398c9a3c38080a18e41547e45768e"
+		},
+		"migrate-radix-to-base": {
+			"source": "shadcn/ui",
+			"sourceType": "github",
+			"skillPath": "skills/migrate-radix-to-base/SKILL.md",
+			"computedHash": "e1f2030ee5059be3dff0812ca0e4b995ee9fa3132176f049ebe6c90346a6755e"
+		},
+		"neon": {
+			"source": "neondatabase/agent-skills",
+			"sourceType": "github",
+			"skillPath": "skills/neon/SKILL.md",
+			"computedHash": "cd40530aa01dce7af2b9b77afb5d9452b13c3d6d1b6690af8b38605f17d1eeaf"
+		},
+		"neon-object-storage": {
+			"source": "neondatabase/agent-skills",
+			"sourceType": "github",
+			"skillPath": "skills/neon-object-storage/SKILL.md",
+			"computedHash": "7ffb7c60f34e499416896eb9ff581fd60141d1b8ea8c7e535ed682f281b15246"
+		},
+		"neon-postgres": {
+			"source": "neondatabase/agent-skills",
+			"sourceType": "github",
+			"skillPath": "skills/neon-postgres/SKILL.md",
+			"computedHash": "64150370145c18f563fbc652c8d8bf273c4943d2a9f2039ddd51af9fd08d96f3"
+		},
+		"neon-postgres-branches": {
+			"source": "neondatabase/agent-skills",
+			"sourceType": "github",
+			"skillPath": "skills/neon-postgres-branches/SKILL.md",
+			"computedHash": "bb65e351d8858773855efbe92c688144e34b1e836db6bf97fea9aa221f201057"
+		},
+		"shadcn": {
+			"source": "shadcn/ui",
+			"sourceType": "github",
+			"skillPath": "skills/shadcn/SKILL.md",
+			"computedHash": "f615de216e085a84e31593ad0fa9062232adc40cd87b7c7ab2b8e49abf6500be"
+		},
+		"vercel-cli": {
+			"source": "vercel/vercel",
+			"sourceType": "github",
+			"skillPath": "skills/vercel-cli/SKILL.md",
+			"computedHash": "bc312e5c407c79c264503ef588613ee697508636b8e6ba76ee2585979b49ba2b"
+		},
+		"web-design-guidelines": {
+			"source": "vercel-labs/agent-skills",
+			"sourceType": "github",
+			"skillPath": "skills/web-design-guidelines/SKILL.md",
+			"computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
+		}
+	}
+}
