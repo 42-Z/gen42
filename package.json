@@ -7,7 +7,8 @@
     "dev": "bun --hot src/server.ts",
     "start": "NODE_ENV=production bun src/server.ts",
     "build": "bun run build.ts",
-    "db:migrate": "bun run src/lib/migrate.ts"
+    "db:migrate": "bun run src/lib/migrate.ts",
+    "db:migrate:dev": "NODE_ENV=development bun run src/lib/migrate.ts"
   },
   "dependencies": {
     "@better-auth/telemetry": "^1.7.4",

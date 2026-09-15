@@ -1,0 +1,29 @@
+name: Migrate production database
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "migrations/**"
+      - "src/lib/migrate.ts"
+      - ".github/workflows/migrate-prod.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: migrate-prod
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Apply migrations to production
+        run: bun run src/lib/migrate.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
