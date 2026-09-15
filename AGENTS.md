@@ -40,6 +40,10 @@ bun dev              # dev-сервер с hot reload
 bun run build        # сборка фронтенда в dist/
 bun test             # тесты (bun:test)
 bun run db:migrate:dev  # миграции локально (ветка dev через .env.development)
+bun run typecheck    # проверка типов
+bun run lint         # линтер (biome)
+bun run lint:fix     # автфикс линтера
+bun run format       # форматер (biome)
 ```
 
 Миграции на прод (`main`, `migrations/custom-tables.sql` идемпотентны) накатывает GitHub Actions (`.github/workflows/migrate-prod.yml`) по пушу в `main`. Разработчикам продовый DATABASE_URL не выдавать — только `.env.development`
