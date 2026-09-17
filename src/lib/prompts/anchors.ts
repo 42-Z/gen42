@@ -96,7 +96,11 @@ const LIGHTING = [
 export const ANCHOR_CATEGORIES: readonly AnchorCategory[] = [
 	{ key: "location", label: "location", values: LOCATIONS },
 	{ key: "transport", label: "transport", values: TRANSPORT },
-	{ key: "creatures", label: "creatures", values: CREATURES },
+	{
+		key: "creatures",
+		label: "entourage creatures (supporting, never replace the user's subject)",
+		values: CREATURES,
+	},
 	{ key: "luxury", label: "luxury", values: LUXURY },
 	{ key: "slogan", label: "slogan", values: SLOGANS },
 	{ key: "medium", label: "medium", values: MEDIUMS },

@@ -11,6 +11,7 @@ import {
 	sanitizeEnhancedPrompt,
 	validateEnhancedPrompt,
 } from "./prompts/contract";
+import { detectUserMedium, ensureClosingFormula } from "./prompts/style-hints";
 import { buildFallbackPrompt } from "./style42-fallback";
 
 const MAX_ATTEMPTS = 5;
@@ -55,6 +56,10 @@ export async function enhancePrompt(
 
 	const started = Date.now();
 	const anchors = pickAnchors();
+	const userMedium = detectUserMedium(userInput);
+	if (userMedium) {
+		anchors.medium = userMedium;
+	}
 	const message = buildUserMessage(userInput, anchors);
 	let lastError: string | undefined;
 	let contractRetries = 0;
@@ -79,7 +84,10 @@ export async function enhancePrompt(
 				...result.usage,
 			});
 
-			const cleaned = sanitizeEnhancedPrompt(result.text);
+			const cleaned = ensureClosingFormula(
+				sanitizeEnhancedPrompt(result.text),
+				anchors.medium,
+			);
 			const verdict = validateEnhancedPrompt(cleaned);
 			if (!verdict.ok) {
 				lastError = `contract: ${verdict.reason}`;
