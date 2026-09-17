@@ -38,3 +38,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # secrets
 keys.csv
 .commandcode/
+
+# исходники 42-референсов (в git — сжатые копии в docs/references/42)
+docs/42_images/
