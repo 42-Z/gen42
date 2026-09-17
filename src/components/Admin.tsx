@@ -1,4 +1,10 @@
-import { IconCoins, IconKey, IconPhoto, IconTrash } from "@tabler/icons-react";
+import {
+	IconCoins,
+	IconKey,
+	IconPhoto,
+	IconRefresh,
+	IconTrash,
+} from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,9 +30,13 @@ import { PopSkeleton, SparkStar } from "./graphics";
 export function Admin() {
 	const [users, setUsers] = useState<any[]>([]);
 	const [keys, setKeys] = useState<any[]>([]);
+	const [llmKeys, setLlmKeys] = useState<any[]>([]);
 	const [stats, setStats] = useState<any>(null);
 	const [newKeyName, setNewKeyName] = useState("");
 	const [newKeyValue, setNewKeyValue] = useState("");
+	const [newLlmKeyName, setNewLlmKeyName] = useState("");
+	const [newLlmKeyValue, setNewLlmKeyValue] = useState("");
+	const [llmError, setLlmError] = useState("");
 	const [creditUserId, setCreditUserId] = useState("");
 	const [creditAmount, setCreditAmount] = useState(0);
 	const [loading, setLoading] = useState(true);
@@ -39,14 +49,16 @@ export function Admin() {
 	async function loadData() {
 		setError("");
 		try {
-			const [usersRes, keysRes, statsRes] = await Promise.all([
+			const [usersRes, keysRes, llmKeysRes, statsRes] = await Promise.all([
 				fetch("/api/admin/users"),
 				fetch("/api/admin/keys"),
+				fetch("/api/admin/keys?provider=poolside"),
 				fetch("/api/admin/stats"),
 			]);
 
 			if (usersRes.ok) setUsers(await usersRes.json());
 			if (keysRes.ok) setKeys(await keysRes.json());
+			if (llmKeysRes.ok) setLlmKeys(await llmKeysRes.json());
 			if (statsRes.ok) setStats(await statsRes.json());
 			if (!usersRes.ok || !keysRes.ok || !statsRes.ok) {
 				setError("Часть данных не загрузилась. Попробуйте обновить.");
@@ -76,6 +88,51 @@ export function Admin() {
 			}
 		} catch (error) {
 			console.error("Failed to add key:", error);
+		}
+	}
+
+	async function addLlmKey() {
+		if (!newLlmKeyName || !newLlmKeyValue) return;
+
+		setLlmError("");
+		try {
+			const res = await fetch("/api/admin/keys", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					name: newLlmKeyName,
+					key: newLlmKeyValue,
+					provider: "poolside",
+				}),
+			});
+
+			if (res.ok) {
+				setNewLlmKeyName("");
+				setNewLlmKeyValue("");
+				loadData();
+				return;
+			}
+			const data = await res.json().catch(() => null);
+			setLlmError(data?.error || "Не удалось добавить ключ");
+		} catch (error) {
+			console.error("Failed to add LLM key:", error);
+			setLlmError("Не удалось добавить ключ");
+		}
+	}
+
+	async function checkLlmKey(id: string) {
+		setLlmError("");
+		try {
+			const res = await fetch(`/api/admin/keys/${id}`, { method: "POST" });
+			const data = await res.json().catch(() => null);
+			if (!res.ok) {
+				setLlmError(data?.error || "Ключ не прошёл проверку");
+				return;
+			}
+			loadData();
+		} catch (error) {
+			console.error("Failed to check LLM key:", error);
+			setLlmError("Ключ не прошёл проверку");
 		}
 	}
 
@@ -311,6 +368,118 @@ export function Admin() {
 												: ""}
 									</TableCell>
 									<TableCell className="space-x-1 text-right">
+										<Button
+											variant="ghost"
+											size="icon"
+											title="Удалить ключ"
+											aria-label="Удалить ключ"
+											onClick={() => deleteKey(k.id)}
+											className="text-destructive hover:text-destructive"
+										>
+											<IconTrash className="h-4 w-4" />
+										</Button>
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</div>
+			</section>
+
+			<section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:240ms]">
+				<h3 className="font-display text-xl font-bold text-foreground">
+					Ключи LLM
+				</h3>
+
+				<div className="mt-6 grid grid-cols-1 items-end gap-4 sm:grid-cols-[220px_1fr_auto]">
+					<div className="space-y-1.5">
+						<Label htmlFor="llm-key-name">Название</Label>
+						<Input
+							id="llm-key-name"
+							value={newLlmKeyName}
+							onChange={(e) => setNewLlmKeyName(e.target.value)}
+						/>
+					</div>
+					<div className="space-y-1.5">
+						<Label htmlFor="llm-key-value">Токен</Label>
+						<Input
+							id="llm-key-value"
+							value={newLlmKeyValue}
+							onChange={(e) => setNewLlmKeyValue(e.target.value)}
+						/>
+					</div>
+					<Button onClick={addLlmKey}>Добавить ключ</Button>
+				</div>
+
+				{llmError && (
+					<div role="alert" className="mt-4 text-sm text-destructive">
+						{llmError}
+					</div>
+				)}
+
+				<div className="mt-8 overflow-x-auto">
+					<Table className="min-w-[720px]">
+						<TableHeader>
+							<TableRow>
+								<TableHead>Название</TableHead>
+								<TableHead>Ключ</TableHead>
+								<TableHead>Остаток запросов</TableHead>
+								<TableHead>Токены</TableHead>
+								<TableHead>Статус</TableHead>
+								<TableHead className="text-right">Действия</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{llmKeys.map((k) => (
+								<TableRow key={k.id}>
+									<TableCell className="font-semibold">{k.name}</TableCell>
+									<TableCell className="font-mono text-xs text-muted-foreground">
+										{k.key}
+									</TableCell>
+									<TableCell>
+										{k.rl_remaining != null && k.rl_limit != null ? (
+											<div
+												className="h-2 w-40 overflow-hidden rounded-full bg-secondary"
+												title={`${k.rl_remaining} из ${k.rl_limit}`}
+											>
+												<div
+													className={`h-full rounded-full transition-all ${
+														k.rl_remaining / k.rl_limit > 0.5
+															? "bg-primary"
+															: k.rl_remaining / k.rl_limit > 0.2
+																? "bg-[#ffd54a]"
+																: "bg-destructive"
+													}`}
+													style={{
+														width: `${Math.min((k.rl_remaining / k.rl_limit) * 100, 100)}%`,
+													}}
+												/>
+											</div>
+										) : (
+											<span className="text-xs text-muted-foreground">—</span>
+										)}
+									</TableCell>
+									<TableCell className="text-xs tabular-nums text-muted-foreground">
+										{k.tokens_total ? Number(k.tokens_total) : "—"}
+									</TableCell>
+									<TableCell>
+										<span
+											className={`text-xs font-medium ${k.is_active ? "text-primary" : "text-destructive"}`}
+											title={k.last_error || undefined}
+										>
+											{k.is_active ? "Активен" : "Отключён"}
+										</span>
+									</TableCell>
+									<TableCell className="space-x-1 text-right">
+										<Button
+											variant="ghost"
+											size="icon"
+											title="Проверить и включить"
+											aria-label="Проверить и включить ключ"
+											onClick={() => checkLlmKey(k.id)}
+										>
+											<IconRefresh className="h-4 w-4" />
+										</Button>
 										<Button
 											variant="ghost"
 											size="icon"
