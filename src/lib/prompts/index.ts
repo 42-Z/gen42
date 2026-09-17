@@ -9,3 +9,8 @@ export const STYLE_VERSION = createHash("sha256")
 
 export type { Anchors } from "./anchors";
 export { ANCHOR_CATEGORIES, buildUserMessage, pickAnchors } from "./anchors";
+export type { ContractResult } from "./contract";
+export {
+	sanitizeEnhancedPrompt,
+	validateEnhancedPrompt,
+} from "./contract";
