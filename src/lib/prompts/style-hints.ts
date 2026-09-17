@@ -62,6 +62,82 @@ const ALL_MEDIUM_PHRASES = [
 const MEDIUM_MARKERS =
 	/\b(photograph|photography|render|rendering|painting|poster|collage|drawing|illustration|comic|screenprint|watercolou?r|pixel-art|anime|3d)\b/i;
 
+const TEXT_REQUEST =
+	/[«»""'']|(надпис|текст|плакат|вывеск|лозунг|слоган|граффити|баннер|подпис|\b(sign|text|poster|slogan|banner|lettering|caption|logo)\b)/i;
+
+const EXACT_TEXT_HINTS = [
+	"плакат с надписью",
+	"надпись",
+	"текст на",
+	"с текстом",
+	"with the text",
+	"with text",
+];
+
+export function extractQuotedTexts(userInput: string): string[] {
+	const matches = userInput.match(/«[^»]+»|"[^"]+"|'[^']+'/g) ?? [];
+	return matches.map((match) => match.slice(1, -1).trim()).filter(Boolean);
+}
+
+export function maskUnrequestedTexts(text: string): string {
+	return text.replace(/«[^»]*»|"[^"]*"/g, "42");
+}
+
+export function requestsText(userInput: string): boolean {
+	if (TEXT_REQUEST.test(userInput)) return true;
+	const low = userInput.toLowerCase();
+	return EXACT_TEXT_HINTS.some((hint) => low.includes(hint));
+}
+
+export interface DetailMarker {
+	pattern: RegExp;
+	marker: string;
+}
+
+export const EXPLICIT_DETAILS: readonly DetailMarker[] = [
+	{ pattern: /лазер|laser/i, marker: "laser" },
+	{ pattern: /стреля|выстрел|shoot|fire|blast|shot/i, marker: "shoot" },
+	{ pattern: /взрыв|explod|explosion/i, marker: "explosion" },
+	{ pattern: /огон|огн|пламя|flame|fire(?!\s*work)/i, marker: "flame" },
+	{ pattern: /кыл|wing/i, marker: "wing" },
+	{ pattern: /глаз|eye/i, marker: "eye" },
+	{ pattern: /летит|лета|парит|fly|flying|hover/i, marker: "fly" },
+	{ pattern: /светит|светя|glow|beam|shine/i, marker: "glow" },
+	{ pattern: /дым|smoke|smog/i, marker: "smoke" },
+	{ pattern: /бьёт|бьет|удар|punch|smash|hit/i, marker: "impact" },
+	{ pattern: /робот|robot|android|cyborg/i, marker: "robot" },
+	{ pattern: /доспех|брон|armor|armour/i, marker: "armor" },
+	{ pattern: /танц|danc/i, marker: "dance" },
+	{ pattern: /прыга|прыжок|jump|leap/i, marker: "jump" },
+];
+
+const DETAIL_MARKER_SYNONYMS: Record<string, RegExp> = {
+	laser: /laser/i,
+	shoot: /shoot|fire|blast|beam|ray|shot|streak/i,
+	explosion: /explod|blast|burst/i,
+	flame: /flame|fire|blaze|burn/i,
+	wing: /wing|feather/i,
+	eye: /eye|gaze/i,
+	fly: /fly|flying|hover|soar|levitat/i,
+	glow: /glow|beam|shine|radian|light/i,
+	smoke: /smoke|haze|mist|fog/i,
+	impact: /punch|smash|impact|strike|hit/i,
+	robot: /robot|android|cyborg|mech/i,
+	armor: /armor|armour|plated|breastplate/i,
+	dance: /danc|waltz|sway/i,
+	jump: /jump|leap|mid-air/i,
+};
+
+export function missingDetails(userInput: string, output: string): string[] {
+	const missing: string[] = [];
+	for (const detail of EXPLICIT_DETAILS) {
+		if (!detail.pattern.test(userInput)) continue;
+		const synonyms = DETAIL_MARKER_SYNONYMS[detail.marker];
+		if (!synonyms?.test(output)) missing.push(detail.marker);
+	}
+	return missing;
+}
+
 export function detectUserMedium(userInput: string): string | null {
 	for (const hint of USER_MEDIUM_HINTS) {
 		if (hint.pattern.test(userInput)) return hint.phrase;

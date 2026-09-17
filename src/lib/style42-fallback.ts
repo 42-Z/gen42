@@ -3,6 +3,7 @@ import type { Anchors } from "./prompts/anchors";
 export function buildFallbackPrompt(
 	userInput: string,
 	anchors: Anchors,
+	options: { textRequested?: boolean } = {},
 ): string {
 	const clean = userInput.trim().replace(/\s+/g, " ");
 
@@ -12,7 +13,9 @@ export function buildFallbackPrompt(
 		`Luxury overload: ${anchors.luxury}, gold chains, leopard fur, crowns, gold bars and diamond sparkle on every surface.`,
 		`${anchors.lighting}.`,
 		`Render it as ${anchors.medium}.`,
-		`Neon signs and blue-and-red ceremonial banners with white 42 emblems carry the exact Cyrillic text «${anchors.slogan}», plus a giant glowing 42 in the background.`,
+		options.textRequested
+			? `Neon signs and blue-and-red ceremonial banners with white 42 emblems carry the exact Cyrillic text «${anchors.slogan}», plus a giant glowing 42 in the background.`
+			: `Blue-and-red ceremonial banners with white 42 emblems fill the background, with a single giant glowing 42 as the only text in the frame.`,
 		`Wide-angle poster composition, epic scale, hyper-saturated gold-and-neon palette, confetti and fireworks in the air, absurd triumphant kitsch, no watermarks, no signature.`,
 	].join(" ");
 }

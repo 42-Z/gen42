@@ -45,7 +45,7 @@ bun test               # тесты
 
 ### Стиль «42»
 
-Стиль задан системным промптом `src/lib/prompts/style42.system.ts` и дублируется серверными инвариантами в `src/lib/prompts/style-hints.ts` (чтобы модель не путала медиум и не теряла субъект пользователя). Для итераций есть `bun scripts/eval-style42.ts` (текстовый прогон 20 промптов) и `bun scripts/eval-images.ts` (визуальный прогон через Krea 2).
+Стиль задан системным промптом `src/lib/prompts/style42.system.ts` и дублируется серверными инвариантами в `src/lib/prompts/style-hints.ts` (чтобы модель не путала медиум, не теряла субъекта и не выдумывала надписи). Для итераций есть `bun scripts/eval-style42.ts` (текстовый прогон промптов) и `bun scripts/eval-images.ts` (визуальный прогон через Krea 2).
 
 ## Деплой на Vercel
 

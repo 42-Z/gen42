@@ -6,12 +6,13 @@ import {
 } from "../prompts/anchors";
 
 describe("anchors", () => {
-	test("каталог покрывает семь категорий и не пуст", () => {
+	test("каталог покрывает восемь категорий и не пуст", () => {
 		expect(ANCHOR_CATEGORIES.map((c) => c.key)).toEqual([
 			"location",
 			"transport",
 			"creatures",
 			"luxury",
+			"props",
 			"slogan",
 			"medium",
 			"lighting",
@@ -19,6 +20,13 @@ describe("anchors", () => {
 		for (const category of ANCHOR_CATEGORIES) {
 			expect(category.values.length).toBeGreaterThanOrEqual(6);
 		}
+	});
+
+	test("медиумы без игрушечности, свет без лазеров", () => {
+		const medium = ANCHOR_CATEGORIES.find((c) => c.key === "medium")!;
+		const lighting = ANCHOR_CATEGORIES.find((c) => c.key === "lighting")!;
+		expect(medium.values.join(" ")).not.toContain("toy-like");
+		expect(lighting.values.join(" ")).not.toContain("laser");
 	});
 
 	test("pickAnchors детерминирован при фиксированном rng", () => {
@@ -34,14 +42,36 @@ describe("anchors", () => {
 		expect(low.transport).not.toBe(high.transport);
 	});
 
-	test("buildUserMessage оборачивает запрос и перечисляет все якоря", () => {
+	test("buildUserMessage оборачивает запрос и перечисляет якоря без текста", () => {
 		const anchors = pickAnchors(() => 0);
 		const message = buildUserMessage("  кот   на диване ", anchors);
 		expect(message).toContain("<<<USER_REQUEST\nкот на диване\n>>>");
 		expect(message).toContain("ANCHORS FOR THIS GENERATION");
-		for (const value of Object.values(anchors)) {
+		expect(message).toContain("TEXT: none");
+		expect(message).not.toContain(anchors.slogan);
+		for (const [key, value] of Object.entries(anchors)) {
+			if (key === "slogan") continue;
 			expect(message).toContain(value);
 		}
+	});
+
+	test("с текстовым запросом слоган передаётся и режим TEXT: requested", () => {
+		const anchors = pickAnchors(() => 0);
+		const message = buildUserMessage("плакат с надписью «СЛАВА 42»", anchors, {
+			textRequested: true,
+		});
+		expect(message).toContain("TEXT: requested");
+		expect(message).toContain(anchors.slogan);
+	});
+
+	test("потерянные детали попадают в сообщение при повторе", () => {
+		const anchors = pickAnchors(() => 0);
+		const message = buildUserMessage("человек стреляет лазерами", anchors, {
+			textRequested: false,
+			missingDetails: ["laser"],
+		});
+		expect(message).toContain("MISSING DETAILS FROM THE PREVIOUS ATTEMPT");
+		expect(message).toContain("laser");
 	});
 
 	test("разрывает делимитеры внутри пользовательского ввода", () => {
