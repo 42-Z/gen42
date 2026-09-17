@@ -165,9 +165,11 @@ describe("enhancePrompt", () => {
 		expect(result.fallback).toBe(false);
 		expect(result.prompt).toContain("laser");
 		expect(result.prompt).toContain("«ЖИВИ ГРОМКО»");
-		const retryMessage = deps.callPoolside.mock.calls[1]?.[0] as any;
-		expect(retryMessage.user).toContain("MISSING DETAILS");
-		expect(retryMessage.user).toContain("EXACT TEXT");
+		const retryCall = deps.callPoolside.mock.calls[1] as unknown as
+			| [{ user: string }]
+			| undefined;
+		expect(retryCall?.[0].user).toContain("MISSING DETAILS");
+		expect(retryCall?.[0].user).toContain("EXACT TEXT");
 	});
 
 	test("нет ключей -> сразу fallback", async () => {
