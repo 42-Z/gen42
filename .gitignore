@@ -41,3 +41,6 @@ keys.csv
 
 # исходники 42-референсов (в git — сжатые копии в docs/references/42)
 docs/42_images/
+
+# артефакты визуальных прогонов
+docs/evals/images/

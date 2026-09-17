@@ -40,7 +40,7 @@ const TRANSPORT = [
 
 const CREATURES = [
 	"a pug in a leopard fur coat and gold chains",
-	"a hippo DJ in a fur coat with headphones",
+	"a hippopotamus DJ in a fur coat with headphones",
 	"giraffes riding electric scooters",
 	"flamingos dripping in gold jewelry",
 	"a rhinoceros in a business suit",

@@ -210,6 +210,11 @@ export const adminRoutes = {
 				}
 
 				await updateKeyQuota(id, quota);
+				await sql`
+          UPDATE api_keys
+          SET is_active = TRUE, last_error = NULL
+          WHERE id = ${id}
+        `;
 				return Response.json({ success: true, quota });
 			}),
 	},
