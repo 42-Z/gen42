@@ -13,10 +13,33 @@ interface GenerateResult {
 	seed: number;
 }
 
+export interface ZeroGPURuns {
+	used: number | null;
+	limit: number | null;
+	remaining: number | null;
+	resetsAt: string | null;
+}
+
 export interface ZeroGPUQuota {
 	base: number;
 	current: number;
 	resetsAt: string | null;
+	runs: ZeroGPURuns | null;
+}
+
+function quotaNumber(value: unknown): number | null {
+	return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function parseRuns(value: unknown): ZeroGPURuns | null {
+	if (typeof value !== "object" || value === null) return null;
+	const runs = value as Record<string, unknown>;
+	return {
+		used: quotaNumber(runs.used),
+		limit: quotaNumber(runs.limit),
+		remaining: quotaNumber(runs.remaining),
+		resetsAt: typeof runs.resetsAt === "string" ? runs.resetsAt : null,
+	};
 }
 
 export async function getZeroGPUQuota(
@@ -31,7 +54,12 @@ export async function getZeroGPUQuota(
 		);
 		if (!res.ok) return null;
 		const data = await res.json();
-		return { base: data.base, current: data.current, resetsAt: data.resetsAt };
+		return {
+			base: data.base,
+			current: data.current,
+			resetsAt: data.resetsAt,
+			runs: parseRuns(data.runs),
+		};
 	} catch {
 		return null;
 	}

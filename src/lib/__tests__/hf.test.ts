@@ -90,13 +90,19 @@ describe("getZeroGPUQuota", () => {
 		globalThis.fetch = originalFetch;
 	});
 
-	test("возвращает quota при успешном ответе", async () => {
+	test("возвращает quota вместе с суточными прогонами", async () => {
 		globalThis.fetch = mock(async () =>
 			Response.json({
 				base: 300,
 				current: 278.5,
 				resetsAt: "2026-09-15T12:00:00Z",
 				overquotaUsed: 0,
+				runs: {
+					used: 3,
+					limit: 8,
+					remaining: 5,
+					resetsAt: "2026-09-15T12:00:04Z",
+				},
 			}),
 		) as any;
 		const { getZeroGPUQuota } = await import("../hf");
@@ -105,6 +111,40 @@ describe("getZeroGPUQuota", () => {
 			base: 300,
 			current: 278.5,
 			resetsAt: "2026-09-15T12:00:00Z",
+			runs: {
+				used: 3,
+				limit: 8,
+				remaining: 5,
+				resetsAt: "2026-09-15T12:00:04Z",
+			},
+		});
+	});
+
+	test("без блока runs прогоны считаются неизвестными", async () => {
+		globalThis.fetch = mock(async () =>
+			Response.json({ base: 300, current: 278.5, resetsAt: null }),
+		) as any;
+		const { getZeroGPUQuota } = await import("../hf");
+		const q = await getZeroGPUQuota("hf_test");
+		expect(q?.runs).toBeNull();
+	});
+
+	test("нечисловые поля runs заменяются на null", async () => {
+		globalThis.fetch = mock(async () =>
+			Response.json({
+				base: 300,
+				current: 278.5,
+				resetsAt: null,
+				runs: { used: "много", limit: null, remaining: 0 },
+			}),
+		) as any;
+		const { getZeroGPUQuota } = await import("../hf");
+		const q = await getZeroGPUQuota("hf_test");
+		expect(q?.runs).toEqual({
+			used: null,
+			limit: null,
+			remaining: 0,
+			resetsAt: null,
 		});
 	});
 

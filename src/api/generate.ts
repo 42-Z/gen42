@@ -10,7 +10,6 @@ import { enhancePrompt } from "../lib/enhance";
 import { generateImage, getZeroGPUQuota, KeyExhaustedError } from "../lib/hf";
 import {
 	AllKeysExhaustedError,
-	deactivateKey,
 	getAvailableKey,
 	updateKeyQuota,
 } from "../lib/keys";
@@ -57,11 +56,15 @@ export const generateRoutes = {
 				}
 
 				const startTime = Date.now();
+				const triedKeyIds = new Set<string>();
 				let result: Awaited<ReturnType<typeof generateImage>> | null = null;
 
 				for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
 					try {
-						currentKey = await getAvailableKey();
+						currentKey = await getAvailableKey("huggingface", {
+							excludeIds: [...triedKeyIds],
+						});
+						triedKeyIds.add(currentKey.id);
 						result = await generateImage(
 							{
 								prompt: enhanced.prompt,
@@ -80,7 +83,12 @@ export const generateRoutes = {
 							console.warn(
 								`Ключ ${currentKey.name} исчерпан (${err.status}), переключаюсь`,
 							);
-							await deactivateKey(currentKey.id);
+							const quota = await getZeroGPUQuota(currentKey.key);
+							if (quota) {
+								await updateKeyQuota(currentKey.id, quota, {
+									lastError: err.message,
+								});
+							}
 							currentKey = null;
 							continue;
 						}

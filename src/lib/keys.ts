@@ -1,4 +1,5 @@
 import { sql } from "./db";
+import type { ZeroGPUQuota } from "./hf";
 
 export type KeyProvider = "huggingface" | "poolside";
 
@@ -12,6 +13,9 @@ export interface ApiKeyRow {
 	hf_current: number | null;
 	hf_resets_at: Date | null;
 	hf_checked_at: Date | null;
+	hf_runs_remaining: number | null;
+	hf_runs_limit: number | null;
+	hf_runs_resets_at: Date | null;
 	rl_limit: number | null;
 	rl_remaining: number | null;
 	rl_checked_at: Date | null;
@@ -21,43 +25,105 @@ export interface ApiKeyRow {
 	created_at: Date;
 }
 
+export const HF_MIN_SECONDS = 60;
+
 export class AllKeysExhaustedError extends Error {
 	constructor() {
 		super("All API keys exhausted");
 	}
 }
 
+export interface GetAvailableKeyOptions {
+	excludeIds?: string[];
+}
+
+function resetPassed(value: Date | string | null): boolean {
+	if (value == null) return false;
+	const time = new Date(value).getTime();
+	return Number.isFinite(time) && time <= Date.now();
+}
+
+export function hasRemainingQuota(quota: {
+	current: number | null;
+	runsRemaining: number | null;
+}): boolean {
+	const secondsOk = quota.current == null || quota.current >= HF_MIN_SECONDS;
+	const runsOk = quota.runsRemaining == null || quota.runsRemaining > 0;
+	return secondsOk && runsOk;
+}
+
+export function hasConfirmedQuota(quota: {
+	current: number | null;
+	runsRemaining: number | null;
+}): boolean {
+	return (
+		quota.current != null &&
+		quota.current >= HF_MIN_SECONDS &&
+		quota.runsRemaining != null &&
+		quota.runsRemaining > 0
+	);
+}
+
+function isKeyAvailable(key: ApiKeyRow): boolean {
+	return hasRemainingQuota({
+		current: resetPassed(key.hf_resets_at) ? null : key.hf_current,
+		runsRemaining: resetPassed(key.hf_runs_resets_at)
+			? null
+			: key.hf_runs_remaining,
+	});
+}
+
+export function isKeyQuotaStale(
+	key: Pick<
+		ApiKeyRow,
+		"hf_checked_at" | "hf_runs_limit" | "hf_resets_at" | "hf_runs_resets_at"
+	>,
+): boolean {
+	if (!key.hf_checked_at || key.hf_runs_limit == null) return true;
+	return resetPassed(key.hf_resets_at) || resetPassed(key.hf_runs_resets_at);
+}
+
 export async function getAvailableKey(
 	provider: KeyProvider = "huggingface",
+	options: GetAvailableKeyOptions = {},
 ): Promise<ApiKeyRow> {
-	const keys =
-		provider === "poolside"
-			? ((await sql`
-          SELECT * FROM api_keys
-          WHERE provider = 'poolside'
-            AND is_active = TRUE
-            AND (
-              rl_remaining IS NULL
-              OR rl_remaining > 0
-              OR rl_checked_at IS NULL
-              OR rl_checked_at < NOW() - INTERVAL '2 minutes'
-            )
-          ORDER BY rl_remaining DESC NULLS LAST
-          LIMIT 1
-        `) as ApiKeyRow[])
-			: ((await sql`
-          SELECT * FROM api_keys
-          WHERE provider = 'huggingface'
-            AND is_active = TRUE
-            AND (hf_current IS NULL OR hf_current >= 60)
-          ORDER BY hf_current DESC NULLS LAST
-          LIMIT 1
-        `) as ApiKeyRow[]);
+	if (provider === "poolside") {
+		const keys = (await sql`
+      SELECT * FROM api_keys
+      WHERE provider = 'poolside'
+        AND is_active = TRUE
+        AND (
+          rl_remaining IS NULL
+          OR rl_remaining > 0
+          OR rl_checked_at IS NULL
+          OR rl_checked_at < NOW() - INTERVAL '2 minutes'
+        )
+      ORDER BY rl_remaining DESC NULLS LAST
+      LIMIT 1
+    `) as ApiKeyRow[];
 
-	if (keys.length === 0) {
+		if (keys.length === 0) {
+			throw new AllKeysExhaustedError();
+		}
+		return keys[0]!;
+	}
+
+	const excluded = new Set(options.excludeIds ?? []);
+	const keys = (await sql`
+    SELECT * FROM api_keys
+    WHERE provider = 'huggingface'
+      AND is_active = TRUE
+  `) as ApiKeyRow[];
+
+	const available = keys
+		.filter((key) => !excluded.has(key.id))
+		.filter(isKeyAvailable)
+		.sort((a, b) => (b.hf_current ?? -1) - (a.hf_current ?? -1));
+
+	if (available.length === 0) {
 		throw new AllKeysExhaustedError();
 	}
-	return keys[0]!;
+	return available[0]!;
 }
 
 export async function deactivateKey(
@@ -74,14 +140,19 @@ export async function deactivateKey(
 
 export async function updateKeyQuota(
 	keyId: string,
-	quota: { base: number; current: number; resetsAt: string | null },
+	quota: ZeroGPUQuota,
+	options: { lastError?: string | null } = {},
 ): Promise<void> {
 	await sql`
     UPDATE api_keys
     SET hf_base = ${quota.base},
         hf_current = ${quota.current},
         hf_resets_at = ${quota.resetsAt},
-        hf_checked_at = NOW()
+        hf_runs_remaining = ${quota.runs?.remaining ?? null},
+        hf_runs_limit = ${quota.runs?.limit ?? null},
+        hf_runs_resets_at = ${quota.runs?.resetsAt ?? null},
+        hf_checked_at = NOW(),
+        last_error = ${options.lastError ?? null}
     WHERE id = ${keyId}
   `;
 }
