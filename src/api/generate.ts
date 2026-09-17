@@ -6,6 +6,7 @@ import {
 	refundCredit,
 } from "../lib/credits";
 import { sql } from "../lib/db";
+import { enhancePrompt } from "../lib/enhance";
 import { generateImage, getZeroGPUQuota, KeyExhaustedError } from "../lib/hf";
 import {
 	AllKeysExhaustedError,
@@ -48,6 +49,13 @@ export const generateRoutes = {
 				await deductCredit(session.user.id);
 				creditSpent = true;
 
+				const enhanced = await enhancePrompt(prompt);
+				if (enhanced.fallback) {
+					console.warn(
+						`Обогащение промпта упало в fallback: ${enhanced.error ?? "unknown"}`,
+					);
+				}
+
 				const startTime = Date.now();
 				let result: Awaited<ReturnType<typeof generateImage>> | null = null;
 
@@ -55,7 +63,15 @@ export const generateRoutes = {
 					try {
 						currentKey = await getAvailableKey();
 						result = await generateImage(
-							{ prompt, negativePrompt, model, width, height, steps, seed },
+							{
+								prompt: enhanced.prompt,
+								negativePrompt,
+								model,
+								width,
+								height,
+								steps,
+								seed,
+							},
 							currentKey.key,
 						);
 						break;
@@ -86,12 +102,17 @@ export const generateRoutes = {
 				const generationId = crypto.randomUUID();
 				await sql`
           INSERT INTO generations
-            (id, user_id, prompt, negative_prompt, model, width, height, steps,
-             seed, image_key, status, duration_ms, api_key_id)
+            (id, user_id, prompt, enhanced_prompt, negative_prompt, model, width,
+             height, steps, seed, image_key, status, duration_ms, api_key_id,
+             llm_key_id, llm_model, llm_tokens, enhance_ms, style_version)
           VALUES
-            (${generationId}, ${session.user.id}, ${prompt}, ${negativePrompt || null},
-             ${model || "Turbo"}, ${width || 1024}, ${height || 1024}, ${steps || 8},
-             ${result.seed}, ${imageKey}, 'completed', ${duration}, ${currentKey!.id})
+            (${generationId}, ${session.user.id}, ${prompt}, ${enhanced.prompt},
+             ${negativePrompt || null}, ${model || "Turbo"}, ${width || 1024},
+             ${height || 1024}, ${steps || 8}, ${result.seed}, ${imageKey},
+             'completed', ${duration}, ${currentKey!.id}, ${enhanced.keyId},
+             ${enhanced.model},
+             ${(enhanced.inputTokens ?? 0) + (enhanced.outputTokens ?? 0) || null},
+             ${enhanced.durationMs}, ${enhanced.styleVersion})
         `;
 				const quota = await getZeroGPUQuota(currentKey!.key);
 				if (quota) {
