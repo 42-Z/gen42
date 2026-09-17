@@ -73,3 +73,15 @@ describe("validateEnhancedPrompt", () => {
 		expect(verdict.reason).toContain("markdown");
 	});
 });
+
+describe("кавычки в валидации (регрессия ревью)", () => {
+	test("кириллица в курчавых кавычках не считается текстом вне кавычек", () => {
+		const text = `${VALID} A banner reads “СЛАВА 42” above the crowd.`;
+		expect(validateEnhancedPrompt(text)).toEqual({ ok: true });
+	});
+
+	test("одинарные кавычки тоже стрипаются", () => {
+		const text = `${VALID} A sign reads 'СЛАВА 42' near the throne.`;
+		expect(validateEnhancedPrompt(text)).toEqual({ ok: true });
+	});
+});

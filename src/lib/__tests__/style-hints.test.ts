@@ -170,3 +170,28 @@ describe("ложные срабатывания (регрессия ревью)"
 		expect(clean).not.toContain("  ");
 	});
 });
+
+describe("границы русских стемов (регрессия ревью)", () => {
+	test("огнетушитель и ударник не считаются огнём и ударом", () => {
+		expect(missingDetails("огнетушитель", "A red tank.")).toEqual([]);
+		expect(missingDetails("ударник оркестра", "A drummer on stage.")).toEqual(
+			[],
+		);
+	});
+
+	test("огонь и удар в обычных формах ловятся", () => {
+		expect(missingDetails("человек в огне", "A calm portrait.")).toEqual([
+			"flame",
+		]);
+		expect(missingDetails("герой наносит удар", "A calm portrait.")).toEqual([
+			"impact",
+		]);
+	});
+
+	test("покрыло/накрыл не считаются крыльями", () => {
+		expect(missingDetails("одеяло покрыло диван", "A cozy room.")).toEqual([]);
+		expect(missingDetails("человек с крыльями", "A calm portrait.")).toEqual([
+			"wing",
+		]);
+	});
+});
