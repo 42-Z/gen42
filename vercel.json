@@ -6,6 +6,7 @@
 	"outputDirectory": "dist",
 	"functions": {
 		"src/server.ts": {
+			"maxDuration": 60,
 			"includeFiles": "node_modules/{@better-auth/telemetry,better-auth/node_modules/@better-auth/utils,@noble/ciphers,@noble/hashes}/**"
 		}
 	}

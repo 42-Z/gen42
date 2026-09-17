@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import style42System from "./style42.system.md" with { type: "text" };
+import { STYLE_SYSTEM_42 } from "./style42.system";
 
-export const STYLE_SYSTEM = style42System.trim();
+export const STYLE_SYSTEM = STYLE_SYSTEM_42.trim();
 export const STYLE_VERSION = createHash("sha256")
 	.update(STYLE_SYSTEM)
 	.digest("hex")
