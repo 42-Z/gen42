@@ -29,5 +29,8 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Tests
+        run: bun test
+
       - name: Format check
         run: bunx biome format . 2>&1 | tail -1
