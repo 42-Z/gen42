@@ -51,8 +51,8 @@ bun run format       # форматер (biome)
 ## Архитектура
 
 - `src/server.ts` — единственный entrypoint: API-роуты (`/api/auth/*`, `/api/generate`, `/api/generations`, `/api/me`, `/api/admin/*`) + раздача `dist/`. Не создавать отдельные entrypoints
-- `src/api/` — обработчики роутов; `src/lib/` — доменная логика (credits, keys, hf, storage, rate-limit)
-- Ключи HuggingFace живут только в таблице `api_keys` и управляются через админку (`/api/admin/keys`: добавление, сброс лимита, удаление). В env и файлах они не хранятся, API отдаёт их маскированными
+- `src/api/` — обработчики роутов; `src/lib/` — доменная логика (credits, keys, hf, poolside, enhance, storage, rate-limit); `src/lib/prompts/` — промпт-инженерия стиля «42»
+- Ключи обоих провайдеров живут только в таблице `api_keys` (`provider`: `huggingface` | `poolside`) и управляются через админку (`/api/admin/keys`: добавление, проверка, удаление; `?provider=` выбирает список). В env и файлах они не хранятся, API отдаёт их маскированными
 - Баланс пользователя: одна генерация списывает один кредит — `src/lib/credits.ts`
 - Первый пользователь с email из `ADMIN_EMAIL` — админ
 
@@ -73,6 +73,18 @@ bun run format       # форматер (biome)
 
 - `src/lib/hf.ts` ходит в Gradio Space `krea-krea-2.hf.space` через **именованный** эндпоинт `POST /gradio_api/call/v2/generate` и опрос `…/call/v2/generate/{event_id}`. Старый `/call/generate` с `data: [ {…} ]` падает в `event: error` — не возвращать. Ответ: `data[0].url` (картинка), `data[1]` — seed
 - Ключ HF передаётся только в заголовке `Authorization`; актуальную схему эндпоинтов смотреть в `GET /gradio_api/info`
+- Исчерпание ZeroGPU приходит как `event: error` при HTTP 200. Такой ответ распознаётся как `KeyExhaustedError` по словам `ZeroGPU`/`quota`, ключ деактивируется, берётся следующий. Прочие `event: error` — обычная ошибка с текстом из payload
+
+## Обогащение промпта (LLM, стиль «42»)
+
+- Каждая генерация сначала проходит через `src/lib/enhance.ts`: пользовательский запрос превращается в плотный англоязычный промпт в стиле «42» и только потом уходит в Krea 2. Для пользователя это невидимо, контракт `POST /api/generate` не менялся
+- LLM — Poolside, OpenAI-совместимый API: `POOLSIDE_BASE_URL` (по умолчанию `https://inference.poolside.ai/v1`), `POOLSIDE_MODEL` (по умолчанию `poolside/laguna-xs-2.1`). Thinking отключён через `providerOptions.poolside.chat_template_kwargs.enable_thinking`. Клиент — `src/lib/poolside.ts` на AI SDK v7 (`ai` + `@ai-sdk/openai-compatible`)
+- Ключи LLM живут в той же таблице `api_keys`, но с `provider = 'poolside'` (префикс `sky_`); у HF-ключей `provider = 'huggingface'`. Ротация по заголовку `x-ratelimit-remaining-requests` и по 429/401/403; при исчерпании всех ключей промпт собирается шаблоном `src/lib/style42-fallback.ts` — генерация не падает
+- Системный промпт стиля — `src/lib/prompts/style42.system.ts` (TS-модуль, а не `.md`: текстовый импорт Bun не понимает NFT-трассировщик Vercel). SHA-хеш содержимого пишется в `generations.style_version` — по нему сравниваются итерации
+- Серверные инварианты из промпта продублированы в коде (`src/lib/prompts/style-hints.ts`): явный стиль пользователя («фотореализм», «аниме», «детский рисунок» и т.п.) вытесняет якорь медиума, а финальная формула с медиумом гарантируется постобработкой
+- В `generations` пишутся `enhanced_prompt`, `llm_key_id`, `llm_model`, `llm_tokens`, `enhance_ms`, `style_version`
+- Итерации стиля: `bun scripts/eval-style42.ts [подстроки…]` (20 промптов → JSONL в `docs/evals/`), визуальный прогон — `bun scripts/eval-images.ts [подстроки…]` (картинки в `docs/evals/images/`, вне git)
+- Админка: блок «Ключи LLM» — добавление `sky_`, остаток запросов, токены, кнопка «Проверить и включить» (тестовый вызов) и удаление
 
 ## Деплой на Vercel
 
@@ -97,6 +109,7 @@ bun run format       # форматер (biome)
 - UI-компоненты — канонический shadcn/ui (`components.json`, iconLibrary: tabler); `cn` только из `@/lib/utils`
 - Декоративная графика — своя SVG: `graphics.tsx` (иконки, логотип) + `graphics-bg.tsx` (30 фоновых элементов) + `DecoScatter.tsx` (рассеивание по странице). Не эмодзи
 - Админка: прогресс-бар вместо цифр для отображения лимитов ключей (used/limit)
+- Ключи обоих провайдеров показываются одним паттерном: HF — «Ключи генерации» с квотой ZeroGPU, LLM — «Ключи LLM» с остатком запросов и токенами
 - Генерация: без примеров промптов, бейдж «1» на кнопке (стоимость генерации)
 - Дизайн-система: тёмная pop-палитра — индиго `#6c5cff` + фуксия `#ff5ca8`, градиент `--pop-gradient`, карточки `--color-card` с бордером `--color-border`. Шрифты Bricolage Grotesque (display) + Inter Tight (sans). Декоративные элементы фона с drift/pulse анимациями (`prefers-reduced-motion: reduce`). Палитра и утилити-классы в `src/index.css`
 

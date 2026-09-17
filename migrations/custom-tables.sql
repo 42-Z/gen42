@@ -55,3 +55,38 @@ DO $$ BEGIN
     ALTER TABLE api_keys ADD COLUMN hf_checked_at TIMESTAMPTZ;
   END IF;
 END $$;
+
+-- Провайдеры ключей: huggingface (картинки) | poolside (LLM-обогащение промпта)
+ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS provider VARCHAR(20) NOT NULL DEFAULT 'huggingface';
+ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS rl_limit INTEGER;
+ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS rl_remaining INTEGER;
+ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS rl_checked_at TIMESTAMPTZ;
+ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS requests_total BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS tokens_total BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS last_error TEXT;
+
+-- Обогащение промпта (LLM-слой 42-стиля)
+ALTER TABLE generations ADD COLUMN IF NOT EXISTS enhanced_prompt TEXT;
+ALTER TABLE generations ADD COLUMN IF NOT EXISTS llm_key_id TEXT REFERENCES api_keys(id);
+ALTER TABLE generations ADD COLUMN IF NOT EXISTS llm_model VARCHAR(64);
+ALTER TABLE generations ADD COLUMN IF NOT EXISTS llm_tokens INTEGER;
+ALTER TABLE generations ADD COLUMN IF NOT EXISTS enhance_ms INTEGER;
+ALTER TABLE generations ADD COLUMN IF NOT EXISTS style_version VARCHAR(16);
+
+-- Удаление использованного LLM-ключа не должно падать: ссылка обнуляется
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'generations_llm_key_id_fkey'
+      AND confdeltype <> 'n'
+  ) THEN
+    ALTER TABLE generations DROP CONSTRAINT generations_llm_key_id_fkey;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'generations_llm_key_id_fkey'
+  ) THEN
+    ALTER TABLE generations
+      ADD CONSTRAINT generations_llm_key_id_fkey
+      FOREIGN KEY (llm_key_id) REFERENCES api_keys(id) ON DELETE SET NULL;
+  END IF;
+END $$;

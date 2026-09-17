@@ -47,7 +47,7 @@ export class KeyExhaustedError extends Error {
 }
 
 const HF_API_BASE = "https://krea-krea-2.hf.space/gradio_api";
-const POLL_TIMEOUT_MS = 120_000;
+const POLL_TIMEOUT_MS = 45_000;
 
 export async function generateImage(
 	params: GenerateParams,
@@ -123,7 +123,20 @@ export async function generateImage(
 
 		for (const line of text.split("\n")) {
 			if (line.startsWith("event: error")) {
-				throw new Error(`HuggingFace generation error: ${line}`);
+				const errorLine = text.split("\n").find((l) => l.startsWith("data: "));
+				const payload = errorLine
+					? (JSON.parse(errorLine.slice(6)) as {
+							error?: string;
+							title?: string;
+						})
+					: null;
+				const message =
+					payload?.error ?? payload?.title ?? "unknown generation error";
+
+				if (/zero-?gpu|quota/i.test(`${payload?.title ?? ""} ${message}`)) {
+					throw new KeyExhaustedError(429, `ZeroGPU quota: ${message}`);
+				}
+				throw new Error(`HuggingFace generation error: ${message}`);
 			}
 			if (line.startsWith("data: ")) {
 				const data = JSON.parse(line.slice(6));

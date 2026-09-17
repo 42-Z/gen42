@@ -48,6 +48,41 @@ describe("HuggingFace client", () => {
 		expect(calls[0]!.body.data).toBeUndefined();
 		expect(calls[1]!.url).toContain("/call/v2/generate/abc");
 	});
+
+	test("ZeroGPU quota в event: error -> KeyExhaustedError", async () => {
+		const sse = `event: error\ndata: {"error": "You have exceeded your free ZeroGPU quota (82s requested vs. -41s left). Try again in 0:00:00.", "duration": 10, "visible": true, "title": "ZeroGPU quota exceeded"}\n`;
+		const fetchMock = mock(async (url: string | URL) => {
+			const u = String(url);
+			if (u.endsWith("/call/v2/generate")) {
+				return Response.json({ event_id: "abc" });
+			}
+			return new Response(sse, { status: 200 });
+		});
+		globalThis.fetch = fetchMock as any;
+
+		const { generateImage, KeyExhaustedError } = await import("../hf");
+		await expect(generateImage({ prompt: "cat" }, "hf_key")).rejects.toThrow(
+			KeyExhaustedError,
+		);
+	});
+
+	test("прочий event: error -> обычная ошибка", async () => {
+		const sse =
+			'event: error\ndata: {"error": "GPU task aborted", "title": "Error"}\n';
+		const fetchMock = mock(async (url: string | URL) => {
+			const u = String(url);
+			if (u.endsWith("/call/v2/generate")) {
+				return Response.json({ event_id: "abc" });
+			}
+			return new Response(sse, { status: 200 });
+		});
+		globalThis.fetch = fetchMock as any;
+
+		const { generateImage, KeyExhaustedError } = await import("../hf");
+		const promise = generateImage({ prompt: "cat" }, "hf_key");
+		await expect(promise).rejects.toThrow("GPU task aborted");
+		await expect(promise).rejects.not.toThrow(KeyExhaustedError);
+	});
 });
 
 describe("getZeroGPUQuota", () => {

@@ -2,7 +2,12 @@ import { auth } from "../lib/auth";
 import { addCredits } from "../lib/credits";
 import { sql } from "../lib/db";
 import { getZeroGPUQuota } from "../lib/hf";
-import { updateKeyQuota } from "../lib/keys";
+import {
+	isValidKeyForProvider,
+	keyPrefixFor,
+	updateKeyQuota,
+} from "../lib/keys";
+import { callPoolside } from "../lib/poolside";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL!;
 
@@ -65,31 +70,45 @@ export const adminRoutes = {
 			adminResponse(async () => {
 				await checkAdmin(req);
 
+				const url = new URL(req.url);
+				const provider = url.searchParams.get("provider") ?? "huggingface";
+				if (provider !== "huggingface" && provider !== "poolside") {
+					return Response.json(
+						{ error: "Неизвестный провайдер" },
+						{ status: 400 },
+					);
+				}
+
 				const keys = await sql`
-        SELECT id, name, key, hf_base, hf_current, hf_resets_at, hf_checked_at, created_at
+        SELECT id, name, key, provider, is_active, hf_base, hf_current, hf_resets_at,
+               hf_checked_at, rl_limit, rl_remaining, rl_checked_at, requests_total,
+               tokens_total, last_error, created_at
         FROM api_keys
-        ORDER BY hf_current DESC NULLS LAST
+        WHERE provider = ${provider}
+        ORDER BY created_at DESC
       `;
 
-				const unchecked = keys.filter((k: any) => k.hf_checked_at === null);
-				await Promise.all(
-					unchecked.map(async (k: any) => {
-						try {
-							const quota = await getZeroGPUQuota(k.key);
-							if (quota) {
-								await updateKeyQuota(k.id, quota);
-								Object.assign(k, {
-									hf_base: quota.base,
-									hf_current: quota.current,
-									hf_resets_at: quota.resetsAt,
-									hf_checked_at: new Date(),
-								});
+				if (provider === "huggingface") {
+					const unchecked = keys.filter((k: any) => k.hf_checked_at === null);
+					await Promise.all(
+						unchecked.map(async (k: any) => {
+							try {
+								const quota = await getZeroGPUQuota(k.key);
+								if (quota) {
+									await updateKeyQuota(k.id, quota);
+									Object.assign(k, {
+										hf_base: quota.base,
+										hf_current: quota.current,
+										hf_resets_at: quota.resetsAt,
+										hf_checked_at: new Date(),
+									});
+								}
+							} catch (e) {
+								console.error(`Auto-refresh quota failed for ${k.name}:`, e);
 							}
-						} catch (e) {
-							console.error(`Auto-refresh quota failed for ${k.name}:`, e);
-						}
-					}),
-				);
+						}),
+					);
+				}
 
 				return Response.json(
 					keys.map((k: any) => ({ ...k, key: `${k.key.slice(0, 8)}…` })),
@@ -100,19 +119,26 @@ export const adminRoutes = {
 			adminResponse(async () => {
 				await checkAdmin(req);
 
-				const { name, key } = await req.json();
-				if (!name || !key?.startsWith("hf_")) {
+				const { name, key, provider = "huggingface" } = await req.json();
+				if (!name || !isValidKeyForProvider(provider, key ?? "")) {
+					const prefix = keyPrefixFor(provider);
 					return Response.json(
-						{ error: "Нужны name и корректный hf_-ключ" },
+						{
+							error: prefix
+								? `Нужны name и корректный ${prefix}-ключ`
+								: "Неизвестный провайдер",
+						},
 						{ status: 400 },
 					);
 				}
 
 				try {
 					const [newKey] = await sql`
-          INSERT INTO api_keys (id, name, key)
-          VALUES (${crypto.randomUUID()}, ${name}, ${key})
-          RETURNING id, name, is_active, hf_base, hf_current, hf_resets_at, hf_checked_at, created_at
+          INSERT INTO api_keys (id, name, key, provider)
+          VALUES (${crypto.randomUUID()}, ${name}, ${key}, ${provider})
+          RETURNING id, name, provider, is_active, hf_base, hf_current, hf_resets_at,
+                    hf_checked_at, rl_limit, rl_remaining, requests_total, tokens_total,
+                    created_at
         `;
 					return Response.json(newKey);
 				} catch (e: any) {
@@ -142,9 +168,37 @@ export const adminRoutes = {
 				await checkAdmin(req);
 
 				const { id } = (req as any).params;
-				const keys = await sql`SELECT key FROM api_keys WHERE id = ${id}`;
+				const keys = await sql`
+          SELECT key, provider FROM api_keys WHERE id = ${id}
+        `;
 				if (keys.length === 0) {
 					return Response.json({ error: "Ключ не найден" }, { status: 404 });
+				}
+
+				if (keys[0]!.provider === "poolside") {
+					try {
+						const result = await callPoolside({
+							system: "ping",
+							user: "ping",
+							apiKey: keys[0]!.key,
+							timeoutMs: 15_000,
+							maxOutputTokens: 8,
+						});
+						await sql`
+              UPDATE api_keys
+              SET is_active = TRUE,
+                  last_error = NULL,
+                  rl_limit = ${result.rateLimit.limit},
+                  rl_remaining = ${result.rateLimit.remaining},
+                  rl_checked_at = NOW()
+              WHERE id = ${id}
+            `;
+						return Response.json({ success: true, provider: "poolside" });
+					} catch (e) {
+						const message =
+							e instanceof Error ? e.message : "Не удалось проверить ключ";
+						return Response.json({ error: message }, { status: 502 });
+					}
 				}
 
 				const quota = await getZeroGPUQuota(keys[0]!.key);
@@ -156,6 +210,11 @@ export const adminRoutes = {
 				}
 
 				await updateKeyQuota(id, quota);
+				await sql`
+          UPDATE api_keys
+          SET is_active = TRUE, last_error = NULL
+          WHERE id = ${id}
+        `;
 				return Response.json({ success: true, quota });
 			}),
 	},
