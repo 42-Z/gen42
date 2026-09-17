@@ -29,7 +29,8 @@ export const USER_MEDIUM_HINTS: readonly UserMediumHint[] = [
 	},
 	{
 		pattern: /3d|3-d|трёхмерн|трехмерн|рендер|render/i,
-		phrase: "glossy 3D render with toy-like proportions",
+		phrase:
+			"cinematic 3D render with physically believable materials and realistic light",
 	},
 	{
 		pattern: /ренессанс|renaissance/i,
@@ -62,8 +63,12 @@ const ALL_MEDIUM_PHRASES = [
 const MEDIUM_MARKERS =
 	/\b(photograph|photography|render|rendering|painting|poster|collage|drawing|illustration|comic|screenprint|watercolou?r|pixel-art|anime|3d)\b/i;
 
+const QUOTED_TEXT = /«[^»]{1,80}»|“[^”]{1,80}”|"[^"]{1,80}"/g;
+
+const QUOTE_CHARS = /[«»“”"]/;
+
 const TEXT_REQUEST =
-	/[«»""'']|(надпис|текст|плакат|вывеск|лозунг|слоган|граффити|баннер|подпис|\b(sign|text|poster|slogan|banner|lettering|caption|logo)\b)/i;
+	/(надпис|плакат|вывеск|лозунг|слоган|граффити|баннер|подпис(?!чик)|(?<!кон)текст(?!ур)|\b(sign|text|poster|slogan|banner|lettering|caption|logo)\b)/i;
 
 const EXACT_TEXT_HINTS = [
 	"плакат с надписью",
@@ -75,15 +80,19 @@ const EXACT_TEXT_HINTS = [
 ];
 
 export function extractQuotedTexts(userInput: string): string[] {
-	const matches = userInput.match(/«[^»]+»|"[^"]+"|'[^']+'/g) ?? [];
+	const matches = userInput.match(QUOTED_TEXT) ?? [];
 	return matches.map((match) => match.slice(1, -1).trim()).filter(Boolean);
 }
 
 export function maskUnrequestedTexts(text: string): string {
-	return text.replace(/«[^»]*»|"[^"]*"/g, "42");
+	return text
+		.replace(QUOTED_TEXT, "42")
+		.replace(/\s+([,.;:!?])/g, "$1")
+		.replace(/\s{2,}/g, " ");
 }
 
 export function requestsText(userInput: string): boolean {
+	if (QUOTE_CHARS.test(userInput)) return true;
 	if (TEXT_REQUEST.test(userInput)) return true;
 	const low = userInput.toLowerCase();
 	return EXACT_TEXT_HINTS.some((hint) => low.includes(hint));
@@ -96,32 +105,32 @@ export interface DetailMarker {
 
 export const EXPLICIT_DETAILS: readonly DetailMarker[] = [
 	{ pattern: /лазер|laser/i, marker: "laser" },
-	{ pattern: /стреля|выстрел|shoot|fire|blast|shot/i, marker: "shoot" },
+	{ pattern: /стреля|выстрел|\b(shoot|shot|fire|blast)\b/i, marker: "shoot" },
 	{ pattern: /взрыв|explod|explosion/i, marker: "explosion" },
-	{ pattern: /огон|огн|пламя|flame|fire(?!\s*work)/i, marker: "flame" },
-	{ pattern: /кыл|wing/i, marker: "wing" },
+	{ pattern: /огон|огн|пламя|\bflame\b/i, marker: "flame" },
+	{ pattern: /крыл|крыль|\bwing\b/i, marker: "wing" },
 	{ pattern: /глаз|eye/i, marker: "eye" },
-	{ pattern: /летит|лета|парит|fly|flying|hover/i, marker: "fly" },
-	{ pattern: /светит|светя|glow|beam|shine/i, marker: "glow" },
-	{ pattern: /дым|smoke|smog/i, marker: "smoke" },
-	{ pattern: /бьёт|бьет|удар|punch|smash|hit/i, marker: "impact" },
+	{ pattern: /летит|лета|парит|\b(fly|flying|hover)\b/i, marker: "fly" },
+	{ pattern: /светит|светя|\b(glow|shine|beam)\b/i, marker: "glow" },
+	{ pattern: /дым|\bsmoke\b/i, marker: "smoke" },
+	{ pattern: /бьёт|бьет|удар|\b(punch|smash|hit)\b/i, marker: "impact" },
 	{ pattern: /робот|robot|android|cyborg/i, marker: "robot" },
 	{ pattern: /доспех|брон|armor|armour/i, marker: "armor" },
-	{ pattern: /танц|danc/i, marker: "dance" },
-	{ pattern: /прыга|прыжок|jump|leap/i, marker: "jump" },
+	{ pattern: /танц|\bdanc/i, marker: "dance" },
+	{ pattern: /прыга|прыжок|\b(jump|leap)\b/i, marker: "jump" },
 ];
 
 const DETAIL_MARKER_SYNONYMS: Record<string, RegExp> = {
 	laser: /laser/i,
-	shoot: /shoot|fire|blast|beam|ray|shot|streak/i,
-	explosion: /explod|blast|burst/i,
-	flame: /flame|fire|blaze|burn/i,
-	wing: /wing|feather/i,
-	eye: /eye|gaze/i,
-	fly: /fly|flying|hover|soar|levitat/i,
-	glow: /glow|beam|shine|radian|light/i,
-	smoke: /smoke|haze|mist|fog/i,
-	impact: /punch|smash|impact|strike|hit/i,
+	shoot: /\b(shoot|shot|fire|blast|beam|ray|streak)/i,
+	explosion: /\bexplod|\bblast|\bburst/i,
+	flame: /\bflame|\bfire|\bblaze|\bburn/i,
+	wing: /\bwing|feather/i,
+	eye: /\beye|gaze/i,
+	fly: /\bfly|flying|hover|soar|levitat/i,
+	glow: /\bglow|\bbeam|shine|radian/i,
+	smoke: /\bsmoke|haze|mist|\bfog/i,
+	impact: /\b(punch|smash|impact|strike|hit)\b/i,
 	robot: /robot|android|cyborg|mech/i,
 	armor: /armor|armour|plated|breastplate/i,
 	dance: /danc|waltz|sway/i,

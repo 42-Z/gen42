@@ -248,14 +248,14 @@ ALWAYS 3–8 существ в сцене. NEVER не больше и не ме�
 - **Обезьяны** в пиджаках с эполетами за игровыми рулями.
 - **Пингвины**, **аксолотли**, **крокодилы** в шубах — редкие гости.
 
-## Транспорт (1–2 вида на кадр)
+## Транспорт (ALWAYS 2 вида на кадр)
 
 Электросамокаты с RGB-подсветкой, кабриолеты с золотой отделкой, G-класс,
 золотая карета, дирижабли с LED-экранами, вертолёты, дроны, гидроциклы
 с плазменным следом, черепаха-танк под управлением мопсов, кроссовки на
 воздушной подушке.
 
-## Роскошь (ALWAYS не меньше пяти предметов на кадр)
+## Роскошь (ALWAYS не меньше шести предметов на кадр)
 
 Золотые цепи с медальоном 42, короны, золотые слитки, рубины, алмазные кольца,
 ремни из денег, массивные кроссовки, меховые воротники-столбы, пелерины,
@@ -281,9 +281,10 @@ ALWAYS 3–8 существ в сцене. NEVER не больше и не ме�
 
 ## Эффекты
 
-Фейерверки (в том числе в форме 42), конфетти, радужный дым, лазерные лучи,
-голограммы, плазменные следы, дождь из денег, попкорна или лепестков,
-искры, блёстки, дым от кальяна, шампанское фонтаном.
+Фейерверки (в том числе в форме 42), конфетти, радужный дым, голограммы,
+плазменные следы, дождь из денег, попкорна или лепестков, искры, блёстки,
+дым от кальяна, шампанское фонтаном. Лучи и лазеры — приём героя из запроса:
+в декоре их не дублируй (см. «Иерархия и экшен»).
 
 ## Медиумы (ALWAYS ровно один на кадр, из якоря или из запроса)
 
@@ -291,7 +292,7 @@ ALWAYS 3–8 существ в сцене. NEVER не больше и не ме�
 медиум из якоря. Название медиума ALWAYS присутствует в финальной фразе промпта.
 
 - hyper-detailed cinematic photograph — кинофото с бликом.
-- glossy 3D render with toy-like proportions — глянцевый 3D, игрушечные пропорции.
+- cinematic 3D render with physically believable materials — 3D с физичными материалами и светом.
 - anime poster with speed lines and impact bubbles — аниме-постер, ударные пузыри,
   восклицательные взрывы «42».
 - pixel-art vaporwave collage — пиксель-арт и вейпорвейв, ирисовые переливы.
@@ -443,7 +444,7 @@ ALWAYS 3–8 существ в сцене. NEVER не больше и не ме�
 13. **Еда.** «Пицца», «шаурма» → гигантская еда на золотом подносе, вокруг
     трапеза свиты, дым, соусы, искры.
 14. **Пустой запрос или одна буква.** «?», «а» → собери эталонный кадр культа:
-    тронный мопс, бегемот-диджей, фейерверки, «СЛАВА 42».
+    тронный мопс, бегемот-диджей, фейерверки, гигантская цифра 42 (без слов).
 
 # ПРИМЕРЫ
 
@@ -462,7 +463,7 @@ a hippopotamus DJ in a fur coat spinning decks behind a diamond booth, giraffes 
 RGB electric scooters, a rhinoceros in a pinstripe suit clutching a money belt,
 flamingos dripping in gold jewelry. A chest of gold bars spills onto the marble
 floor, ruby rings glint between confetti, and a zeppelin with a giant LED screen
-reading «СЛАВА 42» drifts behind walls of blue-and-red ceremonial banners bearing
+pulsing with a single giant glowing 42 drifts behind walls of blue-and-red ceremonial banners bearing
 white 42 emblems. Fireworks spell 42 across the sky beyond shattered glass walls,
 laser beams and holographic reflections cut through stroboscopic light, and the
 cat stares straight into the camera with absolute authority. Hyper-detailed
@@ -483,8 +484,8 @@ gold necklaces tossing confetti. Five luxury tributes are stacked in the
 foreground — a chest of gold bars, ruby rings, a money belt, oversized sneakers
 and a gold chain with a giant 42 medallion. Blue-and-red ceremonial banners with
 white 42 emblems hang between marble columns, a zeppelin LED screen flashes
-«ЗА ПЯТЁРКУ» above the crowd, and fireworks explode in the shape of 42 over a
-night megacity skyline. Glossy 3D render with toy-like proportions, wide-angle
+a giant glowing 42 above the crowd, and fireworks explode in the shape of 42 over a
+night megacity skyline. Cinematic 3D render with physically believable materials and realistic light, wide-angle
 poster composition, hyper-saturated gold-and-neon palette, confetti rain, absurd
 triumphant kitsch, no watermarks, no signature.
 
@@ -494,8 +495,8 @@ INPUT: \`плакат с надписью «С ДНЁМ РОЖДЕНИЯ, БОС
 
 OUTPUT: A triumphant pug in a white tuxedo and a jeweled crown standing on a
 diamond stage, proudly holding a huge golden-framed poster with the exact text
-«С ДНЁМ РОЖДЕНИЯ, БОСС» in bold golden letters, while a second neon sign above
-the stage repeats «СЛАВА БОССУ» in hot pink light. Around the stage, the 42 cult
+«С ДНЁМ РОЖДЕНИЯ, БОСС» in bold golden letters — the only inscription in the
+whole frame, rendered on a single poster. Around the stage, the 42 cult
 carnival rages: a hippopotamus DJ in a fur coat behind a diamond booth, giraffes on RGB
 electric scooters, flamingos in gold chains, a rhinoceros in a pinstripe suit
 holding a birthday cake shaped like a golden 42 with candles. A chest of gold
@@ -518,7 +519,7 @@ maximalist 42 cult block party: pugs in leopard coats dancing around a diamond
 booth, a hippopotamus DJ in headphones, giraffes riding RGB electric scooters along the
 roof edge, flamingos in ruby necklaces, a rhinoceros in a suit smoking a cigar
 while counting gold bars. Drones with neon rotors circle overhead, a zeppelin
-with an LED screen reading «МЫ ТОЛЬКО НАЧАЛИ» glides between towers, and
+with an LED screen pulsing with a giant 42 glides between towers, and
 blue-and-red ceremonial banners with white 42 emblems hang from cranes. A money
 belt, a diamond crown and oversized sneakers lie in the foreground next to a
 half-eaten bucket of fried chicken. Fireworks spell 42 across the night sky,
@@ -541,7 +542,7 @@ the dancers. Flamingos in ruby necklaces carry trays of champagne, a rhinoceros
 in a suit signs the guest scroll with a golden pen, and armored turtles with
 ruby 42 emblems on their shells serve burgers and fried chicken on gold platters.
 Blue-and-red ceremonial banners with white 42 emblems hang between stone columns,
-a zeppelin LED screen flashes «ЗА БОССА» through the shattered stained-glass
+a zeppelin LED screen flashes a giant 42 through the shattered stained-glass
 window, and fireworks burst in the shape of 42 above the castle towers. Gold
 bars, a chest of rubies, money belts and oversized sneakers are stacked beside
 the throne in the foreground. Thick oil painting with canvas texture, wide-angle
@@ -561,12 +562,12 @@ DJ in headphones spinning a diamond turntable, giraffes on RGB electric scooters
 riding the airship rails, flamingos in gold chains throwing confetti, a
 rhinoceros in a suit taking notes in a golden book. Below the zeppelin, a
 cyberpunk megacity glows with Cyrillic neon signs, drones swarm around a giant
-LED billboard reading «42 — ПРАВИЛЬНЫЙ ВЫБОР», and blue-and-red ceremonial
+LED billboard pulsing with a giant 42, and blue-and-red ceremonial
 banners with white 42 emblems hang from every tower. A chest of gold bars, ruby
 rings, a money belt and oversized sneakers are piled in the foreground on the
 deck, money and popcorn rain from above, laser beams cut through stroboscopic
 light, and the elephant stares into the distance with absolute certainty.
-Glossy 3D render with toy-like proportions, wide-angle poster composition, epic
+Cinematic 3D render with physically believable materials and realistic light, wide-angle poster composition, epic
 scale, hyper-saturated gold-and-neon palette, absurd triumphant kitsch, no
 watermarks, no signature.
 
@@ -582,7 +583,7 @@ trailing thin plasma lines. Around the clearing, the 42 cult carnival crowds in:
 pugs in leopard fur coats and tiny tuxedos, a hippopotamus DJ in headphones spinning a
 diamond turntable on a fallen log, giraffes riding RGB electric scooters between
 the palms, flamingos in ruby necklaces, a rhinoceros in a pinstripe suit
-counting gold bars. A neon sign in Cyrillic flashes «ЗА ПЯТЁРКУ» through the
+counting gold bars. A neon sign flashes a giant 42 through the
 canopy, blue-and-red ceremonial banners with white 42 emblems hang between the
 vines, and fireworks explode in the shape of 42 above the treetops. In the
 foreground, a chest of gold bars, ruby rings, a money belt and oversized

@@ -137,6 +137,7 @@ export async function enhancePrompt(
 				if (contractRetries >= MAX_CONTRACT_RETRIES) break;
 				message = buildUserMessage(userInput, anchors, {
 					textRequested,
+					exactTexts,
 					missingDetails: missing,
 				});
 				continue;
@@ -180,7 +181,10 @@ export async function enhancePrompt(
 	}
 
 	return {
-		prompt: buildFallbackPrompt(userInput, anchors, { textRequested }),
+		prompt: buildFallbackPrompt(userInput, anchors, {
+			textRequested,
+			exactTexts,
+		}),
 		keyId: null,
 		model: null,
 		styleVersion: STYLE_VERSION,

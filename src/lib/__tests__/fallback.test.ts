@@ -39,3 +39,23 @@ describe("buildFallbackPrompt", () => {
 		expect(prompt.split(/\s+/).length).toBeGreaterThan(60);
 	});
 });
+
+describe("fallback и точный текст", () => {
+	test("использует точный текст пользователя, а не слоган", () => {
+		const anchors = pickAnchors(() => 0);
+		const prompt = buildFallbackPrompt("плакат", anchors, {
+			textRequested: true,
+			exactTexts: ["ЖИВИ ГРОМКО"],
+		});
+		expect(prompt).toContain("«ЖИВИ ГРОМКО»");
+		expect(prompt).not.toContain(anchors.slogan);
+	});
+
+	test("без точного текста берёт слоган из каталога", () => {
+		const anchors = pickAnchors(() => 0);
+		const prompt = buildFallbackPrompt("плакат", anchors, {
+			textRequested: true,
+		});
+		expect(prompt).toContain(anchors.slogan);
+	});
+});

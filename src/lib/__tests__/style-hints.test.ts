@@ -128,3 +128,45 @@ describe("extractQuotedTexts и maskUnrequestedTexts", () => {
 		);
 	});
 });
+
+describe("ложные срабатывания (регрессия ревью)", () => {
+	test("апострофы и «текстура» не включают текстовый режим", () => {
+		expect(requestsText("a wolf's howl at the moon")).toBe(false);
+		expect(requestsText("фотореализм, текстура кожи")).toBe(false);
+		expect(requestsText("подписчик рассылки")).toBe(false);
+		expect(requestsText("90's style")).toBe(false);
+	});
+
+	test("курчавые кавычки распознаются", () => {
+		expect(extractQuotedTexts("плакат “ЖИВИ ГРОМКО”")).toEqual(["ЖИВИ ГРОМКО"]);
+		expect(requestsText("постер “СЛАВА 42”")).toBe(true);
+	});
+
+	test("крылья гардятся, а не проходят по инерции", () => {
+		expect(missingDetails("человек с крыльями", "A humanoid figure.")).toEqual([
+			"wing",
+		]);
+		expect(
+			missingDetails("человек с крыльями", "A winged humanoid hovers."),
+		).toEqual([]);
+	});
+
+	test("посторонние слова не дают ложных потерь", () => {
+		expect(missingDetails("нарисуй пейзаж", "A drawing of a hill.")).toEqual(
+			[],
+		);
+		expect(
+			missingDetails("человек со щитом", "A heroic screenshot of a fighter."),
+		).toEqual([]);
+	});
+
+	test("маска чистит синтаксис и не оставляет висящих знаков", () => {
+		const dirty =
+			"A sign reading «ХАЙП» ! and a banner “42 — ПРАВИЛЬНЫЙ ВЫБОР”.";
+		const clean = maskUnrequestedTexts(dirty);
+		expect(clean).not.toContain("«");
+		expect(clean).not.toContain("“");
+		expect(clean).not.toContain(" !");
+		expect(clean).not.toContain("  ");
+	});
+});

@@ -33,3 +33,30 @@ describe("style42 system prompt", () => {
 		expect(STYLE_SYSTEM).toContain("NEVER");
 	});
 });
+
+describe("примеры не выдумывают надписи", () => {
+	test("в блоке примеров единственная цитата — точный текст пользователя", () => {
+		const examples = STYLE_SYSTEM.slice(
+			STYLE_SYSTEM.indexOf("# ПРИМЕРЫ"),
+			STYLE_SYSTEM.indexOf("# САМОПРОВЕРКА"),
+		);
+		const quoted = [
+			...(examples.match(/«[^»]+»/g) ?? []).filter(
+				(text) => text !== "«42»" && !text.includes("→"),
+			),
+		];
+		expect(new Set(quoted)).toEqual(new Set(["«С ДНЁМ РОЖДЕНИЯ, БОСС»"]));
+	});
+
+	test("в промпте нет toy-like, кроме запрета", () => {
+		const allowed = STYLE_SYSTEM.match(/toy-like/g) ?? [];
+		expect(allowed).toHaveLength(2);
+		for (const match of STYLE_SYSTEM.matchAll(/toy-like/gi)) {
+			const context = STYLE_SYSTEM.slice(
+				Math.max(0, (match.index ?? 0) - 60),
+				(match.index ?? 0) + 20,
+			);
+			expect(context).toMatch(/NEVER|нет /);
+		}
+	});
+});
