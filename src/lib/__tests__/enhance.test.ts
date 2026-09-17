@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { AllKeysExhaustedError } from "../keys";
 import type { EnhanceDeps } from "../enhance";
+import { AllKeysExhaustedError } from "../keys";
 import { LlmKeyExhaustedError } from "../poolside";
 
 const GOOD_TEXT =
