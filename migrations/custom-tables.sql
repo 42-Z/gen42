@@ -72,3 +72,21 @@ ALTER TABLE generations ADD COLUMN IF NOT EXISTS llm_model VARCHAR(64);
 ALTER TABLE generations ADD COLUMN IF NOT EXISTS llm_tokens INTEGER;
 ALTER TABLE generations ADD COLUMN IF NOT EXISTS enhance_ms INTEGER;
 ALTER TABLE generations ADD COLUMN IF NOT EXISTS style_version VARCHAR(16);
+
+-- Удаление использованного LLM-ключа не должно падать: ссылка обнуляется
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'generations_llm_key_id_fkey'
+      AND confdeltype <> 'n'
+  ) THEN
+    ALTER TABLE generations DROP CONSTRAINT generations_llm_key_id_fkey;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'generations_llm_key_id_fkey'
+  ) THEN
+    ALTER TABLE generations
+      ADD CONSTRAINT generations_llm_key_id_fkey
+      FOREIGN KEY (llm_key_id) REFERENCES api_keys(id) ON DELETE SET NULL;
+  END IF;
+END $$;

@@ -31,6 +31,15 @@ describe("sanitizeEnhancedPrompt", () => {
 		expect(clean.length).toBeLessThanOrEqual(1500);
 		expect(clean.endsWith(".")).toBe(true);
 	});
+
+	test("не оставляет незакрытую кавычку после обрезки", () => {
+		const sentence = `${"word ".repeat(40)}. `;
+		const long = `${sentence.repeat(35)}Баннер с надписью «СЛАВА 42 и дальше очень длинный текст без закрывающей кавычки`;
+		const clean = sanitizeEnhancedPrompt(long);
+		const openings = (clean.match(/«/g) ?? []).length;
+		const closings = (clean.match(/»/g) ?? []).length;
+		expect(openings).toBe(closings);
+	});
 });
 
 describe("validateEnhancedPrompt", () => {

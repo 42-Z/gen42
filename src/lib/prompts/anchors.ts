@@ -124,7 +124,10 @@ export function pickAnchors(random: () => number = Math.random): Anchors {
 }
 
 export function buildUserMessage(userInput: string, anchors: Anchors): string {
-	const clean = userInput.trim().replace(/\s+/g, " ");
+	const clean = userInput
+		.trim()
+		.replace(/\s+/g, " ")
+		.replace(/<<<|>>>/g, " ");
 	const anchorLines = ANCHOR_CATEGORIES.map(
 		(category) => `${category.label}: ${anchors[category.key]}`,
 	).join("\n");

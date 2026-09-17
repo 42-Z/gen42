@@ -60,7 +60,7 @@ export function Admin() {
 			if (keysRes.ok) setKeys(await keysRes.json());
 			if (llmKeysRes.ok) setLlmKeys(await llmKeysRes.json());
 			if (statsRes.ok) setStats(await statsRes.json());
-			if (!usersRes.ok || !keysRes.ok || !statsRes.ok) {
+			if (!usersRes.ok || !keysRes.ok || !llmKeysRes.ok || !statsRes.ok) {
 				setError("Часть данных не загрузилась. Попробуйте обновить.");
 			}
 		} catch (err) {
@@ -195,7 +195,7 @@ export function Admin() {
 				{
 					icon: IconKey,
 					label: "Активные ключи",
-					value: stats.keyUsage?.filter((k: any) => k.is_active).length || 0,
+					value: keys.filter((k: any) => k.is_active).length,
 				},
 			]
 		: [];

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 let responses: Record<string, unknown[]> = {};
 
-const mockSql = mock((strings: TemplateStringsArray, ...values: unknown[]) => {
+const mockSql = mock((strings: TemplateStringsArray, ..._values: unknown[]) => {
 	const query = strings.join("?");
 	for (const [pattern, result] of Object.entries(responses)) {
 		if (query.includes(pattern)) return Promise.resolve(result);

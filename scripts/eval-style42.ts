@@ -26,7 +26,7 @@ const PROMPTS = [
 	"неоновый кот-программист пишет код ночью",
 ];
 
-const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 16);
+const stamp = new Date().toISOString().replace(/[:\.]/g, "-").slice(0, 19);
 const dir = "docs/evals";
 await mkdir(dir, { recursive: true });
 const lines: string[] = [];

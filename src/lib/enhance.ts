@@ -14,8 +14,9 @@ import {
 import { detectUserMedium, ensureClosingFormula } from "./prompts/style-hints";
 import { buildFallbackPrompt } from "./style42-fallback";
 
-const MAX_ATTEMPTS = 5;
+const MAX_ATTEMPTS = 3;
 const MAX_CONTRACT_RETRIES = 2;
+const ENHANCE_DEADLINE_MS = 25_000;
 
 export interface EnhanceResult {
 	prompt: string;
@@ -34,6 +35,7 @@ export interface EnhanceDeps {
 	deactivateKey: typeof deactivateKey;
 	updateKeyRateLimit: typeof updateKeyRateLimit;
 	callPoolside: typeof callPoolside;
+	deadlineMs: number;
 }
 
 const defaultDeps: EnhanceDeps = {
@@ -41,6 +43,7 @@ const defaultDeps: EnhanceDeps = {
 	deactivateKey,
 	updateKeyRateLimit,
 	callPoolside,
+	deadlineMs: ENHANCE_DEADLINE_MS,
 };
 
 export async function enhancePrompt(
@@ -52,6 +55,7 @@ export async function enhancePrompt(
 		deactivateKey: dropKey,
 		updateKeyRateLimit: saveLimits,
 		callPoolside: callLlm,
+		deadlineMs,
 	} = { ...defaultDeps, ...deps };
 
 	const started = Date.now();
@@ -60,11 +64,17 @@ export async function enhancePrompt(
 	if (userMedium) {
 		anchors.medium = userMedium;
 	}
-	const message = buildUserMessage(userInput, anchors);
+	const baseMessage = buildUserMessage(userInput, anchors);
+	let message = baseMessage;
 	let lastError: string | undefined;
 	let contractRetries = 0;
 
 	for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+		if (Date.now() - started > deadlineMs) {
+			lastError = `deadline: ${deadlineMs}ms exceeded`;
+			break;
+		}
+
 		let key: Awaited<ReturnType<typeof getAvailableKey>>;
 		try {
 			key = await takeKey("poolside");
@@ -78,26 +88,25 @@ export async function enhancePrompt(
 				system: STYLE_SYSTEM,
 				user: message,
 				apiKey: key.key,
+				timeoutMs: Math.max(2_000, deadlineMs - (Date.now() - started)),
 			});
 			await saveLimits(key.id, {
 				...result.rateLimit,
 				...result.usage,
 			});
 
-			const cleaned = ensureClosingFormula(
-				sanitizeEnhancedPrompt(result.text),
-				anchors.medium,
-			);
+			const cleaned = sanitizeEnhancedPrompt(result.text);
 			const verdict = validateEnhancedPrompt(cleaned);
 			if (!verdict.ok) {
 				lastError = `contract: ${verdict.reason}`;
 				contractRetries += 1;
 				if (contractRetries >= MAX_CONTRACT_RETRIES) break;
+				message = `${baseMessage}\n\nPREVIOUS ATTEMPT WAS REJECTED: ${verdict.reason}. Output the corrected prompt only.`;
 				continue;
 			}
 
 			return {
-				prompt: cleaned,
+				prompt: ensureClosingFormula(cleaned, anchors.medium),
 				keyId: key.id,
 				model: POOLSIDE_MODEL,
 				styleVersion: STYLE_VERSION,
@@ -108,11 +117,28 @@ export async function enhancePrompt(
 			};
 		} catch (error) {
 			if (error instanceof LlmKeyExhaustedError) {
-				await dropKey(key.id, error.message);
 				lastError = error.message;
+				if (error.status === 429) {
+					await saveLimits(key.id, {
+						limit: null,
+						remaining: 0,
+						inputTokens: null,
+						outputTokens: null,
+						error: error.message,
+					});
+				} else {
+					await dropKey(key.id, error.message);
+				}
 				continue;
 			}
 			lastError = error instanceof Error ? error.message : String(error);
+			await saveLimits(key.id, {
+				limit: null,
+				remaining: null,
+				inputTokens: null,
+				outputTokens: null,
+				error: lastError,
+			});
 		}
 	}
 

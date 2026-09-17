@@ -1983,3 +1983,26 @@ git push origin main
 **Согласованность имён:** `enhancePrompt` → `EnhanceResult{prompt,keyId,model,styleVersion,inputTokens,outputTokens,durationMs,fallback,error}`; `callPoolside` → `PoolsideResult{text,usage{inputTokens,outputTokens,totalTokens},rateLimit{limit,remaining}}`; `getAvailableKey(provider)`; `deactivateKey(id, reason?)`; `updateKeyRateLimit(id, patch{limit,remaining,inputTokens,outputTokens,error?})`; `pickAnchors(random?)` → `Anchors`; `buildUserMessage(input, anchors)`; `sanitizeEnhancedPrompt`; `validateEnhancedPrompt` → `{ok, reason?}`; `buildFallbackPrompt(input, anchors)`; `isValidKeyForProvider(provider, key)`; `STYLE_SYSTEM`, `STYLE_VERSION`, `POOLSIDE_MODEL`.
 
 **Плейсхолдеры:** секретов в файлах нет; `<ключ sky_…>` подставляется из чата при выполнении шага. Единственная условная ветка — перенос промпта из `.md` в `.ts`, если сборка Vercel не переварит текстовый импорт (Task 14, шаг 3) — ветка описана конкретно, с кодом и без «подумать потом».
+
+---
+
+## Статус выполнения (2026-09-17)
+
+Все 14 задач выполнены в ветке `feat/style42-enhancer`. Свидетельства:
+
+- `bun run typecheck` — exit 0; `bun run lint` — 0 ошибок (1 warning); `bunx biome format .` — чисто
+- `bun test` — 61 тест / 11 файлов, 0 падений
+- `bun run build` — OK; `vercel build --prod` — OK
+- Материализованная Vercel-функция (filePathMap + `bun src/server.mjs`): `/` → 200, `/api/me` → JSON, `/api/admin/keys?provider=poolside` → 403, `POST /api/generate` → 401 — весь граф модулей (AI SDK v7, zod) трассируется
+- Превью-деплой: полный E2E по API (`vercel curl`): вход → генерация → 200 за 21 с, картинка в S3, баланс −1, в `generations` записаны `enhanced_prompt`, `llm_model`, `llm_tokens`, `enhance_ms`, `style_version`
+- Eval: `bun scripts/eval-style42.ts` — 19/20 ok, 1 graceful fallback по дедлайну; `bun scripts/eval-images.ts` — 8 визуальных прогонов, ревью контактного листа (Krea путала «22» при множестве мелких «42» → правило одного крупного; «hippo» → «hippopotamus»)
+- Ревью кода: 1 blocker + 6 major закрыты (дедлайн энхансера, детект медиума по маркерам, ротация 429/нулевого остатка, защита делимитеров, FK `ON DELETE SET NULL`, проверка сборки/DNS)
+
+Отклонения от исходного плана (осознанные):
+
+1. Системный промпт живёт в `style42.system.ts`, а не `.md`: Vercel-сборщик не понимает текстовый импорт Bun (шаг 3 Task 14, предусмотренный запасной путь).
+2. Серверные инварианты вынесены в `src/lib/prompts/style-hints.ts` (детект стиля пользователя, гарантия формулы) — компактная модель не удерживала эти правила промптом.
+3. `enhance.test.ts` переведён на инъекцию зависимостей вместо `mock.module`: мок модуля в Bun глобальный и ломал `keys.test.ts` в общем прогоне.
+4. Попутно исправлен продовый баг `hf.ts`: исчерпание ZeroGPU в `event: error` не распознавалось как `KeyExhaustedError`, ключи не ротировались; в админке «Проверить» для HF теперь реактивирует ключ.
+
+Осталось до прода (по решению владельца): мердж в `main` (накатит миграции workflow'ом) и добавление `sky_`-ключа Poolside в прод-базу — иначе прод будет работать на fallback-шаблонах.

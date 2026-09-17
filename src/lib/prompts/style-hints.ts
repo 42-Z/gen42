@@ -11,7 +11,7 @@ export const USER_MEDIUM_HINTS: readonly UserMediumHint[] = [
 		phrase: "hyper-detailed cinematic photograph",
 	},
 	{
-		pattern: /аниме|anime|манга|manga/i,
+		pattern: /(?<![\p{L}])(аниме|манга)(?![\p{L}])|anime|manga/iu,
 		phrase: "anime poster with speed lines and impact bubbles",
 	},
 	{
@@ -59,6 +59,9 @@ const ALL_MEDIUM_PHRASES = [
 	),
 ];
 
+const MEDIUM_MARKERS =
+	/\b(photograph|photography|render|rendering|painting|poster|collage|drawing|illustration|comic|screenprint|watercolou?r|pixel-art|anime|3d)\b/i;
+
 export function detectUserMedium(userInput: string): string | null {
 	for (const hint of USER_MEDIUM_HINTS) {
 		if (hint.pattern.test(userInput)) return hint.phrase;
@@ -67,7 +70,8 @@ export function detectUserMedium(userInput: string): string | null {
 }
 
 export function hasMediumPhrase(text: string): boolean {
-	const low = text.toLowerCase().replace(/[^a-z0-9\s'-]+/g, " ");
+	const low = text.toLowerCase();
+	if (MEDIUM_MARKERS.test(low)) return true;
 	return ALL_MEDIUM_PHRASES.some((phrase) =>
 		low.includes(phrase.toLowerCase()),
 	);
@@ -78,6 +82,7 @@ export function ensureClosingFormula(
 	mediumPhrase: string,
 ): string {
 	if (hasMediumPhrase(text)) return text;
+	if (/no watermarks|no signature/i.test(text)) return text;
 	const trimmed = text.trim().replace(/[.,;:]$/, "");
 	return `${trimmed}. ${mediumPhrase}, ${CLOSING_TAIL}.`;
 }

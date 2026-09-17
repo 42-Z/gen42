@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 let responses: Record<string, unknown[]> = {};
 
-const mockSql = mock((strings: TemplateStringsArray, ...values: unknown[]) => {
+const mockSql = mock((strings: TemplateStringsArray, ..._values: unknown[]) => {
 	const query = strings.join("?");
 	for (const [pattern, result] of Object.entries(responses)) {
 		if (query.includes(pattern)) return Promise.resolve(result);
@@ -112,7 +112,9 @@ describe("API Keys", () => {
 		expect(key.id).toBe("p1");
 		const query = (mockSql.mock.calls[0]![0] as TemplateStringsArray).join("?");
 		expect(query).toContain("provider = 'poolside'");
-		expect(query).toContain("rl_remaining");
+		expect(query).toContain("rl_remaining > 0");
+		expect(query).toContain("rl_checked_at < NOW() - INTERVAL '2 minutes'");
+		expect(query).toContain("ORDER BY rl_remaining DESC NULLS LAST");
 	});
 
 	test("getAvailableKey('poolside') бросает AllKeysExhaustedError без ключей", async () => {
@@ -127,6 +129,8 @@ describe("API Keys", () => {
 		await expect(getAvailableKey()).rejects.toThrow(AllKeysExhaustedError);
 		const query = (mockSql.mock.calls[0]![0] as TemplateStringsArray).join("?");
 		expect(query).toContain("provider = 'huggingface'");
+		expect(query).toContain("hf_current >= 60");
+		expect(query).toContain("ORDER BY hf_current DESC NULLS LAST");
 	});
 
 	test("deactivateKey пишет причину", async () => {

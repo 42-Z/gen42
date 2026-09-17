@@ -13,6 +13,14 @@ const QUOTED = /«[^»]*»|"[^"]*"|'[^']*'/g;
 const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]/;
 const CYRILLIC = /[\u0400-\u04ff]/;
 
+function closeQuotes(text: string): string {
+	const openings = (text.match(/«/g) ?? []).length;
+	const closings = (text.match(/»/g) ?? []).length;
+	if (openings <= closings) return text;
+	const lastOpen = text.lastIndexOf("«");
+	return text.slice(0, lastOpen).trim();
+}
+
 function truncateAtSentence(text: string, limit: number): string {
 	if (text.length <= limit) return text;
 	const slice = text.slice(0, limit);
@@ -21,9 +29,11 @@ function truncateAtSentence(text: string, limit: number): string {
 		slice.lastIndexOf("! "),
 		slice.lastIndexOf("? "),
 	);
-	if (lastStop > limit * 0.5) return slice.slice(0, lastStop + 1);
+	if (lastStop > limit * 0.5) return closeQuotes(slice.slice(0, lastStop + 1));
 	const lastSpace = slice.lastIndexOf(" ");
-	return `${(lastSpace > 0 ? slice.slice(0, lastSpace) : slice).trim()}…`;
+	return closeQuotes(
+		`${(lastSpace > 0 ? slice.slice(0, lastSpace) : slice).trim()}…`,
+	);
 }
 
 export function sanitizeEnhancedPrompt(raw: string): string {

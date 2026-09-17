@@ -36,7 +36,12 @@ export async function getAvailableKey(
           SELECT * FROM api_keys
           WHERE provider = 'poolside'
             AND is_active = TRUE
-            AND (rl_remaining IS NULL OR rl_remaining > 0)
+            AND (
+              rl_remaining IS NULL
+              OR rl_remaining > 0
+              OR rl_checked_at IS NULL
+              OR rl_checked_at < NOW() - INTERVAL '2 minutes'
+            )
           ORDER BY rl_remaining DESC NULLS LAST
           LIMIT 1
         `) as ApiKeyRow[])

@@ -22,6 +22,7 @@ describe("detectUserMedium", () => {
 		expect(detectUserMedium("кот")).toBeNull();
 		expect(detectUserMedium("свадьба в замке")).toBeNull();
 		expect(detectUserMedium("42 бегемота играют в шахматы")).toBeNull();
+		expect(detectUserMedium("шашлык на мангале")).toBeNull();
 	});
 });
 
@@ -45,5 +46,22 @@ describe("ensureClosingFormula", () => {
 			ensureClosingFormula(text, "hyper-detailed cinematic photograph"),
 		).toBe(text);
 		expect(hasMediumPhrase(text)).toBe(true);
+	});
+
+	test("узнаёт перефразированный медиум по маркеру", () => {
+		const text =
+			"A majestic Bengal tiger prowling through a jungle. Hyper-detailed wildlife photograph, telephoto composition, shallow depth of field.";
+		expect(hasMediumPhrase(text)).toBe(true);
+		expect(
+			ensureClosingFormula(text, "thick oil painting with canvas texture"),
+		).toBe(text);
+	});
+
+	test("не дописывает формулу, если есть no watermarks", () => {
+		const text =
+			"A neon city with 42 fireworks, absurd triumphant kitsch, no watermarks, no signature.";
+		expect(ensureClosingFormula(text, "anime poster with speed lines")).toBe(
+			text,
+		);
 	});
 });
