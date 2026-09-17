@@ -47,7 +47,7 @@ export class KeyExhaustedError extends Error {
 }
 
 const HF_API_BASE = "https://krea-krea-2.hf.space/gradio_api";
-const POLL_TIMEOUT_MS = 120_000;
+const POLL_TIMEOUT_MS = 45_000;
 
 export async function generateImage(
 	params: GenerateParams,
