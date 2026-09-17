@@ -74,7 +74,7 @@ for (const [index, userInput] of selected.entries()) {
 		enhancePrompt(userInput),
 	);
 	console.log(`[${index + 1}/${selected.length}] ${userInput}`);
-	console.log(`   ${enhanced.prompt.slice(0, 130)}…`);
+	console.log(`   ${enhanced.prompt.slice(0, 200)}…`);
 
 	const result = await withRetry(`generate ${userInput}`, () =>
 		generateWithRotation(enhanced.prompt),
@@ -87,6 +87,10 @@ for (const [index, userInput] of selected.entries()) {
 		.replace(/^-|-$/g, "");
 	const file = `${dir}/${String(index + 1).padStart(2, "0")}-${name}.png`;
 	await writeFile(file, buffer);
+	await writeFile(
+		`${dir}/${String(index + 1).padStart(2, "0")}-${name}.txt`,
+		`${enhanced.prompt}\n`,
+	);
 	console.log(`   ${file} (seed ${result.seed})\n`);
 }
 
