@@ -12,6 +12,7 @@ import {
 } from "../src/lib/keys";
 
 const INPUTS = [
+	"Человек в костюме с крыльями, у которого правая половина белая, а левая черная, стреляет лазерами из глаз",
 	"мопс",
 	"бегемот-диджей",
 	"плакат с надписью «СЛАВА 42»",
@@ -73,7 +74,7 @@ for (const [index, userInput] of selected.entries()) {
 		enhancePrompt(userInput),
 	);
 	console.log(`[${index + 1}/${selected.length}] ${userInput}`);
-	console.log(`   ${enhanced.prompt.slice(0, 130)}…`);
+	console.log(`   ${enhanced.prompt.slice(0, 200)}…`);
 
 	const result = await withRetry(`generate ${userInput}`, () =>
 		generateWithRotation(enhanced.prompt),
@@ -81,11 +82,15 @@ for (const [index, userInput] of selected.entries()) {
 	const response = await fetch(result.imageUrl);
 	const buffer = Buffer.from(await response.arrayBuffer());
 	const name = userInput
-		.slice(0, 24)
+		.slice(0, 40)
 		.replace(/[^\p{L}\p{N}]+/gu, "-")
 		.replace(/^-|-$/g, "");
 	const file = `${dir}/${String(index + 1).padStart(2, "0")}-${name}.png`;
 	await writeFile(file, buffer);
+	await writeFile(
+		`${dir}/${String(index + 1).padStart(2, "0")}-${name}.txt`,
+		`${enhanced.prompt}\n`,
+	);
 	console.log(`   ${file} (seed ${result.seed})\n`);
 }
 

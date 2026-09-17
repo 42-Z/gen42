@@ -9,7 +9,7 @@ const MIN_WORDS = 40;
 const PREAMBLE =
 	/^(?:sure|certainly|of course|here(?:'s| is| are)|prompt|enhanced prompt|output|final prompt)\b[^.!?\n]*[:.!?\n]\s*/i;
 
-const QUOTED = /«[^»]*»|"[^"]*"|'[^']*'/g;
+const QUOTED = /«[^»]*»|“[^”]*”|"[^"]*"|'[^']*'/g;
 const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]/;
 const CYRILLIC = /[\u0400-\u04ff]/;
 

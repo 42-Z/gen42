@@ -2,8 +2,51 @@ import { describe, expect, test } from "bun:test";
 import {
 	detectUserMedium,
 	ensureClosingFormula,
+	extractQuotedTexts,
 	hasMediumPhrase,
+	maskUnrequestedTexts,
+	missingDetails,
+	requestsText,
 } from "../prompts/style-hints";
+
+describe("requestsText", () => {
+	test("текстовые запросы распознаются", () => {
+		expect(requestsText("плакат с надписью «СЛАВА 42»")).toBe(true);
+		expect(requestsText("напиши на баннере СЛАВА БОССУ")).toBe(true);
+		expect(requestsText("poster with the text HELLO")).toBe(true);
+		expect(requestsText("неоновая вывеска с лозунгом")).toBe(true);
+	});
+
+	test("обычные запросы текста не требуют", () => {
+		expect(requestsText("кот")).toBe(false);
+		expect(requestsText("человек стреляет лазерами из глаз")).toBe(false);
+		expect(requestsText("свадьба в средневековом замке")).toBe(false);
+	});
+});
+
+describe("missingDetails", () => {
+	test("находит потерянные экшен-детали", () => {
+		const user = "человек с крыльями стреляет лазерами из глаз";
+		const output =
+			"A winged figure stands proudly on a rooftop while pugs cheer around.";
+		const missing = missingDetails(user, output);
+		expect(missing).toEqual(expect.arrayContaining(["laser", "shoot", "eye"]));
+		expect(missing).not.toContain("wing");
+	});
+
+	test("ничего не теряется, когда детали на месте", () => {
+		const user = "человек с крыльями стреляет лазерами из глаз";
+		const output =
+			"A winged humanoid figure fires bright laser beams from both eyes, the beams cutting the air while feather wings spread wide.";
+		expect(missingDetails(user, output)).toEqual([]);
+	});
+
+	test("без экшен-слов в запросе проверять нечего", () => {
+		expect(missingDetails("кот", "A cat sleeps on a diamond throne.")).toEqual(
+			[],
+		);
+	});
+});
 
 describe("detectUserMedium", () => {
 	test("распознаёт явные стили пользователя", () => {
@@ -63,5 +106,92 @@ describe("ensureClosingFormula", () => {
 		expect(ensureClosingFormula(text, "anime poster with speed lines")).toBe(
 			text,
 		);
+	});
+});
+
+describe("extractQuotedTexts и maskUnrequestedTexts", () => {
+	test("извлекает точный текст из кавычек", () => {
+		expect(extractQuotedTexts("плакат с надписью «СЛАВА 42»")).toEqual([
+			"СЛАВА 42",
+		]);
+		expect(extractQuotedTexts('poster with the text "HELLO WORLD"')).toEqual([
+			"HELLO WORLD",
+		]);
+		expect(extractQuotedTexts("кот")).toEqual([]);
+	});
+
+	test("маскирует незапрошенный текст числом 42", () => {
+		const text =
+			"Anime girl on a roof. A billboard reads «42 — ПРАВИЛЬНЫЙ ВЫБОР» above.";
+		expect(maskUnrequestedTexts(text)).toBe(
+			"Anime girl on a roof. A billboard reads 42 above.",
+		);
+	});
+});
+
+describe("ложные срабатывания (регрессия ревью)", () => {
+	test("апострофы и «текстура» не включают текстовый режим", () => {
+		expect(requestsText("a wolf's howl at the moon")).toBe(false);
+		expect(requestsText("фотореализм, текстура кожи")).toBe(false);
+		expect(requestsText("подписчик рассылки")).toBe(false);
+		expect(requestsText("90's style")).toBe(false);
+	});
+
+	test("курчавые кавычки распознаются", () => {
+		expect(extractQuotedTexts("плакат “ЖИВИ ГРОМКО”")).toEqual(["ЖИВИ ГРОМКО"]);
+		expect(requestsText("постер “СЛАВА 42”")).toBe(true);
+	});
+
+	test("крылья гардятся, а не проходят по инерции", () => {
+		expect(missingDetails("человек с крыльями", "A humanoid figure.")).toEqual([
+			"wing",
+		]);
+		expect(
+			missingDetails("человек с крыльями", "A winged humanoid hovers."),
+		).toEqual([]);
+	});
+
+	test("посторонние слова не дают ложных потерь", () => {
+		expect(missingDetails("нарисуй пейзаж", "A drawing of a hill.")).toEqual(
+			[],
+		);
+		expect(
+			missingDetails("человек со щитом", "A heroic screenshot of a fighter."),
+		).toEqual([]);
+	});
+
+	test("маска чистит синтаксис и не оставляет висящих знаков", () => {
+		const dirty =
+			"A sign reading «ХАЙП» ! and a banner “42 — ПРАВИЛЬНЫЙ ВЫБОР”.";
+		const clean = maskUnrequestedTexts(dirty);
+		expect(clean).not.toContain("«");
+		expect(clean).not.toContain("“");
+		expect(clean).not.toContain(" !");
+		expect(clean).not.toContain("  ");
+	});
+});
+
+describe("границы русских стемов (регрессия ревью)", () => {
+	test("огнетушитель и ударник не считаются огнём и ударом", () => {
+		expect(missingDetails("огнетушитель", "A red tank.")).toEqual([]);
+		expect(missingDetails("ударник оркестра", "A drummer on stage.")).toEqual(
+			[],
+		);
+	});
+
+	test("огонь и удар в обычных формах ловятся", () => {
+		expect(missingDetails("человек в огне", "A calm portrait.")).toEqual([
+			"flame",
+		]);
+		expect(missingDetails("герой наносит удар", "A calm portrait.")).toEqual([
+			"impact",
+		]);
+	});
+
+	test("покрыло/накрыл не считаются крыльями", () => {
+		expect(missingDetails("одеяло покрыло диван", "A cozy room.")).toEqual([]);
+		expect(missingDetails("человек с крыльями", "A calm portrait.")).toEqual([
+			"wing",
+		]);
 	});
 });

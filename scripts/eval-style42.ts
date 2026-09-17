@@ -5,6 +5,7 @@ import { validateEnhancedPrompt } from "../src/lib/prompts/contract";
 
 const PROMPTS = [
 	"кот",
+	"Человек в костюме с крыльями, у которого правая половина белая, а левая черная, стреляет лазерами из глаз",
 	"мопс",
 	"закат",
 	"дождь",
@@ -26,7 +27,7 @@ const PROMPTS = [
 	"неоновый кот-программист пишет код ночью",
 ];
 
-const stamp = new Date().toISOString().replace(/[:\.]/g, "-").slice(0, 19);
+const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 const dir = "docs/evals";
 await mkdir(dir, { recursive: true });
 const lines: string[] = [];

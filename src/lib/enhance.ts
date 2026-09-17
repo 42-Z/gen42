@@ -11,7 +11,14 @@ import {
 	sanitizeEnhancedPrompt,
 	validateEnhancedPrompt,
 } from "./prompts/contract";
-import { detectUserMedium, ensureClosingFormula } from "./prompts/style-hints";
+import {
+	detectUserMedium,
+	ensureClosingFormula,
+	extractQuotedTexts,
+	maskUnrequestedTexts,
+	missingDetails,
+	requestsText,
+} from "./prompts/style-hints";
 import { buildFallbackPrompt } from "./style42-fallback";
 
 const MAX_ATTEMPTS = 3;
@@ -64,7 +71,12 @@ export async function enhancePrompt(
 	if (userMedium) {
 		anchors.medium = userMedium;
 	}
-	const baseMessage = buildUserMessage(userInput, anchors);
+	const exactTexts = extractQuotedTexts(userInput);
+	const textRequested = requestsText(userInput) || exactTexts.length > 0;
+	const baseMessage = buildUserMessage(userInput, anchors, {
+		textRequested,
+		exactTexts,
+	});
 	let message = baseMessage;
 	let lastError: string | undefined;
 	let contractRetries = 0;
@@ -95,13 +107,39 @@ export async function enhancePrompt(
 				...result.usage,
 			});
 
-			const cleaned = sanitizeEnhancedPrompt(result.text);
+			let cleaned = sanitizeEnhancedPrompt(result.text);
+			if (!textRequested) {
+				cleaned = maskUnrequestedTexts(cleaned);
+			}
 			const verdict = validateEnhancedPrompt(cleaned);
 			if (!verdict.ok) {
 				lastError = `contract: ${verdict.reason}`;
 				contractRetries += 1;
 				if (contractRetries >= MAX_CONTRACT_RETRIES) break;
 				message = `${baseMessage}\n\nPREVIOUS ATTEMPT WAS REJECTED: ${verdict.reason}. Output the corrected prompt only.`;
+				continue;
+			}
+
+			const missingExact = exactTexts.filter((text) => !cleaned.includes(text));
+			const missing = [...missingDetails(userInput, cleaned), ...missingExact];
+			if (missingExact.length > 0) {
+				lastError = `missing exact text: ${missingExact.join(", ")}`;
+				contractRetries += 1;
+				if (contractRetries >= MAX_CONTRACT_RETRIES) break;
+				message = `${baseMessage}\n\nPREVIOUS ATTEMPT LOST THE EXACT TEXT ${missingExact
+					.map((text) => `«${text}»`)
+					.join(", ")}. It must appear verbatim.`;
+				continue;
+			}
+			if (missing.length > 0) {
+				lastError = `missing details: ${missing.join(", ")}`;
+				contractRetries += 1;
+				if (contractRetries >= MAX_CONTRACT_RETRIES) break;
+				message = buildUserMessage(userInput, anchors, {
+					textRequested,
+					exactTexts,
+					missingDetails: missing,
+				});
 				continue;
 			}
 
@@ -143,7 +181,10 @@ export async function enhancePrompt(
 	}
 
 	return {
-		prompt: buildFallbackPrompt(userInput, anchors),
+		prompt: buildFallbackPrompt(userInput, anchors, {
+			textRequested,
+			exactTexts,
+		}),
 		keyId: null,
 		model: null,
 		styleVersion: STYLE_VERSION,

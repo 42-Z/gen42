@@ -130,6 +130,48 @@ describe("enhancePrompt", () => {
 		expect(deps.callPoolside).toHaveBeenCalledTimes(1);
 	});
 
+	test("без текстового запроса лозунг из ответа вырезается", async () => {
+		deps.callPoolside.mockImplementation(async () => ({
+			text: "A triumphant pug rides a glowing electric scooter along a neon highway while giraffes in rainbow tracksuits follow behind and a crowd of flamingos in gold chains cheers from the roadside. A neon sign flashes «НАС 42000» above the arches, confetti rains down over spilled gold bars and ruby rings, a hippopotamus DJ in a fur coat spins a diamond turntable nearby, and a zeppelin with a giant glowing 42 drifts overhead. Hyper-detailed cinematic photograph, wide-angle poster composition, physically believable materials, absurd triumphant kitsch, no watermarks.",
+			usage: { inputTokens: 10, outputTokens: 40, totalTokens: 50 },
+			rateLimit: { limit: 60, remaining: 10 },
+		}));
+
+		const { enhancePrompt } = await import("../enhance");
+		const result = await enhancePrompt("мопс на самокате", deps);
+		expect(result.fallback).toBe(false);
+		expect(result.prompt).not.toContain("«");
+		expect(result.prompt).not.toContain("НАС 42000");
+	});
+
+	test("повтор после потери детали сохраняет точный текст", async () => {
+		deps.callPoolside
+			.mockImplementationOnce(async () => ({
+				text: "A pug in a leopard coat jumps over a crate in a crowded plaza while flamingos in ruby necklaces scatter confetti and a rhinoceros in a suit counts gold bars beside a diamond turntable, the whole crowd cheering under searchlights and fireworks. A golden banner carries «ЖИВИ ГРОМКО» above them. Hyper-detailed cinematic photograph, wide-angle poster composition, physically believable materials, absurd triumphant kitsch, no watermarks, no signature.",
+				usage: { inputTokens: 10, outputTokens: 40, totalTokens: 50 },
+				rateLimit: { limit: 60, remaining: 10 },
+			}))
+			.mockImplementationOnce(async () => ({
+				text: "Bright laser beams shoot from the eyes of a winged humanoid figure in a split white-and-black costume while a golden banner carries «ЖИВИ ГРОМКО» above a cheering crowd of pugs, flamingos and rhinoceroses in fur coats, smoke curling from the scorched marble and gold bars spilling across the floor. Hyper-detailed cinematic photograph, wide-angle poster composition, physically believable materials, absurd triumphant kitsch, no watermarks, no signature.",
+				usage: { inputTokens: 10, outputTokens: 40, totalTokens: 50 },
+				rateLimit: { limit: 60, remaining: 9 },
+			}));
+
+		const { enhancePrompt } = await import("../enhance");
+		const result = await enhancePrompt(
+			"человек с крыльями стреляет лазерами, плакат с надписью «ЖИВИ ГРОМКО»",
+			deps,
+		);
+		expect(result.fallback).toBe(false);
+		expect(result.prompt).toContain("laser");
+		expect(result.prompt).toContain("«ЖИВИ ГРОМКО»");
+		const retryCall = deps.callPoolside.mock.calls[1] as unknown as
+			| [{ user: string }]
+			| undefined;
+		expect(retryCall?.[0].user).toContain("MISSING DETAILS");
+		expect(retryCall?.[0].user).toContain("EXACT TEXT");
+	});
+
 	test("нет ключей -> сразу fallback", async () => {
 		deps.getAvailableKey.mockImplementationOnce(async () => {
 			throw new AllKeysExhaustedError();
