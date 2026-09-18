@@ -13,7 +13,11 @@ import {
 	DropdownMenuRadioItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { ImageEngine, PublicImageModel } from "@/lib/models";
+import {
+	IMAGE_ENGINE_LABELS,
+	type ImageEngine,
+	type PublicImageModel,
+} from "@/lib/models";
 
 const MODEL_ICONS: Record<
 	ImageEngine,
@@ -37,9 +41,10 @@ export function ModelPicker({
 	disabled,
 }: ModelPickerProps) {
 	const selected = models.find((model) => model.id === value);
-	if (!selected) return null;
+	const label = selected?.label ?? IMAGE_ENGINE_LABELS[value];
+	const available = models.length > 0;
 
-	const SelectedIcon = MODEL_ICONS[selected.id] ?? IconSparkles;
+	const SelectedIcon = MODEL_ICONS[value] ?? IconSparkles;
 
 	return (
 		<DropdownMenu>
@@ -48,13 +53,13 @@ export function ModelPicker({
 					type="button"
 					variant="outline"
 					size="sm"
-					disabled={disabled}
-					aria-label={`Модель: ${selected.label}`}
+					disabled={disabled || !available}
+					aria-label={`Модель: ${label}`}
 					className="gap-2 rounded-full border-border bg-card/70 px-2.5 font-normal text-muted-foreground hover:border-primary/50 hover:text-foreground data-[state=open]:border-primary/60 data-[state=open]:text-foreground"
 				>
 					<SelectedIcon data-icon="inline-start" className="text-primary" />
-					<span className="font-medium">{selected.label}</span>
-					<IconChevronDown data-icon="inline-end" />
+					<span className="font-medium">{label}</span>
+					{available && <IconChevronDown data-icon="inline-end" />}
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="start" className="w-44">

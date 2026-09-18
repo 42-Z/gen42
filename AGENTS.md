@@ -99,6 +99,7 @@ bun run format       # форматер (biome)
 ## Деплой на Vercel
 
 - Фреймворк `bun`, билд `bun run build`, output `dist/`, функция `src/server.ts`
+- `vercel.json` задаёт `maxDuration: 300` для `src/server.ts`: генерация Ideogram 4 ждёт результат до 180с, плюс впереди LLM-обогащение и очередь ZeroGPU; Hobby+Fluid допускает до 300с. Уменьшать лимит нельзя без сокращения таймаутов опроса
 - **Критичный фикс в `vercel.json`**: NFT-трассировщик резолвит с условием `bun`, рантайм — с `node`; пакеты с разными exports (`@better-auth/telemetry`, `@better-auth/utils`, `@noble/ciphers`, `@noble/hashes`) требуют явного `includeFiles`. При новых подобных ошибках (`Cannot find package 'X'` в рантайме Vercel) — добавлять пакет в brace-глобу `includeFiles`, а не ставить костыли в код
 - Локальная проверка бандла: `vercel build --prod`, затем материализовать файлы из `filePathMap` (`.vercel/output/functions/index.func/.vc-config.json`) в отдельную папку и запускать `bun src/server.mjs` с подложенным `.env`
 - **Авто-деплой**: проект подключён к GitHub (`42-Z/gen42`, прод-ветка `main`) — пуш в `main` собирает прод, другие ветки дают preview. Hobby-план не подключает приватные репо организаций, поэтому репозиторий публичный; при возврате приватности авто-деплой переносить на GitHub Actions (`vercel deploy --prod` по токену)

@@ -176,6 +176,41 @@ describe("HuggingFace client", () => {
 			generateImage({ engine: "ideogram", prompt: "cat" }, "hf_key"),
 		).rejects.toThrow(KeyExhaustedError);
 	});
+
+	test("промежуточное событие-картинка без seed пропускается", async () => {
+		const sse =
+			'event: generating\ndata: [{"url": "https://img.test/intermediate.png"}]\n' +
+			'event: complete\ndata: [{"url": "https://img.test/final.png"}, 99]\n';
+		globalThis.fetch = mock(async (url: string | URL) => {
+			const u = String(url);
+			if (u.endsWith("/call/v2/generate")) {
+				return Response.json({ event_id: "abc" });
+			}
+			return new Response(sse, { status: 200 });
+		}) as any;
+
+		const { generateImage } = await import("../hf");
+		const result = await generateImage({ prompt: "cat" }, "hf_key");
+		expect(result.imageUrl).toBe("https://img.test/final.png");
+		expect(result.seed).toBe(99);
+	});
+
+	test("нечисловой seed -> ошибка, а не undefined в generations", async () => {
+		const sse =
+			'event: complete\ndata: [{"url": "https://img.test/x.png"}, "nope"]\n';
+		globalThis.fetch = mock(async (url: string | URL) => {
+			const u = String(url);
+			if (u.endsWith("/call/v2/generate")) {
+				return Response.json({ event_id: "abc" });
+			}
+			return new Response(sse, { status: 200 });
+		}) as any;
+
+		const { generateImage } = await import("../hf");
+		await expect(generateImage({ prompt: "cat" }, "hf_key")).rejects.toThrow(
+			"No valid seed",
+		);
+	});
 });
 
 describe("getZeroGPUQuota", () => {

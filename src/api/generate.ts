@@ -21,6 +21,8 @@ import {
 } from "../lib/keys";
 import {
 	getImageModel,
+	IDEOGRAM_MODE,
+	IDEOGRAM_STEPS,
 	publicImageModels,
 	resolveImageEngine,
 } from "../lib/models";
@@ -31,7 +33,11 @@ const MAX_ATTEMPTS = 5;
 
 export const generateRoutes = {
 	"/api/models": {
-		GET: () => Response.json(publicImageModels()),
+		// публичный каталог движков: без секретов, можно кэшировать
+		GET: () =>
+			Response.json(publicImageModels(), {
+				headers: { "Cache-Control": "public, max-age=300" },
+			}),
 	},
 
 	"/api/generate": {
@@ -136,6 +142,11 @@ export const generateRoutes = {
 				const duration = Date.now() - startTime;
 
 				const imageResponse = await fetch(result.imageUrl);
+				if (!imageResponse.ok) {
+					throw new Error(
+						`Не удалось скачать изображение: ${imageResponse.status}`,
+					);
+				}
 				const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
 				const contentType = normalizeContentType(
 					imageResponse.headers.get("content-type"),
@@ -145,7 +156,8 @@ export const generateRoutes = {
 
 				const generationId = crypto.randomUUID();
 				const storedModel =
-					engine === "ideogram" ? "Default · 20 steps" : model || "Turbo";
+					engine === "ideogram" ? IDEOGRAM_MODE : model || "Turbo";
+				const storedSteps = engine === "ideogram" ? IDEOGRAM_STEPS : steps || 8;
 				await sql`
           INSERT INTO generations
             (id, user_id, prompt, enhanced_prompt, negative_prompt, model, width,
@@ -155,7 +167,7 @@ export const generateRoutes = {
           VALUES
             (${generationId}, ${session.user.id}, ${prompt}, ${enhanced.prompt},
              ${negativePrompt || null}, ${storedModel}, ${width || 1024},
-             ${height || 1024}, ${steps || 8}, ${result.seed}, ${imageKey},
+             ${height || 1024}, ${storedSteps}, ${result.seed}, ${imageKey},
              'completed', ${duration}, ${currentKey!.id}, ${enhanced.keyId},
              ${enhanced.model},
              ${(enhanced.inputTokens ?? 0) + (enhanced.outputTokens ?? 0) || null},

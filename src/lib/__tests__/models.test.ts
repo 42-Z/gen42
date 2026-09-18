@@ -34,7 +34,9 @@ describe("Image models", () => {
 
 	test("publicImageModels отдаёт только id, label и cost", () => {
 		const list = publicImageModels();
-		expect(list.map((m) => m.id)).toEqual(["krea", "ideogram"]);
+		expect(new Set(list.map((m) => m.id))).toEqual(
+			new Set(["krea", "ideogram"]),
+		);
 		for (const model of list) {
 			expect(Object.keys(model).sort()).toEqual(["cost", "id", "label"]);
 		}

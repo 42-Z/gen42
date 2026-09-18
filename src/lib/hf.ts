@@ -1,4 +1,9 @@
-import { getImageModel, type ImageEngine, resolveImageEngine } from "./models";
+import {
+	getImageModel,
+	IDEOGRAM_MODE,
+	type ImageEngine,
+	resolveImageEngine,
+} from "./models";
 
 interface GenerateParams {
 	/** Движок генерации; по умолчанию Krea 2 */
@@ -18,7 +23,6 @@ interface GenerateResult {
 }
 
 /** Настройки Ideogram 4: без пользовательских опций, фиксированный пресет */
-const IDEOGRAM_MODE = "Default · 20 steps";
 const IDEOGRAM_UPSAMPLER = "Ideogram (remote)";
 
 export interface ZeroGPURuns {
@@ -181,8 +185,13 @@ async function callSpace(options: {
 			}
 			if (line.startsWith("data: ")) {
 				const data = JSON.parse(line.slice(6));
-				// промежуточные события (прогресс) пропускаем — ждём массив с картинкой
-				if (Array.isArray(data) && (data[0] as { url?: string })?.url) {
+				// финальное событие — кортеж [картинка, seed]; промежуточные
+				// стриминговые массивы пропускаем
+				if (
+					Array.isArray(data) &&
+					data.length >= 2 &&
+					(data[0] as { url?: string })?.url
+				) {
 					return data;
 				}
 			}
@@ -240,7 +249,11 @@ function extractResult(data: unknown[]): GenerateResult {
 	if (!image?.url) {
 		throw new Error("No image URL received from HuggingFace API");
 	}
-	return { imageUrl: image.url, seed: data[1] as number };
+	const seed = data[1];
+	if (typeof seed !== "number" || !Number.isFinite(seed)) {
+		throw new Error("No valid seed received from HuggingFace API");
+	}
+	return { imageUrl: image.url, seed };
 }
 
 export async function generateImage(

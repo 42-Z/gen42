@@ -32,6 +32,16 @@ export const IMAGE_MODELS: Record<ImageEngine, ImageModelDef> = {
 
 export const DEFAULT_IMAGE_ENGINE: ImageEngine = "krea";
 
+/** Пресет Ideogram 4: режим и число шагов фиксированы */
+export const IDEOGRAM_MODE = "Default · 20 steps";
+export const IDEOGRAM_STEPS = 20;
+
+/** Имена движков для клиентского фолбэка, пока список моделей не загрузился */
+export const IMAGE_ENGINE_LABELS: Record<ImageEngine, string> = {
+	krea: IMAGE_MODELS.krea.label,
+	ideogram: IMAGE_MODELS.ideogram.label,
+};
+
 export function isImageEngine(value: unknown): value is ImageEngine {
 	return value === "krea" || value === "ideogram";
 }
