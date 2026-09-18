@@ -159,6 +159,7 @@ export async function callLlm(params: {
 		}
 		throw new LlmCallError(
 			error instanceof Error ? error.message : String(error),
+			{ cause: error },
 		);
 	}
 }

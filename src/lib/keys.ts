@@ -1,12 +1,10 @@
 import { sql } from "./db";
 import type { ZeroGPUQuota } from "./hf";
-import type { LlmProviderId } from "./llm";
+import { isLlmProvider, type LlmProviderId } from "./llm";
+
+export { isLlmProvider };
 
 export type KeyProvider = "huggingface" | LlmProviderId;
-
-export function isLlmProvider(provider: string): provider is LlmProviderId {
-	return provider === "poolside" || provider === "inception";
-}
 
 export interface ApiKeyRow {
 	id: string;

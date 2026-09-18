@@ -126,13 +126,14 @@ export const adminRoutes = {
 				await checkAdmin(req);
 
 				const { name, key, provider = "huggingface" } = await req.json();
+				const trimmedKey = typeof key === "string" ? key.trim() : key;
 				if (provider !== "huggingface" && !isLlmProvider(provider)) {
 					return Response.json(
 						{ error: "Неизвестный провайдер" },
 						{ status: 400 },
 					);
 				}
-				if (!name || !isValidKeyForProvider(provider, key ?? "")) {
+				if (!name || !isValidKeyForProvider(provider, trimmedKey ?? "")) {
 					const prefix = keyPrefixFor(provider);
 					return Response.json(
 						{
@@ -147,7 +148,7 @@ export const adminRoutes = {
 				try {
 					const [newKey] = await sql`
           INSERT INTO api_keys (id, name, key, provider)
-          VALUES (${crypto.randomUUID()}, ${name}, ${key}, ${provider})
+          VALUES (${crypto.randomUUID()}, ${name}, ${trimmedKey}, ${provider})
           RETURNING id, name, provider, is_active, hf_base, hf_current, hf_resets_at,
                     hf_checked_at, hf_runs_remaining, hf_runs_limit, hf_runs_resets_at,
                     rl_limit, rl_remaining, requests_total, tokens_total,
