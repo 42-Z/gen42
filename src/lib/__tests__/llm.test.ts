@@ -38,7 +38,7 @@ describe("Poolside client", () => {
 			});
 		}) as any;
 
-		const { callPoolside } = await import("../poolside");
+		const { callPoolside } = await import("../llm");
 		const result = await callPoolside({
 			system: "system rules",
 			user: "кот",
@@ -68,7 +68,7 @@ describe("Poolside client", () => {
 					headers: { "content-type": "application/json" },
 				}),
 		) as any;
-		const { callPoolside, LlmKeyExhaustedError } = await import("../poolside");
+		const { callPoolside, LlmKeyExhaustedError } = await import("../llm");
 		await expect(
 			callPoolside({ system: "s", user: "u", apiKey: "sky_test" }),
 		).rejects.toThrow(LlmKeyExhaustedError);
@@ -82,7 +82,7 @@ describe("Poolside client", () => {
 					headers: { "content-type": "application/json" },
 				}),
 		) as any;
-		const { callPoolside, LlmKeyExhaustedError } = await import("../poolside");
+		const { callPoolside, LlmKeyExhaustedError } = await import("../llm");
 		await expect(
 			callPoolside({ system: "s", user: "u", apiKey: "sky_test" }),
 		).rejects.toThrow(LlmKeyExhaustedError);
@@ -96,7 +96,7 @@ describe("Poolside client", () => {
 					headers: { "content-type": "application/json" },
 				}),
 		) as any;
-		const { callPoolside, LlmCallError } = await import("../poolside");
+		const { callPoolside, LlmCallError } = await import("../llm");
 		await expect(
 			callPoolside({ system: "s", user: "u", apiKey: "sky_test" }),
 		).rejects.toThrow(LlmCallError);

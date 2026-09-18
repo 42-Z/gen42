@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { EnhanceDeps } from "../enhance";
 import { AllKeysExhaustedError } from "../keys";
-import { LlmKeyExhaustedError } from "../poolside";
+import { LlmKeyExhaustedError } from "../llm";
 
 const GOOD_TEXT =
 	"A colossal cat on a diamond throne, gold chains with a «42» medallion, pugs in leopard coats, fireworks spelling 42, neon banners reading «СЛАВА 42», confetti rain, hyper-detailed cinematic photograph, wide-angle poster composition, epic scale, absurd triumphant kitsch, no watermarks, no signature at all.";

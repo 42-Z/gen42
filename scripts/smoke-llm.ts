@@ -1,5 +1,5 @@
 import { getAvailableKey, updateKeyRateLimit } from "../src/lib/keys";
-import { callPoolside } from "../src/lib/poolside";
+import { callPoolside } from "../src/lib/llm";
 
 const key = await getAvailableKey("poolside");
 const started = Date.now();

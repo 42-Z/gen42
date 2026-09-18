@@ -9,7 +9,7 @@ import {
 	keyPrefixFor,
 	updateKeyQuota,
 } from "../lib/keys";
-import { callPoolside } from "../lib/poolside";
+import { callPoolside } from "../lib/llm";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL!;
 

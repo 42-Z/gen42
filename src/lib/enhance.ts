@@ -4,7 +4,7 @@ import {
 	getAvailableKey,
 	updateKeyRateLimit,
 } from "./keys";
-import { callPoolside, LlmKeyExhaustedError, POOLSIDE_MODEL } from "./poolside";
+import { callPoolside, LlmKeyExhaustedError, POOLSIDE_MODEL } from "./llm";
 import { STYLE_SYSTEM, STYLE_VERSION } from "./prompts";
 import { buildUserMessage, pickAnchors } from "./prompts/anchors";
 import {
