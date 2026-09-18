@@ -34,7 +34,8 @@
 				"noStaticElementInteractions": "off",
 				"useKeyWithClickEvents": "off",
 				"useAriaPropsSupportedByRole": "off",
-				"useValidAnchor": "off"
+				"useValidAnchor": "off",
+				"useSemanticElements": "off"
 			}
 		}
 	},

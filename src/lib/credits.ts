@@ -28,11 +28,18 @@ export async function addCredits(
 	return row!.balance;
 }
 
-export async function deductCredit(userId: string): Promise<number> {
+export async function deductCredits(
+	userId: string,
+	amount: number,
+): Promise<number> {
+	if (!Number.isInteger(amount) || amount < 1) {
+		throw new Error(`Invalid credit amount: ${amount}`);
+	}
+
 	const rows = await sql`
     UPDATE credits
-    SET balance = balance - 1, updated_at = NOW()
-    WHERE user_id = ${userId} AND balance >= 1
+    SET balance = balance - ${amount}, updated_at = NOW()
+    WHERE user_id = ${userId} AND balance >= ${amount}
     RETURNING balance
   `;
 
@@ -42,10 +49,16 @@ export async function deductCredit(userId: string): Promise<number> {
 	return rows[0]!.balance;
 }
 
-export async function refundCredit(userId: string): Promise<void> {
+export async function refundCredits(
+	userId: string,
+	amount: number,
+): Promise<void> {
+	if (!Number.isInteger(amount) || amount < 1) {
+		throw new Error(`Invalid credit amount: ${amount}`);
+	}
 	await sql`
     UPDATE credits
-    SET balance = balance + 1, updated_at = NOW()
+    SET balance = balance + ${amount}, updated_at = NOW()
     WHERE user_id = ${userId}
   `;
 }

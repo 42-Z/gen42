@@ -15,8 +15,13 @@ const mockSql = mock((strings: TemplateStringsArray, ..._values: unknown[]) => {
 
 mock.module("../db", () => ({ sql: mockSql }));
 
-const { getCredits, addCredits, deductCredit, InsufficientCreditsError } =
-	await import("../credits");
+const {
+	getCredits,
+	addCredits,
+	deductCredits,
+	refundCredits,
+	InsufficientCreditsError,
+} = await import("../credits");
 
 describe("Credits", () => {
 	beforeEach(() => {
@@ -37,10 +42,39 @@ describe("Credits", () => {
 		expect(mockSql).toHaveBeenCalled();
 	});
 
-	test("deductCredit бросает InsufficientCreditsError при пустом результате", async () => {
-		responses = { "balance >= 1": [] };
-		await expect(deductCredit("user-123")).rejects.toThrow(
+	test("deductCredits бросает InsufficientCreditsError при пустом результате", async () => {
+		responses = { "balance >= ?": [] };
+		await expect(deductCredits("user-123", 3)).rejects.toThrow(
 			InsufficientCreditsError,
 		);
+	});
+
+	test("deductCredits списывает сумму и сравнивает баланс с ней", async () => {
+		responses = { "balance >= ?": [{ balance: 2 }] };
+		const balance = await deductCredits("user-123", 3);
+		expect(balance).toBe(2);
+
+		const strings = mockSql.mock.calls[0]![0] as TemplateStringsArray;
+		const values = mockSql.mock.calls[0]!.slice(1);
+		expect(strings.join("?")).toContain("balance >= ?");
+		expect(values).toContain(3);
+		expect(values).toContain("user-123");
+	});
+
+	test("deductCredits отклоняет неположительную сумму", async () => {
+		await expect(deductCredits("user-123", 0)).rejects.toThrow(
+			"Invalid credit amount",
+		);
+		await expect(deductCredits("user-123", 1.5)).rejects.toThrow(
+			"Invalid credit amount",
+		);
+	});
+
+	test("refundCredits возвращает списанную сумму", async () => {
+		await refundCredits("user-123", 3);
+		const strings = mockSql.mock.calls[0]![0] as TemplateStringsArray;
+		const values = mockSql.mock.calls[0]!.slice(1);
+		expect(strings.join("?")).toContain("balance = balance + ?");
+		expect(values).toContain(3);
 	});
 });

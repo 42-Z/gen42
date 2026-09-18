@@ -1,9 +1,9 @@
 import { auth } from "../lib/auth";
 import {
-	deductCredit,
+	deductCredits,
 	getCredits,
 	InsufficientCreditsError,
-	refundCredit,
+	refundCredits,
 } from "../lib/credits";
 import { sql } from "../lib/db";
 import { enhancePrompt } from "../lib/enhance";
@@ -13,17 +13,33 @@ import {
 	KeyExhaustedError,
 	QueueTimeoutError,
 } from "../lib/hf";
+import { imageExtension, normalizeContentType } from "../lib/image-format";
 import {
 	AllKeysExhaustedError,
 	getAvailableKey,
 	updateKeyQuota,
 } from "../lib/keys";
+import {
+	getImageModel,
+	IDEOGRAM_MODE,
+	IDEOGRAM_STEPS,
+	publicImageModels,
+	resolveImageEngine,
+} from "../lib/models";
 import { checkRateLimit } from "../lib/rate-limit";
 import { getImageUrl, uploadImage } from "../lib/storage";
 
 const MAX_ATTEMPTS = 5;
 
 export const generateRoutes = {
+	"/api/models": {
+		// публичный каталог движков: без секретов, можно кэшировать
+		GET: () =>
+			Response.json(publicImageModels(), {
+				headers: { "Cache-Control": "public, max-age=300" },
+			}),
+	},
+
 	"/api/generate": {
 		POST: async (req: Request) => {
 			const session = await auth.api.getSession({ headers: req.headers });
@@ -41,6 +57,8 @@ export const generateRoutes = {
 			const body = await req.json();
 			const { prompt, negativePrompt, model, width, height, steps, seed } =
 				body;
+			const engine = resolveImageEngine(body.engine);
+			const { cost } = getImageModel(engine);
 
 			if (!prompt || prompt.length > 1000) {
 				return Response.json({ error: "Некорректный промпт" }, { status: 400 });
@@ -50,7 +68,7 @@ export const generateRoutes = {
 			let currentKey: Awaited<ReturnType<typeof getAvailableKey>> | null = null;
 
 			try {
-				await deductCredit(session.user.id);
+				await deductCredits(session.user.id, cost);
 				creditSpent = true;
 
 				const enhanced = await enhancePrompt(prompt);
@@ -72,6 +90,7 @@ export const generateRoutes = {
 						triedKeyIds.add(currentKey.id);
 						result = await generateImage(
 							{
+								engine,
 								prompt: enhanced.prompt,
 								negativePrompt,
 								model,
@@ -123,24 +142,37 @@ export const generateRoutes = {
 				const duration = Date.now() - startTime;
 
 				const imageResponse = await fetch(result.imageUrl);
+				if (!imageResponse.ok) {
+					throw new Error(
+						`Не удалось скачать изображение: ${imageResponse.status}`,
+					);
+				}
 				const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-				const imageKey = `generations/${session.user.id}/${Date.now()}.png`;
-				await uploadImage(imageKey, imageBuffer, "image/png");
+				const contentType = normalizeContentType(
+					imageResponse.headers.get("content-type"),
+				);
+				const imageKey = `generations/${session.user.id}/${Date.now()}.${imageExtension(contentType)}`;
+				await uploadImage(imageKey, imageBuffer, contentType);
 
 				const generationId = crypto.randomUUID();
+				const storedModel =
+					engine === "ideogram" ? IDEOGRAM_MODE : model || "Turbo";
+				const storedSteps = engine === "ideogram" ? IDEOGRAM_STEPS : steps || 8;
 				await sql`
           INSERT INTO generations
             (id, user_id, prompt, enhanced_prompt, negative_prompt, model, width,
              height, steps, seed, image_key, status, duration_ms, api_key_id,
-             llm_key_id, llm_model, llm_tokens, enhance_ms, style_version)
+             llm_key_id, llm_model, llm_tokens, enhance_ms, style_version,
+             engine, cost)
           VALUES
             (${generationId}, ${session.user.id}, ${prompt}, ${enhanced.prompt},
-             ${negativePrompt || null}, ${model || "Turbo"}, ${width || 1024},
-             ${height || 1024}, ${steps || 8}, ${result.seed}, ${imageKey},
+             ${negativePrompt || null}, ${storedModel}, ${width || 1024},
+             ${height || 1024}, ${storedSteps}, ${result.seed}, ${imageKey},
              'completed', ${duration}, ${currentKey!.id}, ${enhanced.keyId},
              ${enhanced.model},
              ${(enhanced.inputTokens ?? 0) + (enhanced.outputTokens ?? 0) || null},
-             ${enhanced.durationMs}, ${enhanced.styleVersion})
+             ${enhanced.durationMs}, ${enhanced.styleVersion},
+             ${engine}, ${cost})
         `;
 				const quota = await getZeroGPUQuota(currentKey!.key);
 				if (quota) {
@@ -154,10 +186,12 @@ export const generateRoutes = {
 					image_url: presignedUrl,
 					seed: result.seed,
 					duration,
+					engine,
+					cost,
 				});
 			} catch (error: any) {
 				if (creditSpent) {
-					await refundCredit(session.user.id);
+					await refundCredits(session.user.id, cost);
 				}
 				if (currentKey) {
 					const quota = await getZeroGPUQuota(currentKey.key);

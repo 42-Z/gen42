@@ -50,11 +50,12 @@ bun run format       # форматер (biome)
 
 ## Архитектура
 
-- `src/server.ts` — единственный entrypoint: API-роуты (`/api/auth/*`, `/api/generate`, `/api/generations`, `/api/me`, `/api/admin/*`) + раздача `dist/`. Не создавать отдельные entrypoints
+- `src/server.ts` — единственный entrypoint: API-роуты (`/api/auth/*`, `/api/generate`, `/api/generations`, `/api/me`, `/api/models`, `/api/admin/*`) + раздача `dist/`. Не создавать отдельные entrypoints
+- `src/lib/models.ts` — реестр движков генерации `IMAGE_MODELS` (krea / ideogram): адрес Space, стоимость в кредитах, таймаут; `publicImageModels()` отдаёт клиенту только `id/label/cost`
 - `src/lib/llm.ts` — единый клиент LLM-провайдеров: реестр `LLM_PROVIDERS` и generic `callLlm({ provider, … })` на AI SDK v7 (`ai` + `@ai-sdk/openai-compatible`)
-- `src/api/` — обработчики роутов; `src/lib/` — доменная логика (credits, keys, hf, llm, enhance, storage, rate-limit); `src/lib/prompts/` — промпт-инженерия стиля «42»
+- `src/api/` — обработчики роутов; `src/lib/` — доменная логика (credits, keys, models, hf, llm, enhance, storage, rate-limit); `src/lib/prompts/` — промпт-инженерия стиля «42»
 - Ключи всех провайдеров живут только в таблице `api_keys` (`provider`: `huggingface` | `poolside` | `inception`) и управляются через админку (`/api/admin/keys`: добавление, проверка, удаление; `?provider=` выбирает список). В env и файлах они не хранятся, API отдаёт их маскированными
-- Баланс пользователя: одна генерация списывает один кредит — `src/lib/credits.ts`. Новому пользователю при регистрации даётся 1 стартовый кредит (hook `databaseHooks.user.create.after` в `src/lib/auth.ts`, константа `SIGNUP_BONUS_CREDITS`)
+- Баланс пользователя: генерация списывает стоимость движка из `IMAGE_MODELS` (Krea 2 — 1, Ideogram 4 — 3) — `src/lib/credits.ts` (`deductCredits`/`refundCredits`). Новому пользователю при регистрации даётся 1 стартовый кредит (hook `databaseHooks.user.create.after` в `src/lib/auth.ts`, константа `SIGNUP_BONUS_CREDITS`)
 - Первый пользователь с email из `ADMIN_EMAIL` — админ
 
 ## Хранилище (S3)
@@ -72,7 +73,9 @@ bun run format       # форматер (biome)
 
 ## Генерация (HuggingFace)
 
-- `src/lib/hf.ts` ходит в Gradio Space `krea-krea-2.hf.space` через **именованный** эндпоинт `POST /gradio_api/call/v2/generate` и опрос `…/call/v2/generate/{event_id}`. Старый `/call/generate` с `data: [ {…} ]` падает в `event: error` — не возвращать. Ответ: `data[0].url` (картинка), `data[1]` — seed
+- `src/lib/hf.ts` — общий Gradio-клиент `callSpace()`: `POST {space}/gradio_api/call/v2/{api}` (payload именованными полями, без старого `data: [ {…} ]`, иначе `event: error`), затем опрос `…/call/v2/{api}/{event_id}` с фолбэком на `…/call/{api}/{event_id}` при 404. Ответ: `data[0].url` (картинка), `data[1]` — seed. Движки задаются реестром `IMAGE_MODELS` (`src/lib/models.ts`), `generateImage({ engine, … })` диспатчит по нему
+  - **Krea 2** — `krea-krea-2.hf.space`, поля `prompt/negative_prompt/model/steps/guidance/width/height/seed/randomize` (model `Turbo`/`Raw`, guidance 0, steps 8)
+  - **Ideogram 4** — `ideogram-ai-ideogram4.hf.space`, поля `prompt/mode/upsampler/width/height/seed/randomize_seed`. Режим фиксирован `Default · 20 steps`, апсемплер `Ideogram (remote)` (Space сам фолбэчит на локальный Qwen); negative prompt и `model` Ideogram не принимает. Таймаут опроса больше (180с из-за 20 шагов)
 - Ключ HF передаётся только в заголовке `Authorization`; актуальную схему эндпоинтов смотреть в `GET /gradio_api/info`
 - У бесплатного ZeroGPU два суточных лимита на токен: секунды GPU и **прогоны** (`runs`, 8/сутки). `getZeroGPUQuota()` сохраняет оба (`hf_current`/`hf_resets_at` и `hf_runs_remaining`/`hf_runs_limit`/`hf_runs_resets_at`), админка показывает две полосы — «Секунды» и «Прогоны»
 - `getAvailableKey('huggingface')` пропускает ключи без доступных секунд (`< 60`) или прогонов (`0`); после сброса (`resets_at` в прошлом) устаревшие счётчики не блокируют ключ. Ротация выбирает следующий ключ **до** вызова, а не после отказа
@@ -80,7 +83,7 @@ bun run format       # форматер (biome)
 
 ## Обогащение промпта (LLM, стиль «42»)
 
-- Каждая генерация сначала проходит через `src/lib/enhance.ts`: пользовательский запрос превращается в плотный англоязычный промпт в стиле «42» и только потом уходит в Krea 2. Для пользователя это невидимо, контракт `POST /api/generate` не менялся
+- Каждая генерация сначала проходит через `src/lib/enhance.ts`: пользовательский запрос превращается в плотный англоязычный промпт в стиле «42» и только потом уходит в выбранный движок (Krea 2 или Ideogram 4). Для пользователя это невидимо, контракт `POST /api/generate` не менялся (добавилось поле `engine`)
 - LLM — два OpenAI-совместимых провайдера в реестре `src/lib/llm.ts` (`LLM_PROVIDERS`), вызов — generic `callLlm({ provider, … })`:
   - `poolside` — `POOLSIDE_BASE_URL` (по умолчанию `https://inference.poolside.ai/v1`), `POOLSIDE_MODEL` (по умолчанию `poolside/laguna-xs-2.1`), thinking выключен через `providerOptions.poolside.chat_template_kwargs.enable_thinking`
   - `inception` (Inception Labs) — `INCEPTION_BASE_URL` (по умолчанию `https://api.inceptionlabs.ai/v1`), `INCEPTION_MODEL` (по умолчанию `mercury-2.5`); `reasoning_effort: low` передаётся штатной опцией `providerOptions.inception.reasoningEffort`; rate-limit заголовков нет → `rl_*` = `NULL`; 401/402/403/429 = «ключ не работает» (402 у Inception — биллинг/квота)
@@ -96,6 +99,7 @@ bun run format       # форматер (biome)
 ## Деплой на Vercel
 
 - Фреймворк `bun`, билд `bun run build`, output `dist/`, функция `src/server.ts`
+- `vercel.json` задаёт `maxDuration: 300` для `src/server.ts`: генерация Ideogram 4 ждёт результат до 180с, плюс впереди LLM-обогащение и очередь ZeroGPU; Hobby+Fluid допускает до 300с. Уменьшать лимит нельзя без сокращения таймаутов опроса
 - **Критичный фикс в `vercel.json`**: NFT-трассировщик резолвит с условием `bun`, рантайм — с `node`; пакеты с разными exports (`@better-auth/telemetry`, `@better-auth/utils`, `@noble/ciphers`, `@noble/hashes`) требуют явного `includeFiles`. При новых подобных ошибках (`Cannot find package 'X'` в рантайме Vercel) — добавлять пакет в brace-глобу `includeFiles`, а не ставить костыли в код
 - Локальная проверка бандла: `vercel build --prod`, затем материализовать файлы из `filePathMap` (`.vercel/output/functions/index.func/.vc-config.json`) в отдельную папку и запускать `bun src/server.mjs` с подложенным `.env`
 - **Авто-деплой**: проект подключён к GitHub (`42-Z/gen42`, прод-ветка `main`) — пуш в `main` собирает прод, другие ветки дают preview. Hobby-план не подключает приватные репо организаций, поэтому репозиторий публичный; при возврате приватности авто-деплой переносить на GitHub Actions (`vercel deploy --prod` по токену)
@@ -104,7 +108,7 @@ bun run format       # форматер (biome)
 
 ## Проверка
 
-- UI проверять в браузере через `agent-browser` на живом прод-домене после деплоя (или на `http://localhost:3000` при `bun dev`): вход → генерация → картинка из S3 → баланс −1 → галерея/лайтбокс
+- UI проверять в браузере через `agent-browser` на живом прод-домене после деплоя (или на `http://localhost:3000` при `bun dev`): вход → выбор движка → генерация → картинка из S3 → баланс −стоимость движка → галерея/лайтбокс
 - Рантайм-ошибки Vercel смотреть через `vercel logs <deployment-url>`
 
 ## Процесс изменений (обязательно)
@@ -113,11 +117,14 @@ bun run format       # форматер (biome)
 - Перед PR прогонять свежие проверки: `bun run typecheck`, `bun run lint`, `bunx biome format .`, `bun test`, `bun run build` (плюс `vercel build --prod` при изменениях серверной части и зависимостей)
 - Перед PR делать ревью диффа (субагент-ревьюер): находки blocker/major закрывать до мержа, minor — осознанно принимать или закрывать
 - Не заявлять о готовности без свежих свидетельств (verify-before-completion): команда, её вывод, только потом вывод о результате
+- **Предсуществующие ошибки и предупреждения исправлять по ходу.** Если линтер, тайпчек или тесты ругаются на код, который ты трогаешь (или рядом), — починить в рамках этой же работы, а не оставлять со словами «это было до меня». Исключение — правка явно вне зоны задачи; тогда вынести отдельно
+- **В описании PR не писать про запуск линтера, тайпчека и тестов** — это не интересно ревьюеру. Вместо этого, если были изменения фронтенда, вставить в описание PR скриншот (через скилл `before-and-after`, не ссылкой на временный хостинг)
 - Мерж в `main`, миграции прод-базы, ключи и любые действия на проде — только с явного разрешения владельца; `main` защищён, изменения идут через PR с зелёным CI
 - Скиллы — часть репозитория: `.agents/skills/**` (содержимое), `.claude/skills/**` (симлинки на них) и `skills-lock.json` коммитятся вместе с изменениями, а не остаются локальными
 
 ## Стиль UI
 
+- **Любые фронтенд-изменения — только через скилл shadcn/ui** (`shadcn`, лежит в `.agents/skills/shadcn/`): перед правкой UI-кода загрузить скилл, компоненты добавлять через CLI (`bunx --bun shadcn@latest add <component>`), использовать канонические примитивы и правила скилла (композиция, `size-*`, `data-icon`, семантические токены, `cn()` из `@/lib/utils`, `gap-*` вместо `space-*`). Не писать самописные аналоги shadcn-компонентов
 - Язык интерфейса — русский, без технических подробностей (стек, версии, параметры API) в текстах для пользователя
 - Контент живёт прямо на странице: никаких карточек-«окошек», в которых умещается весь сайт. Структура — типографика, отступы, тонкие линейки
 - Поля ввода — с бордером и скруглением 22px, фон `secondary/60` (см. `src/components/ui/input.tsx`). Не underline
@@ -127,7 +134,7 @@ bun run format       # форматер (biome)
 - Админка: прогресс-бар вместо цифр для отображения лимитов ключей (used/limit)
 - Ключи обоих провайдеров показываются одним паттерном: HF — «Ключи генерации» с двумя полосами ZeroGPU («Секунды» и «Прогоны») и кнопкой «Проверить и включить», LLM — «Ключи LLM» с селектом провайдера при добавлении (Poolside / Inception), колонкой «Провайдер», остатком запросов и токенами
 - «Проверить и включить» у HF-ключа обновляет квоту и включает его только при остатке и секунд (≥60), и прогонов (>0); иначе возвращает 409 с деталями — ключ ждёт сброса
-- Генерация: без примеров промптов, бейдж «1» на кнопке (стоимость генерации)
+- Генерация: выбор движка (Krea 2 / Ideogram 4) — чип модели в нижней строке поля промпта (слева), по клику — поповер со списком (иконка, имя, цена, галочка у активного); кнопка генерации — справа в том же поле, с бейджем цены выбранной модели (1 или 3 кредита); без примеров промптов
 - Дизайн-система: тёмная pop-палитра — индиго `#6c5cff` + фуксия `#ff5ca8`, градиент `--pop-gradient`, карточки `--color-card` с бордером `--color-border`. Шрифты Bricolage Grotesque (display) + Inter Tight (sans). Декоративные элементы фона с drift/pulse анимациями (`prefers-reduced-motion: reduce`). Палитра и утилити-классы в `src/index.css`
 
 ## Безопасность

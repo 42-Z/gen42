@@ -109,3 +109,17 @@ DO $$ BEGIN
       FOREIGN KEY (llm_key_id) REFERENCES api_keys(id) ON DELETE SET NULL;
   END IF;
 END $$;
+
+-- Движок генерации (krea | ideogram) и списанная за неё стоимость в кредитах
+ALTER TABLE generations ADD COLUMN IF NOT EXISTS engine VARCHAR(20) NOT NULL DEFAULT 'krea';
+ALTER TABLE generations ADD COLUMN IF NOT EXISTS cost INTEGER NOT NULL DEFAULT 1;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'generations_engine_check'
+  ) THEN
+    ALTER TABLE generations
+      ADD CONSTRAINT generations_engine_check
+      CHECK (engine IN ('krea', 'ideogram'));
+  END IF;
+END $$;

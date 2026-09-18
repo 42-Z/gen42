@@ -11,8 +11,14 @@ import {
 } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+	InputGroup,
+	InputGroupAddon,
+	InputGroupTextarea,
+} from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { imageExtension } from "@/lib/image-format";
+import type { ImageEngine, PublicImageModel } from "@/lib/models";
 import {
 	EmptyCanvasArt,
 	PopSkeleton,
@@ -20,6 +26,7 @@ import {
 	SparkStar,
 	StickerBurst,
 } from "./graphics";
+import { ModelPicker } from "./ModelPicker";
 
 interface GenerateProps {
 	balance: number | null;
@@ -36,12 +43,28 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const [seedCopied, setSeedCopied] = useState(false);
 	const [history, setHistory] = useState<any[]>([]);
 	const [selected, setSelected] = useState<number | null>(null);
+	const [models, setModels] = useState<PublicImageModel[]>([]);
+	const [engine, setEngine] = useState<ImageEngine>("krea");
 
-	const outOfCredits = balance === 0;
+	const cost = models.find((m) => m.id === engine)?.cost ?? 1;
+	const outOfCredits = balance !== null && balance < cost;
 
 	useEffect(() => {
 		loadHistory();
+		loadModels();
 	}, []);
+
+	async function loadModels() {
+		try {
+			const res = await fetch("/api/models");
+			if (res.ok) {
+				const data = await res.json();
+				if (Array.isArray(data) && data.length > 0) setModels(data);
+			}
+		} catch {
+			/* останется модель по умолчанию */
+		}
+	}
 
 	useEffect(() => {
 		if (selected === null) return;
@@ -100,10 +123,10 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					prompt,
-					model: "Turbo",
+					engine,
+					...(engine === "krea" ? { model: "Turbo", steps: 8 } : {}),
 					width: 1024,
 					height: 1024,
-					steps: 8,
 					guidance: 0.0,
 				}),
 			});
@@ -132,7 +155,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 			const objectUrl = URL.createObjectURL(blob);
 			const a = document.createElement("a");
 			a.href = objectUrl;
-			a.download = `gen42-${seed ?? Date.now()}.png`;
+			a.download = `gen42-${seed ?? Date.now()}.${imageExtension(blob.type)}`;
 			a.click();
 			URL.revokeObjectURL(objectUrl);
 		} catch {
@@ -163,7 +186,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	return (
 		<div className="mx-auto max-w-3xl">
 			<div className="animate-pop-in">
-				<div className="space-y-2">
+				<div className="flex flex-col gap-2">
 					<div className="flex items-center gap-2">
 						<SparkStar className="h-4 w-4" />
 						<Label
@@ -173,14 +196,50 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 							Промпт
 						</Label>
 					</div>
-					<Textarea
-						id="prompt"
-						value={prompt}
-						onChange={(e) => setPrompt(e.target.value)}
-						rows={4}
-						maxLength={1000}
-						className="min-h-36 resize-none text-lg leading-relaxed"
-					/>
+					<InputGroup>
+						<InputGroupTextarea
+							id="prompt"
+							value={prompt}
+							onChange={(e) => setPrompt(e.target.value)}
+							rows={4}
+							maxLength={1000}
+							className="min-h-36 text-lg leading-relaxed"
+						/>
+						<InputGroupAddon align="block-end" className="justify-between">
+							<ModelPicker
+								models={models}
+								value={engine}
+								onChange={setEngine}
+								disabled={loading}
+							/>
+							<span className="relative">
+								<Button
+									type="button"
+									size="icon-lg"
+									onClick={handleGenerate}
+									disabled={loading || !prompt.trim() || outOfCredits}
+									aria-label={
+										outOfCredits
+											? "Нет кредитов для генерации"
+											: `Сгенерировать за ${cost}`
+									}
+								>
+									{loading ? (
+										<PopSpinner className="size-5" />
+									) : (
+										<IconSparkles data-icon="inline-start" />
+									)}
+								</Button>
+								<span
+									aria-hidden="true"
+									className="absolute -right-1.5 -top-1.5 flex items-center gap-0.5 rounded-full bg-[#ffd54a] px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-[#0d0b1e]"
+								>
+									<IconCoins className="size-3" strokeWidth={2.5} />
+									{cost}
+								</span>
+							</span>
+						</InputGroupAddon>
+					</InputGroup>
 				</div>
 
 				{error && (
@@ -192,34 +251,6 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 						<span>{error}</span>
 					</div>
 				)}
-
-				<div className="mt-6 flex items-center justify-end gap-4">
-					<span className="relative">
-						<button
-							type="button"
-							onClick={handleGenerate}
-							disabled={loading || !prompt.trim() || outOfCredits}
-							aria-label={
-								outOfCredits
-									? "Нет кредитов для генерации"
-									: "Сгенерировать за 1 кредит"
-							}
-							className="pop-gradient-bg rounded-full p-4 text-white shadow-[0_12px_36px_-12px_rgb(255_92_168/0.65)] transition-all outline-none hover:brightness-110 focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.94] disabled:pointer-events-none disabled:opacity-40"
-						>
-							{loading ? (
-								<PopSpinner className="h-6 w-6" />
-							) : (
-								<IconSparkles className="h-6 w-6" />
-							)}
-						</button>
-						<span
-							aria-hidden="true"
-							className="absolute -right-1.5 -top-1.5 flex items-center gap-0.5 rounded-full bg-[#ffd54a] px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-[#0d0b1e]"
-						>
-							<IconCoins className="h-3 w-3" strokeWidth={2.5} />1
-						</span>
-					</span>
-				</div>
 			</div>
 
 			{loading && (

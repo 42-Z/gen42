@@ -1,4 +1,13 @@
+import {
+	getImageModel,
+	IDEOGRAM_MODE,
+	type ImageEngine,
+	resolveImageEngine,
+} from "./models";
+
 interface GenerateParams {
+	/** Движок генерации; по умолчанию Krea 2 */
+	engine?: ImageEngine;
 	prompt: string;
 	negativePrompt?: string;
 	model?: "Turbo" | "Raw";
@@ -12,6 +21,9 @@ interface GenerateResult {
 	imageUrl: string;
 	seed: number;
 }
+
+/** Настройки Ideogram 4: без пользовательских опций, фиксированный пресет */
+const IDEOGRAM_UPSAMPLER = "Ideogram (remote)";
 
 export interface ZeroGPURuns {
 	used: number | null;
@@ -80,51 +92,41 @@ export class QueueTimeoutError extends Error {
 	}
 }
 
-const HF_API_BASE = "https://krea-krea-2.hf.space/gradio_api";
-// Очередь ZeroGPU сама сдаётся до ~60s ("No GPU was available after 60s"),
-// затем идёт генерация — опрос должен пережидать обе фазы
-const POLL_TIMEOUT_MS = 120_000;
+function assertNotExhausted(response: Response): void {
+	if (response.ok) return;
+	if (response.status === 429 || response.status === 503) {
+		throw new KeyExhaustedError(
+			response.status,
+			`Key exhausted: ${response.status}`,
+		);
+	}
+}
 
-export async function generateImage(
-	params: GenerateParams,
-	apiKey: string,
-): Promise<GenerateResult> {
-	const {
-		prompt,
-		negativePrompt = "",
-		model = "Turbo",
-		width = 1024,
-		height = 1024,
-		steps = 8,
-		seed = null,
-	} = params;
+/**
+ * Вызывает именованный эндпоинт Gradio Space: отправляет payload, затем
+ * опрашивает SSE и разбирает `event: error` в доменные ошибки.
+ * Возвращает массив `data` из финального события.
+ */
+async function callSpace(options: {
+	apiBase: string;
+	apiName: string;
+	payload: Record<string, unknown>;
+	apiKey: string;
+	timeoutMs: number;
+}): Promise<unknown[]> {
+	const { apiBase, apiName, payload, apiKey, timeoutMs } = options;
 
-	const submitResponse = await fetch(`${HF_API_BASE}/call/v2/generate`, {
+	const submitResponse = await fetch(`${apiBase}/call/v2/${apiName}`, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
 			Authorization: `Bearer ${apiKey}`,
 		},
-		body: JSON.stringify({
-			prompt,
-			negative_prompt: negativePrompt,
-			model,
-			steps,
-			guidance: 0.0,
-			width,
-			height,
-			seed: seed ?? 0,
-			randomize: seed === null,
-		}),
+		body: JSON.stringify(payload),
 	});
 
 	if (!submitResponse.ok) {
-		if (submitResponse.status === 429 || submitResponse.status === 503) {
-			throw new KeyExhaustedError(
-				submitResponse.status,
-				`Key exhausted: ${submitResponse.status}`,
-			);
-		}
+		assertNotExhausted(submitResponse);
 		const error = await submitResponse.text();
 		throw new Error(
 			`HuggingFace API error: ${submitResponse.status} - ${error}`,
@@ -134,24 +136,27 @@ export async function generateImage(
 	const { event_id } = await submitResponse.json();
 
 	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), POLL_TIMEOUT_MS);
+	const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
 	try {
-		const resultResponse = await fetch(
-			`${HF_API_BASE}/call/v2/generate/${event_id}`,
+		// Именованный эндпоинт отдаёт результат по /call/v2/{api}/{event};
+		// часть Space-ов принимает только /call/{api}/{event}.
+		let resultResponse = await fetch(
+			`${apiBase}/call/v2/${apiName}/${event_id}`,
 			{
 				headers: { Authorization: `Bearer ${apiKey}` },
 				signal: controller.signal,
 			},
 		);
+		if (resultResponse.status === 404) {
+			resultResponse = await fetch(`${apiBase}/call/${apiName}/${event_id}`, {
+				headers: { Authorization: `Bearer ${apiKey}` },
+				signal: controller.signal,
+			});
+		}
 
 		if (!resultResponse.ok) {
-			if (resultResponse.status === 429 || resultResponse.status === 503) {
-				throw new KeyExhaustedError(
-					resultResponse.status,
-					`Key exhausted: ${resultResponse.status}`,
-				);
-			}
+			assertNotExhausted(resultResponse);
 			throw new Error(`HuggingFace polling error: ${resultResponse.status}`);
 		}
 
@@ -180,8 +185,14 @@ export async function generateImage(
 			}
 			if (line.startsWith("data: ")) {
 				const data = JSON.parse(line.slice(6));
-				if (Array.isArray(data) && data.length >= 2 && data[0]?.url) {
-					return { imageUrl: data[0].url, seed: data[1] };
+				// финальное событие — кортеж [картинка, seed]; промежуточные
+				// стриминговые массивы пропускаем
+				if (
+					Array.isArray(data) &&
+					data.length >= 2 &&
+					(data[0] as { url?: string })?.url
+				) {
+					return data;
 				}
 			}
 		}
@@ -190,4 +201,75 @@ export async function generateImage(
 	} finally {
 		clearTimeout(timeout);
 	}
+}
+
+function buildPayload(
+	engine: ImageEngine,
+	params: GenerateParams,
+): Record<string, unknown> {
+	const {
+		prompt,
+		negativePrompt = "",
+		model = "Turbo",
+		width = 1024,
+		height = 1024,
+		steps = 8,
+		seed = null,
+	} = params;
+
+	if (engine === "ideogram") {
+		// Ideogram 4 не принимает negative prompt и свой model: качество
+		// задаётся пресетом mode, промпт дополнительно апсемплится в JSON-капшн.
+		return {
+			prompt,
+			mode: IDEOGRAM_MODE,
+			upsampler: IDEOGRAM_UPSAMPLER,
+			width,
+			height,
+			seed: seed ?? 0,
+			randomize_seed: seed === null,
+		};
+	}
+
+	return {
+		prompt,
+		negative_prompt: negativePrompt,
+		model,
+		steps,
+		guidance: 0.0,
+		width,
+		height,
+		seed: seed ?? 0,
+		randomize: seed === null,
+	};
+}
+
+function extractResult(data: unknown[]): GenerateResult {
+	const image = data[0] as { url?: string } | undefined;
+	if (!image?.url) {
+		throw new Error("No image URL received from HuggingFace API");
+	}
+	const seed = data[1];
+	if (typeof seed !== "number" || !Number.isFinite(seed)) {
+		throw new Error("No valid seed received from HuggingFace API");
+	}
+	return { imageUrl: image.url, seed };
+}
+
+export async function generateImage(
+	params: GenerateParams,
+	apiKey: string,
+): Promise<GenerateResult> {
+	const engine = resolveImageEngine(params.engine);
+	const model = getImageModel(engine);
+
+	const data = await callSpace({
+		apiBase: model.apiBase,
+		apiName: model.apiName,
+		payload: buildPayload(engine, params),
+		apiKey,
+		timeoutMs: model.pollTimeoutMs,
+	});
+
+	return extractResult(data);
 }
