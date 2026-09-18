@@ -1,5 +1,3 @@
-import { cn } from "@/lib/utils";
-
 const colors = {
 	indigo: "#6c5cff",
 	fuchsia: "#ff5ca8",
