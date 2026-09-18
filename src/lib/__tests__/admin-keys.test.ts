@@ -16,4 +16,16 @@ describe("валидация ключей по провайдеру", () => {
 		expect(keyPrefixFor("openai")).toBeNull();
 		expect(isValidKeyForProvider("openai", "sk_abc")).toBe(false);
 	});
+
+	test("inception-ключ — любой непустой", () => {
+		expect(isValidKeyForProvider("inception", "sk-inception-abc123")).toBe(
+			true,
+		);
+		expect(isValidKeyForProvider("inception", "")).toBe(false);
+		expect(isValidKeyForProvider("inception", "   ")).toBe(false);
+		expect(isValidKeyForProvider("huggingface", "sk-inception-abc")).toBe(
+			false,
+		);
+		expect(isValidKeyForProvider("poolside", "sk-inception-abc")).toBe(false);
+	});
 });

@@ -2,6 +2,7 @@ import { auth } from "../lib/auth";
 import { addCredits } from "../lib/credits";
 import { sql } from "../lib/db";
 import { getZeroGPUQuota } from "../lib/hf";
+import { isLlmProvider } from "../lib/llm";
 import {
 	hasConfirmedQuota,
 	isKeyQuotaStale,
@@ -74,7 +75,7 @@ export const adminRoutes = {
 
 				const url = new URL(req.url);
 				const provider = url.searchParams.get("provider") ?? "huggingface";
-				if (provider !== "huggingface" && provider !== "poolside") {
+				if (provider !== "huggingface" && !isLlmProvider(provider)) {
 					return Response.json(
 						{ error: "Неизвестный провайдер" },
 						{ status: 400 },
@@ -126,13 +127,19 @@ export const adminRoutes = {
 				await checkAdmin(req);
 
 				const { name, key, provider = "huggingface" } = await req.json();
+				if (provider !== "huggingface" && !isLlmProvider(provider)) {
+					return Response.json(
+						{ error: "Неизвестный провайдер" },
+						{ status: 400 },
+					);
+				}
 				if (!name || !isValidKeyForProvider(provider, key ?? "")) {
 					const prefix = keyPrefixFor(provider);
 					return Response.json(
 						{
 							error: prefix
 								? `Нужны name и корректный ${prefix}-ключ`
-								: "Неизвестный провайдер",
+								: "Нужны name и ключ",
 						},
 						{ status: 400 },
 					);
@@ -182,10 +189,10 @@ export const adminRoutes = {
 					return Response.json({ error: "Ключ не найден" }, { status: 404 });
 				}
 
-				if (keys[0]!.provider === "poolside") {
+				if (isLlmProvider(keys[0]!.provider)) {
 					try {
 						const result = await callLlm({
-							provider: "poolside",
+							provider: keys[0]!.provider,
 							system: "ping",
 							user: "ping",
 							apiKey: keys[0]!.key,
@@ -201,7 +208,10 @@ export const adminRoutes = {
                   rl_checked_at = NOW()
               WHERE id = ${id}
             `;
-						return Response.json({ success: true, provider: "poolside" });
+						return Response.json({
+							success: true,
+							provider: keys[0]!.provider,
+						});
 					} catch (e) {
 						const message =
 							e instanceof Error ? e.message : "Не удалось проверить ключ";
