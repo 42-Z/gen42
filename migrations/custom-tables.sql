@@ -109,3 +109,7 @@ DO $$ BEGIN
       FOREIGN KEY (llm_key_id) REFERENCES api_keys(id) ON DELETE SET NULL;
   END IF;
 END $$;
+
+-- Движок генерации (krea | ideogram) и списанная за неё стоимость в кредитах
+ALTER TABLE generations ADD COLUMN IF NOT EXISTS engine VARCHAR(20) NOT NULL DEFAULT 'krea';
+ALTER TABLE generations ADD COLUMN IF NOT EXISTS cost INTEGER NOT NULL DEFAULT 1;
