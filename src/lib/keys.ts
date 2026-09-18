@@ -1,7 +1,10 @@
 import { sql } from "./db";
 import type { ZeroGPUQuota } from "./hf";
+import { isLlmProvider, type LlmProviderId } from "./llm";
 
-export type KeyProvider = "huggingface" | "poolside";
+export { isLlmProvider };
+
+export type KeyProvider = "huggingface" | LlmProviderId;
 
 export interface ApiKeyRow {
 	id: string;
@@ -87,10 +90,10 @@ export async function getAvailableKey(
 	provider: KeyProvider = "huggingface",
 	options: GetAvailableKeyOptions = {},
 ): Promise<ApiKeyRow> {
-	if (provider === "poolside") {
+	if (isLlmProvider(provider)) {
 		const keys = (await sql`
       SELECT * FROM api_keys
-      WHERE provider = 'poolside'
+      WHERE provider = ${provider}
         AND is_active = TRUE
         AND (
           rl_remaining IS NULL
@@ -124,6 +127,27 @@ export async function getAvailableKey(
 		throw new AllKeysExhaustedError();
 	}
 	return available[0]!;
+}
+
+export async function getAvailableLlmKey(): Promise<ApiKeyRow> {
+	const keys = (await sql`
+    SELECT * FROM api_keys
+    WHERE provider IN ('poolside', 'inception')
+      AND is_active = TRUE
+      AND (
+        rl_remaining IS NULL
+        OR rl_remaining > 0
+        OR rl_checked_at IS NULL
+        OR rl_checked_at < NOW() - INTERVAL '2 minutes'
+      )
+    ORDER BY rl_remaining DESC NULLS LAST
+    LIMIT 1
+  `) as ApiKeyRow[];
+
+	if (keys.length === 0) {
+		throw new AllKeysExhaustedError();
+	}
+	return keys[0]!;
 }
 
 export async function deactivateKey(
@@ -187,6 +211,9 @@ export function keyPrefixFor(provider: string): "hf_" | "sky_" | null {
 }
 
 export function isValidKeyForProvider(provider: string, key: string): boolean {
+	if (provider === "inception") {
+		return key.trim().length > 0;
+	}
 	const prefix = keyPrefixFor(provider);
 	return prefix !== null && key.startsWith(prefix);
 }

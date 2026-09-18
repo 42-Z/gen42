@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { EnhanceDeps } from "../enhance";
 import { AllKeysExhaustedError } from "../keys";
-import { LlmKeyExhaustedError } from "../poolside";
+import { LlmKeyExhaustedError } from "../llm";
 
 const GOOD_TEXT =
 	"A colossal cat on a diamond throne, gold chains with a «42» medallion, pugs in leopard coats, fireworks spelling 42, neon banners reading «СЛАВА 42», confetti rain, hyper-detailed cinematic photograph, wide-angle poster composition, epic scale, absurd triumphant kitsch, no watermarks, no signature at all.";
@@ -10,14 +10,15 @@ const KEY = {
 	id: "p1",
 	name: "poolside-1",
 	key: "sky_test",
-} as Awaited<ReturnType<EnhanceDeps["getAvailableKey"]>>;
+	provider: "poolside",
+} as Awaited<ReturnType<EnhanceDeps["getAvailableLlmKey"]>>;
 
 function makeDeps() {
 	const deps = {
-		getAvailableKey: mock(async () => KEY),
+		getAvailableLlmKey: mock(async () => KEY),
 		deactivateKey: mock(async () => {}),
 		updateKeyRateLimit: mock(async () => {}),
-		callPoolside: mock(async () => ({
+		callLlm: mock(async () => ({
 			text: GOOD_TEXT,
 			usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
 			rateLimit: { limit: 60, remaining: 29 },
@@ -42,11 +43,12 @@ describe("enhancePrompt", () => {
 		expect(result.prompt.startsWith("A colossal cat")).toBe(true);
 		expect(result.inputTokens).toBe(100);
 		expect(result.outputTokens).toBe(50);
+		expect(result.model).toBe("poolside/laguna-xs-2.1");
 		expect(deps.updateKeyRateLimit).toHaveBeenCalledTimes(1);
 	});
 
 	test("429 не деактивирует ключ, а обнуляет остаток и пробует следующий", async () => {
-		deps.callPoolside
+		deps.callLlm
 			.mockImplementationOnce(async () => {
 				throw new LlmKeyExhaustedError(429, "rate limited");
 			})
@@ -68,7 +70,7 @@ describe("enhancePrompt", () => {
 	});
 
 	test("401 деактивирует ключ с причиной", async () => {
-		deps.callPoolside
+		deps.callLlm
 			.mockImplementationOnce(async () => {
 				throw new LlmKeyExhaustedError(401, "invalid key");
 			})
@@ -85,7 +87,7 @@ describe("enhancePrompt", () => {
 	});
 
 	test("повтор после брака контракта приходит с причиной отказа", async () => {
-		deps.callPoolside.mockImplementation(async () => ({
+		deps.callLlm.mockImplementation(async () => ({
 			text: "too short",
 			usage: { inputTokens: 10, outputTokens: 2, totalTokens: 12 },
 			rateLimit: { limit: 60, remaining: 10 },
@@ -93,7 +95,7 @@ describe("enhancePrompt", () => {
 
 		const { enhancePrompt } = await import("../enhance");
 		await enhancePrompt("кот", deps);
-		const prompts = deps.callPoolside.mock.calls.map(
+		const prompts = deps.callLlm.mock.calls.map(
 			(call: any) => call[0].user as string,
 		);
 		expect(prompts).toHaveLength(2);
@@ -102,7 +104,7 @@ describe("enhancePrompt", () => {
 	});
 
 	test("битый контракт -> повтор, затем fallback", async () => {
-		deps.callPoolside.mockImplementation(async () => ({
+		deps.callLlm.mockImplementation(async () => ({
 			text: "too short",
 			usage: { inputTokens: 10, outputTokens: 2, totalTokens: 12 },
 			rateLimit: { limit: 60, remaining: 10 },
@@ -113,12 +115,12 @@ describe("enhancePrompt", () => {
 		expect(result.fallback).toBe(true);
 		expect(result.keyId).toBeNull();
 		expect(result.prompt).toContain("кот");
-		expect(deps.callPoolside).toHaveBeenCalledTimes(2);
+		expect(deps.callLlm).toHaveBeenCalledTimes(2);
 	});
 
 	test("дедлайн обрывает попытки и уходит в fallback", async () => {
 		deps.deadlineMs = 25;
-		deps.callPoolside.mockImplementation(async () => {
+		deps.callLlm.mockImplementation(async () => {
 			await new Promise((resolve) => setTimeout(resolve, 40));
 			throw new Error("transport failure");
 		});
@@ -127,11 +129,11 @@ describe("enhancePrompt", () => {
 		const result = await enhancePrompt("кот", deps);
 		expect(result.fallback).toBe(true);
 		expect(result.error).toContain("deadline");
-		expect(deps.callPoolside).toHaveBeenCalledTimes(1);
+		expect(deps.callLlm).toHaveBeenCalledTimes(1);
 	});
 
 	test("без текстового запроса лозунг из ответа вырезается", async () => {
-		deps.callPoolside.mockImplementation(async () => ({
+		deps.callLlm.mockImplementation(async () => ({
 			text: "A triumphant pug rides a glowing electric scooter along a neon highway while giraffes in rainbow tracksuits follow behind and a crowd of flamingos in gold chains cheers from the roadside. A neon sign flashes «НАС 42000» above the arches, confetti rains down over spilled gold bars and ruby rings, a hippopotamus DJ in a fur coat spins a diamond turntable nearby, and a zeppelin with a giant glowing 42 drifts overhead. Hyper-detailed cinematic photograph, wide-angle poster composition, physically believable materials, absurd triumphant kitsch, no watermarks.",
 			usage: { inputTokens: 10, outputTokens: 40, totalTokens: 50 },
 			rateLimit: { limit: 60, remaining: 10 },
@@ -145,7 +147,7 @@ describe("enhancePrompt", () => {
 	});
 
 	test("повтор после потери детали сохраняет точный текст", async () => {
-		deps.callPoolside
+		deps.callLlm
 			.mockImplementationOnce(async () => ({
 				text: "A pug in a leopard coat jumps over a crate in a crowded plaza while flamingos in ruby necklaces scatter confetti and a rhinoceros in a suit counts gold bars beside a diamond turntable, the whole crowd cheering under searchlights and fireworks. A golden banner carries «ЖИВИ ГРОМКО» above them. Hyper-detailed cinematic photograph, wide-angle poster composition, physically believable materials, absurd triumphant kitsch, no watermarks, no signature.",
 				usage: { inputTokens: 10, outputTokens: 40, totalTokens: 50 },
@@ -165,7 +167,7 @@ describe("enhancePrompt", () => {
 		expect(result.fallback).toBe(false);
 		expect(result.prompt).toContain("laser");
 		expect(result.prompt).toContain("«ЖИВИ ГРОМКО»");
-		const retryCall = deps.callPoolside.mock.calls[1] as unknown as
+		const retryCall = deps.callLlm.mock.calls[1] as unknown as
 			| [{ user: string }]
 			| undefined;
 		expect(retryCall?.[0].user).toContain("MISSING DETAILS");
@@ -173,13 +175,33 @@ describe("enhancePrompt", () => {
 	});
 
 	test("нет ключей -> сразу fallback", async () => {
-		deps.getAvailableKey.mockImplementationOnce(async () => {
+		deps.getAvailableLlmKey.mockImplementationOnce(async () => {
 			throw new AllKeysExhaustedError();
 		});
 
 		const { enhancePrompt } = await import("../enhance");
 		const result = await enhancePrompt("кот", deps);
 		expect(result.fallback).toBe(true);
-		expect(deps.callPoolside).not.toHaveBeenCalled();
+		expect(deps.callLlm).not.toHaveBeenCalled();
+	});
+
+	test("ключ inception даёт модель mercury-2.5", async () => {
+		deps.getAvailableLlmKey = mock(async () => ({
+			...KEY,
+			id: "i1",
+			name: "inception-1",
+			key: "sk_test",
+			provider: "inception",
+		})) as any;
+
+		const { enhancePrompt } = await import("../enhance");
+		const result = await enhancePrompt("кот", deps);
+		expect(result.fallback).toBe(false);
+		expect(result.keyId).toBe("i1");
+		expect(result.model).toBe("mercury-2.5");
+		const call = (
+			deps.callLlm.mock.calls[0] as unknown as [{ provider: string }]
+		)[0];
+		expect(call.provider).toBe("inception");
 	});
 });

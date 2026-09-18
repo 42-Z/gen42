@@ -14,6 +14,7 @@ mock.module("../db", () => ({ sql: mockSql }));
 
 const {
 	getAvailableKey,
+	getAvailableLlmKey,
 	AllKeysExhaustedError,
 	hasConfirmedQuota,
 	hasRemainingQuota,
@@ -213,7 +214,7 @@ describe("API Keys", () => {
 
 	test("getAvailableKey('poolside') фильтрует по provider и остатку", async () => {
 		responses = {
-			"provider = 'poolside'": [
+			"provider = ?": [
 				{
 					id: "p1",
 					name: "poolside-1",
@@ -228,18 +229,70 @@ describe("API Keys", () => {
 		};
 		const key = await getAvailableKey("poolside");
 		expect(key.id).toBe("p1");
-		const query = (mockSql.mock.calls[0]![0] as TemplateStringsArray).join("?");
-		expect(query).toContain("provider = 'poolside'");
+		const strings = mockSql.mock.calls[0]![0] as TemplateStringsArray;
+		const providerArg = mockSql.mock.calls[0]![1] as string;
+		const query = strings.join("?");
+		expect(query).toContain("provider = ?");
+		expect(providerArg).toBe("poolside");
 		expect(query).toContain("rl_remaining > 0");
 		expect(query).toContain("rl_checked_at < NOW() - INTERVAL '2 minutes'");
 		expect(query).toContain("ORDER BY rl_remaining DESC NULLS LAST");
 	});
 
+	test("getAvailableKey('inception') фильтрует по provider и остатку", async () => {
+		responses = {
+			"provider = ?": [
+				{
+					id: "i1",
+					name: "inception-1",
+					key: "sk_x",
+					provider: "inception",
+					is_active: true,
+					rl_limit: null,
+					rl_remaining: null,
+					created_at: new Date(),
+				},
+			],
+		};
+		const key = await getAvailableKey("inception");
+		expect(key.id).toBe("i1");
+		const providerArg = mockSql.mock.calls[0]![1] as string;
+		expect(providerArg).toBe("inception");
+	});
+
 	test("getAvailableKey('poolside') бросает AllKeysExhaustedError без ключей", async () => {
-		responses = { "provider = 'poolside'": [] };
+		responses = { "provider = ?": [] };
 		await expect(getAvailableKey("poolside")).rejects.toThrow(
 			AllKeysExhaustedError,
 		);
+	});
+
+	test("getAvailableLlmKey берёт из единого пула poolside+inception", async () => {
+		responses = {
+			"provider IN ('poolside', 'inception')": [
+				{
+					id: "i1",
+					name: "inception-1",
+					key: "sk_x",
+					provider: "inception",
+					is_active: true,
+					rl_limit: null,
+					rl_remaining: null,
+					created_at: new Date(),
+				},
+			],
+		};
+		const key = await getAvailableLlmKey();
+		expect(key.id).toBe("i1");
+		const query = (mockSql.mock.calls[0]![0] as TemplateStringsArray).join("?");
+		expect(query).toContain("provider IN ('poolside', 'inception')");
+		expect(query).toContain("rl_remaining > 0");
+		expect(query).toContain("ORDER BY rl_remaining DESC NULLS LAST");
+	});
+
+	test("getAvailableLlmKey бросает AllKeysExhaustedError без ключей", async () => {
+		responses = { "provider IN ('poolside', 'inception')": [] };
+		await expect(getAvailableLlmKey()).rejects.toThrow(AllKeysExhaustedError);
 	});
 
 	test("getAvailableKey() по умолчанию ищет только huggingface", async () => {

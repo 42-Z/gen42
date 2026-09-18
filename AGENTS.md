@@ -51,8 +51,9 @@ bun run format       # форматер (biome)
 ## Архитектура
 
 - `src/server.ts` — единственный entrypoint: API-роуты (`/api/auth/*`, `/api/generate`, `/api/generations`, `/api/me`, `/api/admin/*`) + раздача `dist/`. Не создавать отдельные entrypoints
-- `src/api/` — обработчики роутов; `src/lib/` — доменная логика (credits, keys, hf, poolside, enhance, storage, rate-limit); `src/lib/prompts/` — промпт-инженерия стиля «42»
-- Ключи обоих провайдеров живут только в таблице `api_keys` (`provider`: `huggingface` | `poolside`) и управляются через админку (`/api/admin/keys`: добавление, проверка, удаление; `?provider=` выбирает список). В env и файлах они не хранятся, API отдаёт их маскированными
+- `src/lib/llm.ts` — единый клиент LLM-провайдеров: реестр `LLM_PROVIDERS` и generic `callLlm({ provider, … })` на AI SDK v7 (`ai` + `@ai-sdk/openai-compatible`)
+- `src/api/` — обработчики роутов; `src/lib/` — доменная логика (credits, keys, hf, llm, enhance, storage, rate-limit); `src/lib/prompts/` — промпт-инженерия стиля «42»
+- Ключи всех провайдеров живут только в таблице `api_keys` (`provider`: `huggingface` | `poolside` | `inception`) и управляются через админку (`/api/admin/keys`: добавление, проверка, удаление; `?provider=` выбирает список). В env и файлах они не хранятся, API отдаёт их маскированными
 - Баланс пользователя: одна генерация списывает один кредит — `src/lib/credits.ts`. Новому пользователю при регистрации даётся 1 стартовый кредит (hook `databaseHooks.user.create.after` в `src/lib/auth.ts`, константа `SIGNUP_BONUS_CREDITS`)
 - Первый пользователь с email из `ADMIN_EMAIL` — админ
 
@@ -80,15 +81,17 @@ bun run format       # форматер (biome)
 ## Обогащение промпта (LLM, стиль «42»)
 
 - Каждая генерация сначала проходит через `src/lib/enhance.ts`: пользовательский запрос превращается в плотный англоязычный промпт в стиле «42» и только потом уходит в Krea 2. Для пользователя это невидимо, контракт `POST /api/generate` не менялся
-- LLM — Poolside, OpenAI-совместимый API: `POOLSIDE_BASE_URL` (по умолчанию `https://inference.poolside.ai/v1`), `POOLSIDE_MODEL` (по умолчанию `poolside/laguna-xs-2.1`). Thinking отключён через `providerOptions.poolside.chat_template_kwargs.enable_thinking`. Клиент — `src/lib/poolside.ts` на AI SDK v7 (`ai` + `@ai-sdk/openai-compatible`)
-- Ключи LLM живут в той же таблице `api_keys`, но с `provider = 'poolside'` (префикс `sky_`); у HF-ключей `provider = 'huggingface'`. Ротация по заголовку `x-ratelimit-remaining-requests` и по 429/401/403; при исчерпании всех ключей промпт собирается шаблоном `src/lib/style42-fallback.ts` — генерация не падает
+- LLM — два OpenAI-совместимых провайдера в реестре `src/lib/llm.ts` (`LLM_PROVIDERS`), вызов — generic `callLlm({ provider, … })`:
+  - `poolside` — `POOLSIDE_BASE_URL` (по умолчанию `https://inference.poolside.ai/v1`), `POOLSIDE_MODEL` (по умолчанию `poolside/laguna-xs-2.1`), thinking выключен через `providerOptions.poolside.chat_template_kwargs.enable_thinking`
+  - `inception` (Inception Labs) — `INCEPTION_BASE_URL` (по умолчанию `https://api.inceptionlabs.ai/v1`), `INCEPTION_MODEL` (по умолчанию `mercury-2.5`); `reasoning_effort: low` передаётся штатной опцией `providerOptions.inception.reasoningEffort`; rate-limit заголовков нет → `rl_*` = `NULL`; 401/402/403/429 = «ключ не работает» (402 у Inception — биллинг/квота)
+- Ключи LLM живут в той же таблице `api_keys` с `provider = 'poolside'` (префикс `sky_`) или `provider = 'inception'` (формат ключа не фиксирован — достаточно непустой строки); у HF-ключей `provider = 'huggingface'`. Ротация: `getAvailableLlmKey()` берёт из единого пула обоих провайдеров по заголовку `x-ratelimit-remaining-requests` и по 429/401/402/403; ключи без замеров (`NULL`, как у Inception) сортируются последними. При исчерпании всех ключей промпт собирается шаблоном `src/lib/style42-fallback.ts` — генерация не падает
 - Системный промпт стиля — `src/lib/prompts/style42.system.ts` (TS-модуль, а не `.md`: текстовый импорт Bun не понимает NFT-трассировщик Vercel). SHA-хеш содержимого пишется в `generations.style_version` — по нему сравниваются итерации
 - Серверные инварианты из промпта продублированы в коде (`src/lib/prompts/style-hints.ts`): явный стиль пользователя («фотореализм», «аниме», «детский рисунок» и т.п.) вытесняет якорь медиума, финальная формула с медиумом гарантируется постобработкой, экшен-детали из запроса проверяются по мини-глоссарию (потеряли — повтор с `MISSING DETAILS`)
 - Политика текста: слова и лозунги появляются в кадре только по запросу. `requestsText`/`extractQuotedTexts` (кавычки «», “”, "") определяют текстовый запрос; без него слоган-якорь не передаётся, а найденные в ответе цитаты маскируются постобработкой (`maskUnrequestedTexts`); точный текст пользователя переносится дословно и проверяется (`EXACT TEXT`). В блоке «Примеры» промпта нет ни одной выдуманной надписи — это покрыто тестом-стражем
 - Плотность и экшен: промпт требует три слоя кадра, минимумы по существам/технике/роскоши/архитектуре (восьмой якорь `props` — абсурдный реквизит), ≥3 сюрприза и явное действие в первом предложении с усилением в 2–3 местах; реализм материалов и света обязателен, `toy-like`/`flat` запрещены
 - В `generations` пишутся `enhanced_prompt`, `llm_key_id`, `llm_model`, `llm_tokens`, `enhance_ms`, `style_version`
 - Итерации стиля: `bun scripts/eval-style42.ts [подстроки…]` (21 промпт → JSONL в `docs/evals/`), визуальный прогон — `bun scripts/eval-images.ts [подстроки…]` (картинки в `docs/evals/images/`, вне git)
-- Админка: блок «Ключи LLM» — добавление `sky_`, остаток запросов, токены, кнопка «Проверить и включить» (тестовый вызов) и удаление
+- Админка: блок «Ключи LLM» — селект провайдера (Poolside / Inception), добавление (`sky_` для Poolside, непустая строка для Inception), колонка «Провайдер», остаток запросов, токены, кнопка «Проверить и включить» (тестовый вызов) и удаление
 
 ## Деплой на Vercel
 
@@ -122,7 +125,7 @@ bun run format       # форматер (biome)
 - UI-компоненты — канонический shadcn/ui (`components.json`, iconLibrary: tabler); `cn` только из `@/lib/utils`
 - Декоративная графика — своя SVG: `graphics.tsx` (иконки, логотип) + `graphics-bg.tsx` (30 фоновых элементов) + `DecoScatter.tsx` (рассеивание по странице). Не эмодзи
 - Админка: прогресс-бар вместо цифр для отображения лимитов ключей (used/limit)
-- Ключи обоих провайдеров показываются одним паттерном: HF — «Ключи генерации» с двумя полосами ZeroGPU («Секунды» и «Прогоны») и кнопкой «Проверить и включить», LLM — «Ключи LLM» с остатком запросов и токенами
+- Ключи обоих провайдеров показываются одним паттерном: HF — «Ключи генерации» с двумя полосами ZeroGPU («Секунды» и «Прогоны») и кнопкой «Проверить и включить», LLM — «Ключи LLM» с селектом провайдера при добавлении (Poolside / Inception), колонкой «Провайдер», остатком запросов и токенами
 - «Проверить и включить» у HF-ключа обновляет квоту и включает его только при остатке и секунд (≥60), и прогонов (>0); иначе возвращает 409 с деталями — ключ ждёт сброса
 - Генерация: без примеров промптов, бейдж «1» на кнопке (стоимость генерации)
 - Дизайн-система: тёмная pop-палитра — индиго `#6c5cff` + фуксия `#ff5ca8`, градиент `--pop-gradient`, карточки `--color-card` с бордером `--color-border`. Шрифты Bricolage Grotesque (display) + Inter Tight (sans). Декоративные элементы фона с drift/pulse анимациями (`prefers-reduced-motion: reduce`). Палитра и утилити-классы в `src/index.css`

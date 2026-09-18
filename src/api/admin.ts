@@ -9,7 +9,7 @@ import {
 	keyPrefixFor,
 	updateKeyQuota,
 } from "../lib/keys";
-import { callPoolside } from "../lib/poolside";
+import { callLlm, isLlmProvider } from "../lib/llm";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL!;
 
@@ -74,7 +74,7 @@ export const adminRoutes = {
 
 				const url = new URL(req.url);
 				const provider = url.searchParams.get("provider") ?? "huggingface";
-				if (provider !== "huggingface" && provider !== "poolside") {
+				if (provider !== "huggingface" && !isLlmProvider(provider)) {
 					return Response.json(
 						{ error: "Неизвестный провайдер" },
 						{ status: 400 },
@@ -126,13 +126,20 @@ export const adminRoutes = {
 				await checkAdmin(req);
 
 				const { name, key, provider = "huggingface" } = await req.json();
-				if (!name || !isValidKeyForProvider(provider, key ?? "")) {
+				const trimmedKey = typeof key === "string" ? key.trim() : key;
+				if (provider !== "huggingface" && !isLlmProvider(provider)) {
+					return Response.json(
+						{ error: "Неизвестный провайдер" },
+						{ status: 400 },
+					);
+				}
+				if (!name || !isValidKeyForProvider(provider, trimmedKey ?? "")) {
 					const prefix = keyPrefixFor(provider);
 					return Response.json(
 						{
 							error: prefix
 								? `Нужны name и корректный ${prefix}-ключ`
-								: "Неизвестный провайдер",
+								: "Нужны name и ключ",
 						},
 						{ status: 400 },
 					);
@@ -141,7 +148,7 @@ export const adminRoutes = {
 				try {
 					const [newKey] = await sql`
           INSERT INTO api_keys (id, name, key, provider)
-          VALUES (${crypto.randomUUID()}, ${name}, ${key}, ${provider})
+          VALUES (${crypto.randomUUID()}, ${name}, ${trimmedKey}, ${provider})
           RETURNING id, name, provider, is_active, hf_base, hf_current, hf_resets_at,
                     hf_checked_at, hf_runs_remaining, hf_runs_limit, hf_runs_resets_at,
                     rl_limit, rl_remaining, requests_total, tokens_total,
@@ -182,9 +189,10 @@ export const adminRoutes = {
 					return Response.json({ error: "Ключ не найден" }, { status: 404 });
 				}
 
-				if (keys[0]!.provider === "poolside") {
+				if (isLlmProvider(keys[0]!.provider)) {
 					try {
-						const result = await callPoolside({
+						const result = await callLlm({
+							provider: keys[0]!.provider,
 							system: "ping",
 							user: "ping",
 							apiKey: keys[0]!.key,
@@ -200,7 +208,10 @@ export const adminRoutes = {
                   rl_checked_at = NOW()
               WHERE id = ${id}
             `;
-						return Response.json({ success: true, provider: "poolside" });
+						return Response.json({
+							success: true,
+							provider: keys[0]!.provider,
+						});
 					} catch (e) {
 						const message =
 							e instanceof Error ? e.message : "Не удалось проверить ключ";
