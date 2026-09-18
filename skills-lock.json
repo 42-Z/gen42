@@ -1,173 +1,173 @@
 {
-  "version": 1,
-  "skills": {
-    "ai-sdk": {
-      "source": "vercel/ai",
-      "sourceType": "github",
-      "skillPath": "skills/use-ai-sdk/SKILL.md",
-      "computedHash": "0883204d11b055e968dee697c5858e68064c27dfd4deb6310212895daa65c5ad"
-    },
-    "before-and-after": {
-      "source": "vercel-labs/before-and-after",
-      "sourceType": "github",
-      "skillPath": "skill/SKILL.md",
-      "computedHash": "d3e059a03864cd72392d24e2b218ea825b3533383418b5dc1f947a9b084e3742"
-    },
-    "better-auth-best-practices": {
-      "source": "better-auth/skills",
-      "sourceType": "github",
-      "skillPath": "better-auth/best-practices/SKILL.md",
-      "computedHash": "0c30be0e118c2b7a0c4c57bd9e63bf110c7e420a79ec6ce7997153f3b1e066ee"
-    },
-    "brainstorming": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "skillPath": "skills/brainstorming/SKILL.md",
-      "computedHash": "b58d55b64742ecd37923985ec7bdfbe678ffbcb9895562abd28c0a32dcacd7fb"
-    },
-    "create-auth": {
-      "source": "better-auth/skills",
-      "sourceType": "github",
-      "skillPath": "better-auth/create-auth/SKILL.md",
-      "computedHash": "9a9b498bc144367b8e237233f89def63fb2bd69e8cafe173eaa58fe3a863cdc4"
-    },
-    "deploy-to-vercel": {
-      "source": "vercel-labs/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/deploy-to-vercel/SKILL.md",
-      "computedHash": "d2b5bcc7c09fdb649129ffc7dd7b647ec1b155736974b974292675afd588cb39"
-    },
-    "dispatching-parallel-agents": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "skillPath": "skills/dispatching-parallel-agents/SKILL.md",
-      "computedHash": "b011107f17188e0b2898bb1856b5bac8b49537cc86e737c82126558a235bd62a"
-    },
-    "executing-plans": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "skillPath": "skills/executing-plans/SKILL.md",
-      "computedHash": "78a07800ee99a5861ae10be59d79fad085fdca10444e8aaeb2691597e357cff8"
-    },
-    "finishing-a-development-branch": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "skillPath": "skills/finishing-a-development-branch/SKILL.md",
-      "computedHash": "4f571e7befb8b0946d9d7770232c818812412e9ab1dfb811f847edfba1fc6275"
-    },
-    "hf-cli": {
-      "source": "huggingface/skills",
-      "sourceType": "github",
-      "skillPath": "skills/hf-cli/SKILL.md",
-      "computedHash": "3341f90a2ff6683069bef7a9c1bfd16e154398c9a3c38080a18e41547e45768e"
-    },
-    "migrate-radix-to-base": {
-      "source": "shadcn/ui",
-      "sourceType": "github",
-      "skillPath": "skills/migrate-radix-to-base/SKILL.md",
-      "computedHash": "e1f2030ee5059be3dff0812ca0e4b995ee9fa3132176f049ebe6c90346a6755e"
-    },
-    "neon": {
-      "source": "neondatabase/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/neon/SKILL.md",
-      "computedHash": "cd40530aa01dce7af2b9b77afb5d9452b13c3d6d1b6690af8b38605f17d1eeaf"
-    },
-    "neon-object-storage": {
-      "source": "neondatabase/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/neon-object-storage/SKILL.md",
-      "computedHash": "7ffb7c60f34e499416896eb9ff581fd60141d1b8ea8c7e535ed682f281b15246"
-    },
-    "neon-postgres": {
-      "source": "neondatabase/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/neon-postgres/SKILL.md",
-      "computedHash": "64150370145c18f563fbc652c8d8bf273c4943d2a9f2039ddd51af9fd08d96f3"
-    },
-    "neon-postgres-branches": {
-      "source": "neondatabase/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/neon-postgres-branches/SKILL.md",
-      "computedHash": "bb65e351d8858773855efbe92c688144e34b1e836db6bf97fea9aa221f201057"
-    },
-    "receiving-code-review": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "skillPath": "skills/receiving-code-review/SKILL.md",
-      "computedHash": "59361179fc9225173e0c145ffd9bafbf9fdbf8b43ce3dc308497a0b4f83a6063"
-    },
-    "requesting-code-review": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "skillPath": "skills/requesting-code-review/SKILL.md",
-      "computedHash": "004f340ae65811095d6a9bb0a759c87d0a8085c5e705dbb019b011626293d2e9"
-    },
-    "shadcn": {
-      "source": "shadcn/ui",
-      "sourceType": "github",
-      "skillPath": "skills/shadcn/SKILL.md",
-      "computedHash": "f615de216e085a84e31593ad0fa9062232adc40cd87b7c7ab2b8e49abf6500be"
-    },
-    "subagent-driven-development": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "skillPath": "skills/subagent-driven-development/SKILL.md",
-      "computedHash": "367cc1d3216d6672b947c8c6583dbd6440ea407beb6da75a97d3a8ee1a23640a"
-    },
-    "systematic-debugging": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "skillPath": "skills/systematic-debugging/SKILL.md",
-      "computedHash": "a2750dfbaed1690da73b120254892c4f926b4576cb82eb16fc877783941fe39b"
-    },
-    "test-driven-development": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "skillPath": "skills/test-driven-development/SKILL.md",
-      "computedHash": "a4126a9c5f17be3c228aa9e5755898ade283448b86099f56f40852e8c14532be"
-    },
-    "using-git-worktrees": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "skillPath": "skills/using-git-worktrees/SKILL.md",
-      "computedHash": "48c8a1040e378e0cb7208107294e3afa9067b9370c3f33b49a443eb6b7528b0d"
-    },
-    "using-superpowers": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "skillPath": "skills/using-superpowers/SKILL.md",
-      "computedHash": "c7abe8bdc2099bbe4f245454d32c7563ccd2bb41dcc218b02b461c2acc3c6ae6"
-    },
-    "vercel-cli": {
-      "source": "vercel/vercel",
-      "sourceType": "github",
-      "skillPath": "skills/vercel-cli/SKILL.md",
-      "computedHash": "bc312e5c407c79c264503ef588613ee697508636b8e6ba76ee2585979b49ba2b"
-    },
-    "verification-before-completion": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "skillPath": "skills/verification-before-completion/SKILL.md",
-      "computedHash": "b529822bdac4b197b180fe12225cff86b930b65910435103c10622df7f041651"
-    },
-    "web-design-guidelines": {
-      "source": "vercel-labs/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/web-design-guidelines/SKILL.md",
-      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
-    },
-    "writing-plans": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "skillPath": "skills/writing-plans/SKILL.md",
-      "computedHash": "27c75044e444a4fc68798c3f799dc23eaff3a6bfabff32e6ad75bb20f881c094"
-    },
-    "writing-skills": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "skillPath": "skills/writing-skills/SKILL.md",
-      "computedHash": "e5dfc1a942f56dc757421b0d87ae1f38ab693ebc71138e65268fd408bb5c93d3"
-    }
-  }
+	"version": 1,
+	"skills": {
+		"ai-sdk": {
+			"source": "vercel/ai",
+			"sourceType": "github",
+			"skillPath": "skills/use-ai-sdk/SKILL.md",
+			"computedHash": "0883204d11b055e968dee697c5858e68064c27dfd4deb6310212895daa65c5ad"
+		},
+		"before-and-after": {
+			"source": "vercel-labs/before-and-after",
+			"sourceType": "github",
+			"skillPath": "skill/SKILL.md",
+			"computedHash": "d3e059a03864cd72392d24e2b218ea825b3533383418b5dc1f947a9b084e3742"
+		},
+		"better-auth-best-practices": {
+			"source": "better-auth/skills",
+			"sourceType": "github",
+			"skillPath": "better-auth/best-practices/SKILL.md",
+			"computedHash": "0c30be0e118c2b7a0c4c57bd9e63bf110c7e420a79ec6ce7997153f3b1e066ee"
+		},
+		"brainstorming": {
+			"source": "obra/superpowers",
+			"sourceType": "github",
+			"skillPath": "skills/brainstorming/SKILL.md",
+			"computedHash": "b58d55b64742ecd37923985ec7bdfbe678ffbcb9895562abd28c0a32dcacd7fb"
+		},
+		"create-auth": {
+			"source": "better-auth/skills",
+			"sourceType": "github",
+			"skillPath": "better-auth/create-auth/SKILL.md",
+			"computedHash": "9a9b498bc144367b8e237233f89def63fb2bd69e8cafe173eaa58fe3a863cdc4"
+		},
+		"deploy-to-vercel": {
+			"source": "vercel-labs/agent-skills",
+			"sourceType": "github",
+			"skillPath": "skills/deploy-to-vercel/SKILL.md",
+			"computedHash": "d2b5bcc7c09fdb649129ffc7dd7b647ec1b155736974b974292675afd588cb39"
+		},
+		"dispatching-parallel-agents": {
+			"source": "obra/superpowers",
+			"sourceType": "github",
+			"skillPath": "skills/dispatching-parallel-agents/SKILL.md",
+			"computedHash": "b011107f17188e0b2898bb1856b5bac8b49537cc86e737c82126558a235bd62a"
+		},
+		"executing-plans": {
+			"source": "obra/superpowers",
+			"sourceType": "github",
+			"skillPath": "skills/executing-plans/SKILL.md",
+			"computedHash": "78a07800ee99a5861ae10be59d79fad085fdca10444e8aaeb2691597e357cff8"
+		},
+		"finishing-a-development-branch": {
+			"source": "obra/superpowers",
+			"sourceType": "github",
+			"skillPath": "skills/finishing-a-development-branch/SKILL.md",
+			"computedHash": "4f571e7befb8b0946d9d7770232c818812412e9ab1dfb811f847edfba1fc6275"
+		},
+		"hf-cli": {
+			"source": "huggingface/skills",
+			"sourceType": "github",
+			"skillPath": "skills/hf-cli/SKILL.md",
+			"computedHash": "3341f90a2ff6683069bef7a9c1bfd16e154398c9a3c38080a18e41547e45768e"
+		},
+		"migrate-radix-to-base": {
+			"source": "shadcn/ui",
+			"sourceType": "github",
+			"skillPath": "skills/migrate-radix-to-base/SKILL.md",
+			"computedHash": "e1f2030ee5059be3dff0812ca0e4b995ee9fa3132176f049ebe6c90346a6755e"
+		},
+		"neon": {
+			"source": "neondatabase/agent-skills",
+			"sourceType": "github",
+			"skillPath": "skills/neon/SKILL.md",
+			"computedHash": "cd40530aa01dce7af2b9b77afb5d9452b13c3d6d1b6690af8b38605f17d1eeaf"
+		},
+		"neon-object-storage": {
+			"source": "neondatabase/agent-skills",
+			"sourceType": "github",
+			"skillPath": "skills/neon-object-storage/SKILL.md",
+			"computedHash": "7ffb7c60f34e499416896eb9ff581fd60141d1b8ea8c7e535ed682f281b15246"
+		},
+		"neon-postgres": {
+			"source": "neondatabase/agent-skills",
+			"sourceType": "github",
+			"skillPath": "skills/neon-postgres/SKILL.md",
+			"computedHash": "64150370145c18f563fbc652c8d8bf273c4943d2a9f2039ddd51af9fd08d96f3"
+		},
+		"neon-postgres-branches": {
+			"source": "neondatabase/agent-skills",
+			"sourceType": "github",
+			"skillPath": "skills/neon-postgres-branches/SKILL.md",
+			"computedHash": "bb65e351d8858773855efbe92c688144e34b1e836db6bf97fea9aa221f201057"
+		},
+		"receiving-code-review": {
+			"source": "obra/superpowers",
+			"sourceType": "github",
+			"skillPath": "skills/receiving-code-review/SKILL.md",
+			"computedHash": "59361179fc9225173e0c145ffd9bafbf9fdbf8b43ce3dc308497a0b4f83a6063"
+		},
+		"requesting-code-review": {
+			"source": "obra/superpowers",
+			"sourceType": "github",
+			"skillPath": "skills/requesting-code-review/SKILL.md",
+			"computedHash": "004f340ae65811095d6a9bb0a759c87d0a8085c5e705dbb019b011626293d2e9"
+		},
+		"shadcn": {
+			"source": "shadcn/ui",
+			"sourceType": "github",
+			"skillPath": "skills/shadcn/SKILL.md",
+			"computedHash": "f615de216e085a84e31593ad0fa9062232adc40cd87b7c7ab2b8e49abf6500be"
+		},
+		"subagent-driven-development": {
+			"source": "obra/superpowers",
+			"sourceType": "github",
+			"skillPath": "skills/subagent-driven-development/SKILL.md",
+			"computedHash": "367cc1d3216d6672b947c8c6583dbd6440ea407beb6da75a97d3a8ee1a23640a"
+		},
+		"systematic-debugging": {
+			"source": "obra/superpowers",
+			"sourceType": "github",
+			"skillPath": "skills/systematic-debugging/SKILL.md",
+			"computedHash": "a2750dfbaed1690da73b120254892c4f926b4576cb82eb16fc877783941fe39b"
+		},
+		"test-driven-development": {
+			"source": "obra/superpowers",
+			"sourceType": "github",
+			"skillPath": "skills/test-driven-development/SKILL.md",
+			"computedHash": "a4126a9c5f17be3c228aa9e5755898ade283448b86099f56f40852e8c14532be"
+		},
+		"using-git-worktrees": {
+			"source": "obra/superpowers",
+			"sourceType": "github",
+			"skillPath": "skills/using-git-worktrees/SKILL.md",
+			"computedHash": "48c8a1040e378e0cb7208107294e3afa9067b9370c3f33b49a443eb6b7528b0d"
+		},
+		"using-superpowers": {
+			"source": "obra/superpowers",
+			"sourceType": "github",
+			"skillPath": "skills/using-superpowers/SKILL.md",
+			"computedHash": "c7abe8bdc2099bbe4f245454d32c7563ccd2bb41dcc218b02b461c2acc3c6ae6"
+		},
+		"vercel-cli": {
+			"source": "vercel/vercel",
+			"sourceType": "github",
+			"skillPath": "skills/vercel-cli/SKILL.md",
+			"computedHash": "bc312e5c407c79c264503ef588613ee697508636b8e6ba76ee2585979b49ba2b"
+		},
+		"verification-before-completion": {
+			"source": "obra/superpowers",
+			"sourceType": "github",
+			"skillPath": "skills/verification-before-completion/SKILL.md",
+			"computedHash": "b529822bdac4b197b180fe12225cff86b930b65910435103c10622df7f041651"
+		},
+		"web-design-guidelines": {
+			"source": "vercel-labs/agent-skills",
+			"sourceType": "github",
+			"skillPath": "skills/web-design-guidelines/SKILL.md",
+			"computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
+		},
+		"writing-plans": {
+			"source": "obra/superpowers",
+			"sourceType": "github",
+			"skillPath": "skills/writing-plans/SKILL.md",
+			"computedHash": "27c75044e444a4fc68798c3f799dc23eaff3a6bfabff32e6ad75bb20f881c094"
+		},
+		"writing-skills": {
+			"source": "obra/superpowers",
+			"sourceType": "github",
+			"skillPath": "skills/writing-skills/SKILL.md",
+			"computedHash": "e5dfc1a942f56dc757421b0d87ae1f38ab693ebc71138e65268fd408bb5c93d3"
+		}
+	}
 }

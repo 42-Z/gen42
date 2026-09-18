@@ -2,7 +2,6 @@ import { auth } from "../lib/auth";
 import { addCredits } from "../lib/credits";
 import { sql } from "../lib/db";
 import { getZeroGPUQuota } from "../lib/hf";
-import { isLlmProvider } from "../lib/llm";
 import {
 	hasConfirmedQuota,
 	isKeyQuotaStale,
@@ -10,7 +9,7 @@ import {
 	keyPrefixFor,
 	updateKeyQuota,
 } from "../lib/keys";
-import { callLlm } from "../lib/llm";
+import { callLlm, isLlmProvider } from "../lib/llm";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL!;
 
