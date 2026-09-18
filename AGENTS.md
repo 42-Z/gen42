@@ -53,7 +53,7 @@ bun run format       # форматер (biome)
 - `src/server.ts` — единственный entrypoint: API-роуты (`/api/auth/*`, `/api/generate`, `/api/generations`, `/api/me`, `/api/admin/*`) + раздача `dist/`. Не создавать отдельные entrypoints
 - `src/api/` — обработчики роутов; `src/lib/` — доменная логика (credits, keys, hf, poolside, enhance, storage, rate-limit); `src/lib/prompts/` — промпт-инженерия стиля «42»
 - Ключи обоих провайдеров живут только в таблице `api_keys` (`provider`: `huggingface` | `poolside`) и управляются через админку (`/api/admin/keys`: добавление, проверка, удаление; `?provider=` выбирает список). В env и файлах они не хранятся, API отдаёт их маскированными
-- Баланс пользователя: одна генерация списывает один кредит — `src/lib/credits.ts`
+- Баланс пользователя: одна генерация списывает один кредит — `src/lib/credits.ts`. Новому пользователю при регистрации даётся 1 стартовый кредит (hook `databaseHooks.user.create.after` в `src/lib/auth.ts`, константа `SIGNUP_BONUS_CREDITS`)
 - Первый пользователь с email из `ADMIN_EMAIL` — админ
 
 ## Хранилище (S3)
