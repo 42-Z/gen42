@@ -4,6 +4,7 @@ import {
 	generateImage,
 	getZeroGPUQuota,
 	KeyExhaustedError,
+	QueueTimeoutError,
 } from "../src/lib/hf";
 import { getAvailableKey, updateKeyQuota } from "../src/lib/keys";
 
@@ -55,6 +56,10 @@ async function generateWithRotation(prompt: string) {
 				hfKey.key,
 			);
 		} catch (error) {
+			if (error instanceof QueueTimeoutError) {
+				console.warn(`   очередь ZeroGPU (${hfKey.name}), повторяю`);
+				continue;
+			}
 			if (error instanceof KeyExhaustedError) {
 				console.warn(`   ключ ${hfKey.name} исчерпан, беру следующий`);
 				triedKeyIds.add(hfKey.id);

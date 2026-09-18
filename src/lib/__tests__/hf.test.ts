@@ -66,6 +66,24 @@ describe("HuggingFace client", () => {
 		);
 	});
 
+	test("ZeroGPU queue timeout -> QueueTimeoutError, не KeyExhaustedError", async () => {
+		const sse = `event: error\ndata: {"error": "No GPU was available after 60s. Subscribe to Pro to get the highest priority in ZeroGPU queues.", "duration": 10, "visible": true, "title": "ZeroGPU queue timeout"}\n`;
+		const fetchMock = mock(async (url: string | URL) => {
+			const u = String(url);
+			if (u.endsWith("/call/v2/generate")) {
+				return Response.json({ event_id: "abc" });
+			}
+			return new Response(sse, { status: 200 });
+		});
+		globalThis.fetch = fetchMock as any;
+
+		const { generateImage, KeyExhaustedError, QueueTimeoutError } =
+			await import("../hf");
+		const promise = generateImage({ prompt: "cat" }, "hf_key");
+		await expect(promise).rejects.toThrow(QueueTimeoutError);
+		await expect(promise).rejects.not.toThrow(KeyExhaustedError);
+	});
+
 	test("прочий event: error -> обычная ошибка", async () => {
 		const sse =
 			'event: error\ndata: {"error": "GPU task aborted", "title": "Error"}\n';

@@ -74,8 +74,16 @@ export class KeyExhaustedError extends Error {
 	}
 }
 
+export class QueueTimeoutError extends Error {
+	constructor(message: string) {
+		super(message);
+	}
+}
+
 const HF_API_BASE = "https://krea-krea-2.hf.space/gradio_api";
-const POLL_TIMEOUT_MS = 45_000;
+// Очередь ZeroGPU сама сдаётся до ~60s ("No GPU was available after 60s"),
+// затем идёт генерация — опрос должен пережидать обе фазы
+const POLL_TIMEOUT_MS = 120_000;
 
 export async function generateImage(
 	params: GenerateParams,
@@ -160,8 +168,12 @@ export async function generateImage(
 					: null;
 				const message =
 					payload?.error ?? payload?.title ?? "unknown generation error";
+				const title = payload?.title ?? "";
 
-				if (/zero-?gpu|quota/i.test(`${payload?.title ?? ""} ${message}`)) {
+				if (/queue timeout|no gpu was available/i.test(`${title} ${message}`)) {
+					throw new QueueTimeoutError(`ZeroGPU queue: ${message}`);
+				}
+				if (/zero-?gpu|quota/i.test(`${title} ${message}`)) {
 					throw new KeyExhaustedError(429, `ZeroGPU quota: ${message}`);
 				}
 				throw new Error(`HuggingFace generation error: ${message}`);

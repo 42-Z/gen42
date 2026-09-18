@@ -7,7 +7,12 @@ import {
 } from "../lib/credits";
 import { sql } from "../lib/db";
 import { enhancePrompt } from "../lib/enhance";
-import { generateImage, getZeroGPUQuota, KeyExhaustedError } from "../lib/hf";
+import {
+	generateImage,
+	getZeroGPUQuota,
+	KeyExhaustedError,
+	QueueTimeoutError,
+} from "../lib/hf";
 import {
 	AllKeysExhaustedError,
 	getAvailableKey,
@@ -79,6 +84,21 @@ export const generateRoutes = {
 						);
 						break;
 					} catch (err) {
+						if (err instanceof QueueTimeoutError && currentKey) {
+							console.warn(
+								`Ключ ${currentKey.name}: очередь ZeroGPU, повторяю`,
+							);
+							const quota = await getZeroGPUQuota(currentKey.key);
+							if (quota) {
+								await updateKeyQuota(currentKey.id, quota, {
+									lastError: err.message,
+								});
+							}
+							// таймаут очереди — транзиентный: тот же ключ можно взять снова,
+							// если после списания секунд у него ещё есть квота
+							triedKeyIds.delete(currentKey.id);
+							continue;
+						}
 						if (err instanceof KeyExhaustedError && currentKey) {
 							console.warn(
 								`Ключ ${currentKey.name} исчерпан (${err.status}), переключаюсь`,

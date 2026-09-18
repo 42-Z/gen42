@@ -31,17 +31,19 @@ function QuotaBar({
 	remaining,
 	total,
 	title,
+	className,
 }: {
 	remaining: number;
 	total: number;
 	title: string;
+	className?: string;
 }) {
 	const ratio = total > 0 ? remaining / total : 0;
 	return (
 		<div
-			className={`h-2 w-40 overflow-hidden rounded-full ${
+			className={`h-2 overflow-hidden rounded-full ${
 				ratio <= 0 ? "bg-destructive/20" : "bg-secondary"
-			}`}
+			} ${className ?? "w-40"}`}
 			title={title}
 		>
 			<div
@@ -235,6 +237,41 @@ export function Admin() {
 			]
 		: [];
 
+	const activeKeys = keys.filter((k: any) => k.is_active);
+	const measuredSec = activeKeys.filter(
+		(k: any) => k.hf_base != null && k.hf_current != null,
+	);
+	const secondsRemaining = measuredSec.reduce(
+		(sum: number, k: any) => sum + k.hf_current,
+		0,
+	);
+	const secondsTotal = measuredSec.reduce(
+		(sum: number, k: any) => sum + k.hf_base,
+		0,
+	);
+	const measuredRuns = activeKeys.filter(
+		(k: any) => k.hf_runs_remaining != null && k.hf_runs_limit != null,
+	);
+	const runsRemaining = measuredRuns.reduce(
+		(sum: number, k: any) => sum + k.hf_runs_remaining,
+		0,
+	);
+	const runsTotal = measuredRuns.reduce(
+		(sum: number, k: any) => sum + k.hf_runs_limit,
+		0,
+	);
+	const availableCount = activeKeys.filter((k: any) => {
+		const secondsOk = k.hf_current == null || k.hf_current >= 60;
+		const runsOk = k.hf_runs_remaining == null || k.hf_runs_remaining > 0;
+		return secondsOk && runsOk;
+	}).length;
+	const nextReset = activeKeys
+		.flatMap((k: any) => [k.hf_resets_at, k.hf_runs_resets_at])
+		.filter((t: any) => t != null && new Date(t).getTime() > Date.now())
+		.sort(
+			(a: any, b: any) => new Date(a).getTime() - new Date(b).getTime(),
+		)[0] as string | undefined;
+
 	return (
 		<div className="relative mx-auto max-w-5xl overflow-hidden">
 			<DecoScatter />
@@ -274,6 +311,74 @@ export function Admin() {
 						</div>
 					))}
 				</div>
+			)}
+
+			{keys.length > 0 && (
+				<section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:110ms]">
+					<div className="flex flex-wrap items-baseline justify-between gap-2">
+						<h3 className="font-display text-xl font-bold text-foreground">
+							Пул генерации
+						</h3>
+						<span className="text-sm text-muted-foreground">
+							{availableCount} из {keys.length} ключей доступны
+						</span>
+					</div>
+
+					<div className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2">
+						<div>
+							<div className="flex items-baseline justify-between gap-2">
+								<span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+									Секунды
+								</span>
+								<span className="font-display text-2xl font-extrabold tabular-nums text-foreground">
+									{Math.round(secondsRemaining)}
+									<span className="text-base font-bold text-muted-foreground">
+										{" "}
+										из {Math.round(secondsTotal)}
+									</span>
+								</span>
+							</div>
+							<QuotaBar
+								className="mt-3 w-full"
+								remaining={secondsRemaining}
+								total={secondsTotal}
+								title={`${Math.round(secondsRemaining)} из ${Math.round(secondsTotal)} секунд`}
+							/>
+						</div>
+						<div>
+							<div className="flex items-baseline justify-between gap-2">
+								<span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+									Прогоны
+								</span>
+								<span className="font-display text-2xl font-extrabold tabular-nums text-foreground">
+									{runsRemaining}
+									<span className="text-base font-bold text-muted-foreground">
+										{" "}
+										из {runsTotal}
+									</span>
+								</span>
+							</div>
+							<QuotaBar
+								className="mt-3 w-full"
+								remaining={runsRemaining}
+								total={runsTotal}
+								title={`${runsRemaining} из ${runsTotal} прогонов`}
+							/>
+						</div>
+					</div>
+
+					{nextReset && (
+						<p className="mt-5 text-sm text-muted-foreground">
+							Ближайший сброс квоты —{" "}
+							{new Date(nextReset).toLocaleString("ru", {
+								day: "2-digit",
+								month: "2-digit",
+								hour: "2-digit",
+								minute: "2-digit",
+							})}
+						</p>
+					)}
+				</section>
 			)}
 
 			<section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:140ms]">
