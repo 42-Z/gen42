@@ -27,6 +27,39 @@ import {
 import { DecoScatter } from "./DecoScatter";
 import { PopSkeleton, SparkStar } from "./graphics";
 
+function QuotaBar({
+	remaining,
+	total,
+	title,
+	className,
+}: {
+	remaining: number;
+	total: number;
+	title: string;
+	className?: string;
+}) {
+	const ratio = total > 0 ? remaining / total : 0;
+	return (
+		<div
+			className={`h-2 overflow-hidden rounded-full ${
+				ratio <= 0 ? "bg-destructive/20" : "bg-secondary"
+			} ${className ?? "w-40"}`}
+			title={title}
+		>
+			<div
+				className={`h-full rounded-full transition-all ${
+					ratio > 0.5
+						? "bg-primary"
+						: ratio > 0.2
+							? "bg-[#ffd54a]"
+							: "bg-destructive"
+				}`}
+				style={{ width: `${Math.min(ratio * 100, 100)}%` }}
+			/>
+		</div>
+	);
+}
+
 export function Admin() {
 	const [users, setUsers] = useState<any[]>([]);
 	const [keys, setKeys] = useState<any[]>([]);
@@ -36,6 +69,7 @@ export function Admin() {
 	const [newKeyValue, setNewKeyValue] = useState("");
 	const [newLlmKeyName, setNewLlmKeyName] = useState("");
 	const [newLlmKeyValue, setNewLlmKeyValue] = useState("");
+	const [hfError, setHfError] = useState("");
 	const [llmError, setLlmError] = useState("");
 	const [creditUserId, setCreditUserId] = useState("");
 	const [creditAmount, setCreditAmount] = useState(0);
@@ -120,19 +154,22 @@ export function Admin() {
 		}
 	}
 
-	async function checkLlmKey(id: string) {
-		setLlmError("");
+	async function checkKey(
+		id: string,
+		setCheckError: (message: string) => void,
+	) {
+		setCheckError("");
 		try {
 			const res = await fetch(`/api/admin/keys/${id}`, { method: "POST" });
 			const data = await res.json().catch(() => null);
 			if (!res.ok) {
-				setLlmError(data?.error || "Ключ не прошёл проверку");
-				return;
+				setCheckError(data?.error || "Ключ не прошёл проверку");
 			}
-			loadData();
 		} catch (error) {
-			console.error("Failed to check LLM key:", error);
-			setLlmError("Ключ не прошёл проверку");
+			console.error("Failed to check key:", error);
+			setCheckError("Ключ не прошёл проверку");
+		} finally {
+			loadData();
 		}
 	}
 
@@ -200,6 +237,41 @@ export function Admin() {
 			]
 		: [];
 
+	const activeKeys = keys.filter((k: any) => k.is_active);
+	const measuredSec = activeKeys.filter(
+		(k: any) => k.hf_base != null && k.hf_current != null,
+	);
+	const secondsRemaining = measuredSec.reduce(
+		(sum: number, k: any) => sum + k.hf_current,
+		0,
+	);
+	const secondsTotal = measuredSec.reduce(
+		(sum: number, k: any) => sum + k.hf_base,
+		0,
+	);
+	const measuredRuns = activeKeys.filter(
+		(k: any) => k.hf_runs_remaining != null && k.hf_runs_limit != null,
+	);
+	const runsRemaining = measuredRuns.reduce(
+		(sum: number, k: any) => sum + k.hf_runs_remaining,
+		0,
+	);
+	const runsTotal = measuredRuns.reduce(
+		(sum: number, k: any) => sum + k.hf_runs_limit,
+		0,
+	);
+	const availableCount = activeKeys.filter((k: any) => {
+		const secondsOk = k.hf_current == null || k.hf_current >= 60;
+		const runsOk = k.hf_runs_remaining == null || k.hf_runs_remaining > 0;
+		return secondsOk && runsOk;
+	}).length;
+	const nextReset = activeKeys
+		.flatMap((k: any) => [k.hf_resets_at, k.hf_runs_resets_at])
+		.filter((t: any) => t != null && new Date(t).getTime() > Date.now())
+		.sort(
+			(a: any, b: any) => new Date(a).getTime() - new Date(b).getTime(),
+		)[0] as string | undefined;
+
 	return (
 		<div className="relative mx-auto max-w-5xl overflow-hidden">
 			<DecoScatter />
@@ -239,6 +311,74 @@ export function Admin() {
 						</div>
 					))}
 				</div>
+			)}
+
+			{keys.length > 0 && (
+				<section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:110ms]">
+					<div className="flex flex-wrap items-baseline justify-between gap-2">
+						<h3 className="font-display text-xl font-bold text-foreground">
+							Пул генерации
+						</h3>
+						<span className="text-sm text-muted-foreground">
+							{availableCount} из {keys.length} ключей доступны
+						</span>
+					</div>
+
+					<div className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2">
+						<div>
+							<div className="flex items-baseline justify-between gap-2">
+								<span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+									Секунды
+								</span>
+								<span className="font-display text-2xl font-extrabold tabular-nums text-foreground">
+									{Math.round(secondsRemaining)}
+									<span className="text-base font-bold text-muted-foreground">
+										{" "}
+										из {Math.round(secondsTotal)}
+									</span>
+								</span>
+							</div>
+							<QuotaBar
+								className="mt-3 w-full"
+								remaining={secondsRemaining}
+								total={secondsTotal}
+								title={`${Math.round(secondsRemaining)} из ${Math.round(secondsTotal)} секунд`}
+							/>
+						</div>
+						<div>
+							<div className="flex items-baseline justify-between gap-2">
+								<span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+									Прогоны
+								</span>
+								<span className="font-display text-2xl font-extrabold tabular-nums text-foreground">
+									{runsRemaining}
+									<span className="text-base font-bold text-muted-foreground">
+										{" "}
+										из {runsTotal}
+									</span>
+								</span>
+							</div>
+							<QuotaBar
+								className="mt-3 w-full"
+								remaining={runsRemaining}
+								total={runsTotal}
+								title={`${runsRemaining} из ${runsTotal} прогонов`}
+							/>
+						</div>
+					</div>
+
+					{nextReset && (
+						<p className="mt-5 text-sm text-muted-foreground">
+							Ближайший сброс квоты —{" "}
+							{new Date(nextReset).toLocaleString("ru", {
+								day: "2-digit",
+								month: "2-digit",
+								hour: "2-digit",
+								minute: "2-digit",
+							})}
+						</p>
+					)}
+				</section>
 			)}
 
 			<section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:140ms]">
@@ -312,13 +452,20 @@ export function Admin() {
 					<Button onClick={addKey}>Добавить ключ</Button>
 				</div>
 
+				{hfError && (
+					<div role="alert" className="mt-4 text-sm text-destructive">
+						{hfError}
+					</div>
+				)}
+
 				<div className="mt-8 overflow-x-auto">
-					<Table className="min-w-[640px]">
+					<Table className="min-w-[720px]">
 						<TableHeader>
 							<TableRow>
 								<TableHead>Название</TableHead>
 								<TableHead>Ключ</TableHead>
-								<TableHead>Квота ZeroGPU</TableHead>
+								<TableHead>Секунды</TableHead>
+								<TableHead>Прогоны</TableHead>
 								<TableHead>Сброс</TableHead>
 								<TableHead className="text-right">Действия</TableHead>
 							</TableRow>
@@ -332,20 +479,22 @@ export function Admin() {
 									</TableCell>
 									<TableCell>
 										{k.hf_current != null && k.hf_base != null ? (
-											<div className="h-2 w-40 overflow-hidden rounded-full bg-secondary">
-												<div
-													className={`h-full rounded-full transition-all ${
-														k.hf_current / k.hf_base > 0.5
-															? "bg-primary"
-															: k.hf_current / k.hf_base > 0.2
-																? "bg-[#ffd54a]"
-																: "bg-destructive"
-													}`}
-													style={{
-														width: `${Math.min((k.hf_current / k.hf_base) * 100, 100)}%`,
-													}}
-												/>
-											</div>
+											<QuotaBar
+												remaining={k.hf_current}
+												total={k.hf_base}
+												title={`${Math.round(k.hf_current)} из ${k.hf_base} секунд`}
+											/>
+										) : (
+											<span className="text-xs text-muted-foreground">—</span>
+										)}
+									</TableCell>
+									<TableCell>
+										{k.hf_runs_remaining != null && k.hf_runs_limit != null ? (
+											<QuotaBar
+												remaining={k.hf_runs_remaining}
+												total={k.hf_runs_limit}
+												title={`${k.hf_runs_remaining} из ${k.hf_runs_limit} прогонов`}
+											/>
 										) : (
 											<span className="text-xs text-muted-foreground">—</span>
 										)}
@@ -368,6 +517,15 @@ export function Admin() {
 												: ""}
 									</TableCell>
 									<TableCell className="space-x-1 text-right">
+										<Button
+											variant="ghost"
+											size="icon"
+											title="Проверить и включить"
+											aria-label="Проверить и включить ключ"
+											onClick={() => checkKey(k.id, setHfError)}
+										>
+											<IconRefresh className="h-4 w-4" />
+										</Button>
 										<Button
 											variant="ghost"
 											size="icon"
@@ -438,23 +596,11 @@ export function Admin() {
 									</TableCell>
 									<TableCell>
 										{k.rl_remaining != null && k.rl_limit != null ? (
-											<div
-												className="h-2 w-40 overflow-hidden rounded-full bg-secondary"
+											<QuotaBar
+												remaining={k.rl_remaining}
+												total={k.rl_limit}
 												title={`${k.rl_remaining} из ${k.rl_limit}`}
-											>
-												<div
-													className={`h-full rounded-full transition-all ${
-														k.rl_remaining / k.rl_limit > 0.5
-															? "bg-primary"
-															: k.rl_remaining / k.rl_limit > 0.2
-																? "bg-[#ffd54a]"
-																: "bg-destructive"
-													}`}
-													style={{
-														width: `${Math.min((k.rl_remaining / k.rl_limit) * 100, 100)}%`,
-													}}
-												/>
-											</div>
+											/>
 										) : (
 											<span className="text-xs text-muted-foreground">—</span>
 										)}
@@ -476,7 +622,7 @@ export function Admin() {
 											size="icon"
 											title="Проверить и включить"
 											aria-label="Проверить и включить ключ"
-											onClick={() => checkLlmKey(k.id)}
+											onClick={() => checkKey(k.id, setLlmError)}
 										>
 											<IconRefresh className="h-4 w-4" />
 										</Button>

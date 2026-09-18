@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS credits (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Ключи HuggingFace с квотой ZeroGPU
+-- Ключи HuggingFace с квотой ZeroGPU (секунды + суточные прогоны runs)
 CREATE TABLE IF NOT EXISTS api_keys (
   id TEXT PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS api_keys (
   hf_current REAL,
   hf_resets_at TIMESTAMPTZ,
   hf_checked_at TIMESTAMPTZ,
+  hf_runs_remaining INTEGER,
+  hf_runs_limit INTEGER,
+  hf_runs_resets_at TIMESTAMPTZ,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
@@ -64,6 +67,22 @@ ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS rl_checked_at TIMESTAMPTZ;
 ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS requests_total BIGINT NOT NULL DEFAULT 0;
 ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS tokens_total BIGINT NOT NULL DEFAULT 0;
 ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS last_error TEXT;
+
+-- Суточный лимит прогонов ZeroGPU (runs): без него ключи выжигались при остатке секунд
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'api_keys' AND column_name = 'hf_runs_remaining'
+  ) THEN
+    -- разово возвращаем в строй HF-ключи, отключённые старой логикой при исчерпании прогонов;
+    -- дальше доступность определяет фильтр по квоте, а не is_active
+    UPDATE api_keys SET is_active = TRUE WHERE provider = 'huggingface' AND is_active = FALSE;
+  END IF;
+END $$;
+
+ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS hf_runs_remaining INTEGER;
+ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS hf_runs_limit INTEGER;
+ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS hf_runs_resets_at TIMESTAMPTZ;
 
 -- Обогащение промпта (LLM-слой 42-стиля)
 ALTER TABLE generations ADD COLUMN IF NOT EXISTS enhanced_prompt TEXT;

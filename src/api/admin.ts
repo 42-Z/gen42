@@ -3,6 +3,8 @@ import { addCredits } from "../lib/credits";
 import { sql } from "../lib/db";
 import { getZeroGPUQuota } from "../lib/hf";
 import {
+	hasConfirmedQuota,
+	isKeyQuotaStale,
 	isValidKeyForProvider,
 	keyPrefixFor,
 	updateKeyQuota,
@@ -81,7 +83,8 @@ export const adminRoutes = {
 
 				const keys = await sql`
         SELECT id, name, key, provider, is_active, hf_base, hf_current, hf_resets_at,
-               hf_checked_at, rl_limit, rl_remaining, rl_checked_at, requests_total,
+               hf_checked_at, hf_runs_remaining, hf_runs_limit, hf_runs_resets_at,
+               rl_limit, rl_remaining, rl_checked_at, requests_total,
                tokens_total, last_error, created_at
         FROM api_keys
         WHERE provider = ${provider}
@@ -89,9 +92,9 @@ export const adminRoutes = {
       `;
 
 				if (provider === "huggingface") {
-					const unchecked = keys.filter((k: any) => k.hf_checked_at === null);
+					const stale = keys.filter((k: any) => isKeyQuotaStale(k));
 					await Promise.all(
-						unchecked.map(async (k: any) => {
+						stale.map(async (k: any) => {
 							try {
 								const quota = await getZeroGPUQuota(k.key);
 								if (quota) {
@@ -100,6 +103,9 @@ export const adminRoutes = {
 										hf_base: quota.base,
 										hf_current: quota.current,
 										hf_resets_at: quota.resetsAt,
+										hf_runs_remaining: quota.runs?.remaining ?? null,
+										hf_runs_limit: quota.runs?.limit ?? null,
+										hf_runs_resets_at: quota.runs?.resetsAt ?? null,
 										hf_checked_at: new Date(),
 									});
 								}
@@ -137,7 +143,8 @@ export const adminRoutes = {
           INSERT INTO api_keys (id, name, key, provider)
           VALUES (${crypto.randomUUID()}, ${name}, ${key}, ${provider})
           RETURNING id, name, provider, is_active, hf_base, hf_current, hf_resets_at,
-                    hf_checked_at, rl_limit, rl_remaining, requests_total, tokens_total,
+                    hf_checked_at, hf_runs_remaining, hf_runs_limit, hf_runs_resets_at,
+                    rl_limit, rl_remaining, requests_total, tokens_total,
                     created_at
         `;
 					return Response.json(newKey);
@@ -210,6 +217,32 @@ export const adminRoutes = {
 				}
 
 				await updateKeyQuota(id, quota);
+
+				const runs = quota.runs;
+				if (
+					!hasConfirmedQuota({
+						current: quota.current,
+						runsRemaining: runs?.remaining ?? null,
+					})
+				) {
+					const details = [
+						runs?.limit != null && runs?.remaining != null
+							? `прогоны ${runs.limit - runs.remaining}/${runs.limit}`
+							: null,
+						quota.base != null && quota.current != null
+							? `секунды ${Math.round(quota.current)}/${quota.base}`
+							: null,
+					]
+						.filter(Boolean)
+						.join(", ");
+					return Response.json(
+						{
+							error: `Квота ZeroGPU исчерпана (${details}), ключ включится только после сброса`,
+						},
+						{ status: 409 },
+					);
+				}
+
 				await sql`
           UPDATE api_keys
           SET is_active = TRUE, last_error = NULL

@@ -4,12 +4,9 @@ import {
 	generateImage,
 	getZeroGPUQuota,
 	KeyExhaustedError,
+	QueueTimeoutError,
 } from "../src/lib/hf";
-import {
-	deactivateKey,
-	getAvailableKey,
-	updateKeyQuota,
-} from "../src/lib/keys";
+import { getAvailableKey, updateKeyQuota } from "../src/lib/keys";
 
 const INPUTS = [
 	"Человек в костюме с крыльями, у которого правая половина белая, а левая черная, стреляет лазерами из глаз",
@@ -49,6 +46,8 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
 	throw lastError;
 }
 
+const triedKeyIds = new Set<string>();
+
 async function generateWithRotation(prompt: string) {
 	for (let attempt = 0; attempt < 3; attempt++) {
 		try {
@@ -57,10 +56,22 @@ async function generateWithRotation(prompt: string) {
 				hfKey.key,
 			);
 		} catch (error) {
+			if (error instanceof QueueTimeoutError) {
+				console.warn(`   очередь ZeroGPU (${hfKey.name}), повторяю`);
+				continue;
+			}
 			if (error instanceof KeyExhaustedError) {
 				console.warn(`   ключ ${hfKey.name} исчерпан, беру следующий`);
-				await deactivateKey(hfKey.id, String(error));
-				hfKey = await getAvailableKey("huggingface");
+				triedKeyIds.add(hfKey.id);
+				const quota = await getZeroGPUQuota(hfKey.key);
+				if (quota) {
+					await updateKeyQuota(hfKey.id, quota, {
+						lastError: String(error),
+					});
+				}
+				hfKey = await getAvailableKey("huggingface", {
+					excludeIds: [...triedKeyIds],
+				});
 				continue;
 			}
 			throw error;

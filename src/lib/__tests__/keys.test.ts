@@ -15,10 +15,32 @@ mock.module("../db", () => ({ sql: mockSql }));
 const {
 	getAvailableKey,
 	AllKeysExhaustedError,
+	hasConfirmedQuota,
+	hasRemainingQuota,
+	isKeyQuotaStale,
 	updateKeyQuota,
 	deactivateKey,
 	updateKeyRateLimit,
 } = await import("../keys");
+
+function keyRow(overrides: Record<string, unknown> = {}) {
+	return {
+		id: "k",
+		name: "key",
+		key: "hf_x",
+		provider: "huggingface",
+		is_active: true,
+		hf_base: 300,
+		hf_current: 200,
+		hf_resets_at: null,
+		hf_checked_at: new Date(),
+		hf_runs_remaining: 5,
+		hf_runs_limit: 8,
+		hf_runs_resets_at: null,
+		created_at: new Date(),
+		...overrides,
+	};
+}
 
 describe("API Keys", () => {
 	beforeEach(() => {
@@ -29,47 +51,96 @@ describe("API Keys", () => {
 	test("getAvailableKey возвращает ключ с наибольшим hf_current", async () => {
 		responses = {
 			"FROM api_keys": [
-				{
-					id: "k1",
-					name: "top1",
-					key: "hf_x",
-					is_active: true,
-					hf_base: 300,
-					hf_current: 250,
-					hf_resets_at: null,
-					hf_checked_at: null,
-					created_at: new Date(),
-				},
+				keyRow({ id: "k1", hf_current: 250 }),
+				keyRow({ id: "k2", hf_current: 200 }),
 			],
 		};
 		const key = await getAvailableKey();
 		expect(key.id).toBe("k1");
 	});
 
-	test("getAvailableKey пропускает ключи с hf_current < 60", async () => {
-		// Мок возвращает пустой результат — ключ с hf_current=30 отфильтрован WHERE
-		responses = { "FROM api_keys": [] };
-		await expect(getAvailableKey()).rejects.toThrow(AllKeysExhaustedError);
-	});
-
-	test("getAvailableKey допускает ключи с hf_current IS NULL (фоллбэк)", async () => {
+	test("getAvailableKey пропускает ключи с исчерпанными прогонами", async () => {
 		responses = {
 			"FROM api_keys": [
-				{
+				keyRow({ id: "k1", hf_current: 250, hf_runs_remaining: 0 }),
+				keyRow({ id: "k2", hf_current: 200, hf_runs_remaining: 3 }),
+			],
+		};
+		const key = await getAvailableKey();
+		expect(key.id).toBe("k2");
+	});
+
+	test("getAvailableKey пропускает ключи с hf_current < 60", async () => {
+		responses = {
+			"FROM api_keys": [
+				keyRow({ id: "k1", hf_current: 30 }),
+				keyRow({ id: "k2", hf_current: 120 }),
+			],
+		};
+		const key = await getAvailableKey();
+		expect(key.id).toBe("k2");
+	});
+
+	test("после сброса прогонов ключ с runs = 0 снова доступен", async () => {
+		responses = {
+			"FROM api_keys": [
+				keyRow({
+					id: "k1",
+					hf_runs_remaining: 0,
+					hf_runs_resets_at: new Date(Date.now() - 60_000),
+				}),
+			],
+		};
+		const key = await getAvailableKey();
+		expect(key.id).toBe("k1");
+	});
+
+	test("getAvailableKey допускает ключи без замеров (NULL, фоллбэк)", async () => {
+		responses = {
+			"FROM api_keys": [
+				keyRow({
 					id: "k3",
-					name: "unknown",
-					key: "hf_z",
-					is_active: true,
 					hf_base: null,
 					hf_current: null,
-					hf_resets_at: null,
-					hf_checked_at: null,
-					created_at: new Date(),
-				},
+					hf_runs_remaining: null,
+					hf_runs_limit: null,
+					hf_runs_resets_at: null,
+				}),
 			],
 		};
 		const key = await getAvailableKey();
 		expect(key.id).toBe("k3");
+	});
+
+	test("граница секунд: 60 доступно, 59.9 — нет", async () => {
+		responses = {
+			"FROM api_keys": [
+				keyRow({ id: "k1", hf_current: 59.9 }),
+				keyRow({ id: "k2", hf_current: 60 }),
+			],
+		};
+		const key = await getAvailableKey();
+		expect(key.id).toBe("k2");
+	});
+
+	test("excludeIds исключает перебравшие ключи", async () => {
+		responses = {
+			"FROM api_keys": [
+				keyRow({ id: "k1", hf_current: 250 }),
+				keyRow({ id: "k2", hf_current: 200 }),
+			],
+		};
+		const key = await getAvailableKey("huggingface", { excludeIds: ["k1"] });
+		expect(key.id).toBe("k2");
+	});
+
+	test("excludeIds со всеми ключами даёт AllKeysExhaustedError", async () => {
+		responses = {
+			"FROM api_keys": [keyRow({ id: "k1" }), keyRow({ id: "k2" })],
+		};
+		await expect(
+			getAvailableKey("huggingface", { excludeIds: ["k1", "k2"] }),
+		).rejects.toThrow(AllKeysExhaustedError);
 	});
 
 	test("getAvailableKey бросает AllKeysExhaustedError без доступных ключей", async () => {
@@ -77,11 +148,54 @@ describe("API Keys", () => {
 		await expect(getAvailableKey()).rejects.toThrow(AllKeysExhaustedError);
 	});
 
+	test("getAvailableKey бросает AllKeysExhaustedError, когда прогоны кончились у всех", async () => {
+		responses = {
+			"FROM api_keys": [keyRow({ id: "k1", hf_runs_remaining: 0 })],
+		};
+		await expect(getAvailableKey()).rejects.toThrow(AllKeysExhaustedError);
+	});
+
+	test("hasRemainingQuota требует и секунды, и прогоны", () => {
+		expect(hasRemainingQuota({ current: 100, runsRemaining: 3 })).toBe(true);
+		expect(hasRemainingQuota({ current: 30, runsRemaining: 3 })).toBe(false);
+		expect(hasRemainingQuota({ current: 100, runsRemaining: 0 })).toBe(false);
+		expect(hasRemainingQuota({ current: null, runsRemaining: null })).toBe(
+			true,
+		);
+	});
+
+	test("hasConfirmedQuota для реактивации требует оба счётчика", () => {
+		expect(hasConfirmedQuota({ current: 100, runsRemaining: 3 })).toBe(true);
+		expect(hasConfirmedQuota({ current: 30, runsRemaining: 3 })).toBe(false);
+		expect(hasConfirmedQuota({ current: 100, runsRemaining: 0 })).toBe(false);
+		expect(hasConfirmedQuota({ current: null, runsRemaining: 3 })).toBe(false);
+		expect(hasConfirmedQuota({ current: 100, runsRemaining: null })).toBe(
+			false,
+		);
+	});
+
+	test("isKeyQuotaStale: без замеров и без прогонов — устарела", () => {
+		expect(isKeyQuotaStale(keyRow({ hf_runs_limit: null }))).toBe(true);
+		expect(isKeyQuotaStale(keyRow({ hf_checked_at: null }))).toBe(true);
+		expect(isKeyQuotaStale(keyRow())).toBe(false);
+		expect(
+			isKeyQuotaStale(
+				keyRow({ hf_runs_resets_at: new Date(Date.now() - 60_000) }),
+			),
+		).toBe(true);
+	});
+
 	test("updateKeyQuota записывает данные через SQL", async () => {
 		await updateKeyQuota("k1", {
 			base: 300,
 			current: 200,
 			resetsAt: "2026-09-15T12:00:00Z",
+			runs: {
+				used: 3,
+				limit: 8,
+				remaining: 5,
+				resetsAt: "2026-09-15T12:00:00Z",
+			},
 		});
 		expect(mockSql).toHaveBeenCalled();
 		const call = mockSql.mock.calls[0];
@@ -91,6 +205,10 @@ describe("API Keys", () => {
 		expect(query).toContain("hf_current");
 		expect(query).toContain("hf_resets_at");
 		expect(query).toContain("hf_checked_at");
+		expect(query).toContain("hf_runs_remaining");
+		expect(query).toContain("hf_runs_limit");
+		expect(query).toContain("hf_runs_resets_at");
+		expect(query).toContain("last_error");
 	});
 
 	test("getAvailableKey('poolside') фильтрует по provider и остатку", async () => {
@@ -129,8 +247,7 @@ describe("API Keys", () => {
 		await expect(getAvailableKey()).rejects.toThrow(AllKeysExhaustedError);
 		const query = (mockSql.mock.calls[0]![0] as TemplateStringsArray).join("?");
 		expect(query).toContain("provider = 'huggingface'");
-		expect(query).toContain("hf_current >= 60");
-		expect(query).toContain("ORDER BY hf_current DESC NULLS LAST");
+		expect(query).toContain("is_active = TRUE");
 	});
 
 	test("deactivateKey пишет причину", async () => {

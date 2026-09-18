@@ -13,10 +13,33 @@ interface GenerateResult {
 	seed: number;
 }
 
+export interface ZeroGPURuns {
+	used: number | null;
+	limit: number | null;
+	remaining: number | null;
+	resetsAt: string | null;
+}
+
 export interface ZeroGPUQuota {
 	base: number;
 	current: number;
 	resetsAt: string | null;
+	runs: ZeroGPURuns | null;
+}
+
+function quotaNumber(value: unknown): number | null {
+	return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function parseRuns(value: unknown): ZeroGPURuns | null {
+	if (typeof value !== "object" || value === null) return null;
+	const runs = value as Record<string, unknown>;
+	return {
+		used: quotaNumber(runs.used),
+		limit: quotaNumber(runs.limit),
+		remaining: quotaNumber(runs.remaining),
+		resetsAt: typeof runs.resetsAt === "string" ? runs.resetsAt : null,
+	};
 }
 
 export async function getZeroGPUQuota(
@@ -31,7 +54,12 @@ export async function getZeroGPUQuota(
 		);
 		if (!res.ok) return null;
 		const data = await res.json();
-		return { base: data.base, current: data.current, resetsAt: data.resetsAt };
+		return {
+			base: data.base,
+			current: data.current,
+			resetsAt: data.resetsAt,
+			runs: parseRuns(data.runs),
+		};
 	} catch {
 		return null;
 	}
@@ -46,8 +74,16 @@ export class KeyExhaustedError extends Error {
 	}
 }
 
+export class QueueTimeoutError extends Error {
+	constructor(message: string) {
+		super(message);
+	}
+}
+
 const HF_API_BASE = "https://krea-krea-2.hf.space/gradio_api";
-const POLL_TIMEOUT_MS = 45_000;
+// Очередь ZeroGPU сама сдаётся до ~60s ("No GPU was available after 60s"),
+// затем идёт генерация — опрос должен пережидать обе фазы
+const POLL_TIMEOUT_MS = 120_000;
 
 export async function generateImage(
 	params: GenerateParams,
@@ -132,8 +168,12 @@ export async function generateImage(
 					: null;
 				const message =
 					payload?.error ?? payload?.title ?? "unknown generation error";
+				const title = payload?.title ?? "";
 
-				if (/zero-?gpu|quota/i.test(`${payload?.title ?? ""} ${message}`)) {
+				if (/queue timeout|no gpu was available/i.test(`${title} ${message}`)) {
+					throw new QueueTimeoutError(`ZeroGPU queue: ${message}`);
+				}
+				if (/zero-?gpu|quota/i.test(`${title} ${message}`)) {
 					throw new KeyExhaustedError(429, `ZeroGPU quota: ${message}`);
 				}
 				throw new Error(`HuggingFace generation error: ${message}`);
