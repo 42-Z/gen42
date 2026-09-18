@@ -11,11 +11,11 @@ const KEY = {
 	name: "poolside-1",
 	key: "sky_test",
 	provider: "poolside",
-} as Awaited<ReturnType<EnhanceDeps["getAvailableKey"]>>;
+} as Awaited<ReturnType<EnhanceDeps["getAvailableLlmKey"]>>;
 
 function makeDeps() {
 	const deps = {
-		getAvailableKey: mock(async () => KEY),
+		getAvailableLlmKey: mock(async () => KEY),
 		deactivateKey: mock(async () => {}),
 		updateKeyRateLimit: mock(async () => {}),
 		callLlm: mock(async () => ({
@@ -43,6 +43,7 @@ describe("enhancePrompt", () => {
 		expect(result.prompt.startsWith("A colossal cat")).toBe(true);
 		expect(result.inputTokens).toBe(100);
 		expect(result.outputTokens).toBe(50);
+		expect(result.model).toBe("poolside/laguna-xs-2.1");
 		expect(deps.updateKeyRateLimit).toHaveBeenCalledTimes(1);
 	});
 
@@ -174,7 +175,7 @@ describe("enhancePrompt", () => {
 	});
 
 	test("нет ключей -> сразу fallback", async () => {
-		deps.getAvailableKey.mockImplementationOnce(async () => {
+		deps.getAvailableLlmKey.mockImplementationOnce(async () => {
 			throw new AllKeysExhaustedError();
 		});
 
@@ -182,5 +183,25 @@ describe("enhancePrompt", () => {
 		const result = await enhancePrompt("кот", deps);
 		expect(result.fallback).toBe(true);
 		expect(deps.callLlm).not.toHaveBeenCalled();
+	});
+
+	test("ключ inception даёт модель mercury-2.5", async () => {
+		deps.getAvailableLlmKey = mock(async () => ({
+			...KEY,
+			id: "i1",
+			name: "inception-1",
+			key: "sk_test",
+			provider: "inception",
+		})) as any;
+
+		const { enhancePrompt } = await import("../enhance");
+		const result = await enhancePrompt("кот", deps);
+		expect(result.fallback).toBe(false);
+		expect(result.keyId).toBe("i1");
+		expect(result.model).toBe("mercury-2.5");
+		const call = (
+			deps.callLlm.mock.calls[0] as unknown as [{ provider: string }]
+		)[0];
+		expect(call.provider).toBe("inception");
 	});
 });

@@ -1,7 +1,7 @@
 import {
 	AllKeysExhaustedError,
 	deactivateKey,
-	getAvailableKey,
+	getAvailableLlmKey,
 	updateKeyRateLimit,
 } from "./keys";
 import {
@@ -43,7 +43,7 @@ export interface EnhanceResult {
 }
 
 export interface EnhanceDeps {
-	getAvailableKey: typeof getAvailableKey;
+	getAvailableLlmKey: typeof getAvailableLlmKey;
 	deactivateKey: typeof deactivateKey;
 	updateKeyRateLimit: typeof updateKeyRateLimit;
 	callLlm: typeof callLlm;
@@ -51,7 +51,7 @@ export interface EnhanceDeps {
 }
 
 const defaultDeps: EnhanceDeps = {
-	getAvailableKey,
+	getAvailableLlmKey,
 	deactivateKey,
 	updateKeyRateLimit,
 	callLlm,
@@ -63,7 +63,7 @@ export async function enhancePrompt(
 	deps: Partial<EnhanceDeps> = {},
 ): Promise<EnhanceResult> {
 	const {
-		getAvailableKey: takeKey,
+		getAvailableLlmKey: takeKey,
 		deactivateKey: dropKey,
 		updateKeyRateLimit: saveLimits,
 		callLlm: callModel,
@@ -92,9 +92,9 @@ export async function enhancePrompt(
 			break;
 		}
 
-		let key: Awaited<ReturnType<typeof getAvailableKey>>;
+		let key: Awaited<ReturnType<typeof getAvailableLlmKey>>;
 		try {
-			key = await takeKey("poolside");
+			key = await takeKey();
 		} catch (error) {
 			if (error instanceof AllKeysExhaustedError) break;
 			throw error;
