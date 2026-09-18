@@ -9,7 +9,7 @@ import {
 	keyPrefixFor,
 	updateKeyQuota,
 } from "../lib/keys";
-import { callPoolside } from "../lib/llm";
+import { callLlm } from "../lib/llm";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL!;
 
@@ -184,7 +184,8 @@ export const adminRoutes = {
 
 				if (keys[0]!.provider === "poolside") {
 					try {
-						const result = await callPoolside({
+						const result = await callLlm({
+							provider: "poolside",
 							system: "ping",
 							user: "ping",
 							apiKey: keys[0]!.key,

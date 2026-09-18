@@ -4,7 +4,12 @@ import {
 	getAvailableKey,
 	updateKeyRateLimit,
 } from "./keys";
-import { callPoolside, LlmKeyExhaustedError, POOLSIDE_MODEL } from "./llm";
+import {
+	callLlm,
+	isLlmProvider,
+	LlmKeyExhaustedError,
+	LLM_PROVIDERS,
+} from "./llm";
 import { STYLE_SYSTEM, STYLE_VERSION } from "./prompts";
 import { buildUserMessage, pickAnchors } from "./prompts/anchors";
 import {
@@ -41,7 +46,7 @@ export interface EnhanceDeps {
 	getAvailableKey: typeof getAvailableKey;
 	deactivateKey: typeof deactivateKey;
 	updateKeyRateLimit: typeof updateKeyRateLimit;
-	callPoolside: typeof callPoolside;
+	callLlm: typeof callLlm;
 	deadlineMs: number;
 }
 
@@ -49,7 +54,7 @@ const defaultDeps: EnhanceDeps = {
 	getAvailableKey,
 	deactivateKey,
 	updateKeyRateLimit,
-	callPoolside,
+	callLlm,
 	deadlineMs: ENHANCE_DEADLINE_MS,
 };
 
@@ -61,7 +66,7 @@ export async function enhancePrompt(
 		getAvailableKey: takeKey,
 		deactivateKey: dropKey,
 		updateKeyRateLimit: saveLimits,
-		callPoolside: callLlm,
+		callLlm: callModel,
 		deadlineMs,
 	} = { ...defaultDeps, ...deps };
 
@@ -94,9 +99,14 @@ export async function enhancePrompt(
 			if (error instanceof AllKeysExhaustedError) break;
 			throw error;
 		}
+		if (!isLlmProvider(key.provider)) {
+			lastError = `unexpected key provider: ${key.provider}`;
+			break;
+		}
 
 		try {
-			const result = await callLlm({
+			const result = await callModel({
+				provider: key.provider,
 				system: STYLE_SYSTEM,
 				user: message,
 				apiKey: key.key,
@@ -146,7 +156,7 @@ export async function enhancePrompt(
 			return {
 				prompt: ensureClosingFormula(cleaned, anchors.medium),
 				keyId: key.id,
-				model: POOLSIDE_MODEL,
+				model: LLM_PROVIDERS[key.provider].model,
 				styleVersion: STYLE_VERSION,
 				inputTokens: result.usage.inputTokens,
 				outputTokens: result.usage.outputTokens,

@@ -1,9 +1,10 @@
 import { getAvailableKey, updateKeyRateLimit } from "../src/lib/keys";
-import { callPoolside } from "../src/lib/llm";
+import { callLlm } from "../src/lib/llm";
 
 const key = await getAvailableKey("poolside");
 const started = Date.now();
-const result = await callPoolside({
+const result = await callLlm({
+	provider: "poolside",
 	system: "You write one vivid English sentence. Output only the sentence.",
 	user: "A pug in a leopard coat rides a neon scooter.",
 	apiKey: key.key,

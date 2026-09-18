@@ -1,26 +1,63 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { APICallError, generateText } from "ai";
+import { APICallError, generateText, type JSONValue } from "ai";
 
 export const POOLSIDE_BASE_URL =
 	process.env.POOLSIDE_BASE_URL ?? "https://inference.poolside.ai/v1";
 export const POOLSIDE_MODEL =
 	process.env.POOLSIDE_MODEL ?? "poolside/laguna-xs-2.1";
+export const INCEPTION_BASE_URL =
+	process.env.INCEPTION_BASE_URL ?? "https://api.inceptionlabs.ai/v1";
+export const INCEPTION_MODEL = process.env.INCEPTION_MODEL ?? "mercury-2.5";
 
-export interface PoolsideUsage {
+export type LlmProviderId = "poolside" | "inception";
+
+export function isLlmProvider(provider: string): provider is LlmProviderId {
+	return provider === "poolside" || provider === "inception";
+}
+
+export interface LlmProviderConfig {
+	/** Имя провайдера в SDK; ключ providerOptions совпадает с ним */
+	name: string;
+	baseURL: string;
+	model: string;
+	/** Опции, прокидываемые в тело запроса через providerOptions[name] */
+	providerOptions: Record<string, JSONValue>;
+	/** HTTP-статусы, означающие «ключ не работает» */
+	exhaustedStatuses: number[];
+}
+
+export const LLM_PROVIDERS: Record<LlmProviderId, LlmProviderConfig> = {
+	poolside: {
+		name: "poolside",
+		baseURL: POOLSIDE_BASE_URL,
+		model: POOLSIDE_MODEL,
+		providerOptions: { chat_template_kwargs: { enable_thinking: false } },
+		exhaustedStatuses: [401, 403, 429],
+	},
+	inception: {
+		name: "inception",
+		baseURL: INCEPTION_BASE_URL,
+		model: INCEPTION_MODEL,
+		providerOptions: { reasoningEffort: "low" },
+		exhaustedStatuses: [401, 402, 403, 429],
+	},
+};
+
+export interface LlmUsage {
 	inputTokens: number | null;
 	outputTokens: number | null;
 	totalTokens: number | null;
 }
 
-export interface PoolsideRateLimit {
+export interface LlmRateLimit {
 	limit: number | null;
 	remaining: number | null;
 }
 
-export interface PoolsideResult {
+export interface LlmResult {
 	text: string;
-	usage: PoolsideUsage;
-	rateLimit: PoolsideRateLimit;
+	usage: LlmUsage;
+	rateLimit: LlmRateLimit;
 }
 
 export class LlmKeyExhaustedError extends Error {
@@ -54,14 +91,16 @@ function toNumber(value: string | null | undefined): number | null {
 	return Number.isFinite(n) ? n : null;
 }
 
-export async function callPoolside(params: {
+export async function callLlm(params: {
+	provider: LlmProviderId;
 	system: string;
 	user: string;
 	apiKey: string;
 	timeoutMs?: number;
 	maxOutputTokens?: number;
-}): Promise<PoolsideResult> {
+}): Promise<LlmResult> {
 	const {
+		provider: providerId,
 		system,
 		user,
 		apiKey,
@@ -69,15 +108,17 @@ export async function callPoolside(params: {
 		maxOutputTokens = 900,
 	} = params;
 
+	const config = LLM_PROVIDERS[providerId];
+
 	const provider = createOpenAICompatible({
-		name: "poolside",
-		baseURL: POOLSIDE_BASE_URL,
+		name: config.name,
+		baseURL: config.baseURL,
 		apiKey,
 	});
 
 	try {
 		const result = await generateText({
-			model: provider(POOLSIDE_MODEL),
+			model: provider(config.model),
 			instructions: system,
 			prompt: user,
 			temperature: 0.9,
@@ -85,7 +126,7 @@ export async function callPoolside(params: {
 			maxRetries: 0,
 			timeout: { totalMs: timeoutMs },
 			providerOptions: {
-				poolside: { chat_template_kwargs: { enable_thinking: false } },
+				[config.name]: config.providerOptions,
 			},
 		});
 
@@ -110,10 +151,10 @@ export async function callPoolside(params: {
 		const status = APICallError.isInstance(error)
 			? error.statusCode
 			: undefined;
-		if (status === 401 || status === 403 || status === 429) {
+		if (status !== undefined && config.exhaustedStatuses.includes(status)) {
 			throw new LlmKeyExhaustedError(
 				status,
-				`Poolside key rejected: ${status}`,
+				`${config.name} key rejected: ${status}`,
 			);
 		}
 		throw new LlmCallError(
