@@ -22,8 +22,8 @@ export function buildFallbackPrompt(
 		omit.has("lighting") ? "" : `${anchors.lighting}.`,
 		`Render it as ${anchors.medium}.`,
 		options.textRequested
-			? `Blue-and-red ceremonial banners with white 42 emblems carry the exact text ${(options.exactTexts?.length ? options.exactTexts : [anchors.slogan]).map((text) => `«${text}»`).join(" and ")}, plus a giant glowing 42 in the background.`
-			: `Blue-and-red ceremonial banners with white 42 emblems fill the background, with a single giant glowing 42 as the only text in the frame.`,
+			? `Blue-over-red bicolor banners with white 42 emblems carry the exact text ${(options.exactTexts?.length ? options.exactTexts : [anchors.slogan]).map((text) => `«${text}»`).join(" and ")}, plus a giant glowing 42 in the background.`
+			: `Blue-over-red bicolor banners with white 42 emblems fill the background, with a single giant glowing 42 as the only text in the frame.`,
 		`Wide-angle poster composition, epic scale, confetti and fireworks in the air, absurd triumphant kitsch, no watermarks, no signature.`,
 	]
 		.filter(Boolean)

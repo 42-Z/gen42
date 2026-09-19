@@ -22,6 +22,7 @@ import {
 	validateEnhancedPrompt,
 } from "./prompts/contract";
 import {
+	buildBrief,
 	detectUserMedium,
 	detectUserPalette,
 	detectUserSetting,
@@ -117,6 +118,7 @@ export async function enhancePrompt(
 		textRequested,
 		exactTexts,
 		textCandidates: textRequested ? extractCapsPhrases(userInput) : [],
+		brief: buildBrief(userInput),
 		omit: anchorsToOmit(userInput),
 	};
 	const baseMessage = buildUserMessage(userInput, anchors, messageOptions);

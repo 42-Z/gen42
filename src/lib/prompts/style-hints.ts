@@ -51,7 +51,7 @@ export const USER_MEDIUM_HINTS: readonly UserMediumHint[] = [
 ];
 
 const CLOSING_TAIL =
-	"wide-angle poster composition, hyper-saturated gold-and-neon palette, absurd triumphant kitsch, no watermarks, no signature";
+	"wide-angle poster composition, hyper-saturated rainbow-and-gold palette, absurd triumphant kitsch, no watermarks, no signature";
 
 const ALL_MEDIUM_PHRASES = [
 	...USER_MEDIUM_HINTS.map((hint) => hint.phrase),
@@ -109,19 +109,25 @@ export function requestsText(userInput: string): boolean {
 }
 
 const NAMED_TEXT =
-	/(?:под названием|с названием|называ[ею]тся|с именем|по имени)\s+([^,.!?;:«»"“”\n]+)/giu;
+	/(?:под названием|с названием|называ[ею]тся|с именем|по имени|(?<![\p{L}])(?:альбо+м|трек|песн|клип|сингл|album|track|song)\p{L}*)\s+([^,.!?;:«»"“”\n]+)/giu;
 
-// «здание под названием SLAY тёмные цвета» → «SLAY»: берём слова, пока они
-// похожи на имя (латиница, заглавная буква или цифры), и останавливаемся на
-// первом обычном слове.
+// «здание под названием SLAY тёмные цвета» → «SLAY», «слушают альбом Magnum»
+// → «Magnum»: берём слова, пока они похожи на имя (латиница, заглавная буква
+// или цифры), и останавливаемся на первом обычном слове.
 export function extractNamedTexts(userInput: string): string[] {
 	const names: string[] = [];
 	for (const match of userInput.matchAll(NAMED_TEXT)) {
 		const words: string[] = [];
 		for (const word of (match[1] ?? "").trim().split(/\s+/)) {
-			if (!/^(?:[\p{Lu}\d]|[A-Za-z])/u.test(word) || words.length >= 4) break;
+			const joiner = /^[-–—&]$/.test(word);
+			if (
+				words.length >= 5 ||
+				!(joiner || /^(?:[\p{Lu}\d]|[A-Za-z])/u.test(word))
+			)
+				break;
 			words.push(word);
 		}
+		while (words.length > 0 && /^[-–—&]$/.test(words.at(-1)!)) words.pop();
 		if (words.length > 0) names.push(words.join(" "));
 	}
 	return [...new Set(names)];
@@ -187,6 +193,35 @@ export function detectUserPalette(userInput: string): boolean {
 	return USER_PALETTE.test(userInput);
 }
 
+const GROUP_REQUEST =
+	/(братух|толп|отряд|взвод|(?<![\p{L}])рот[аыу](?![\p{L}])|батальон|банд[аыу]|компани|друз|(?<![\p{L}])все(?![\p{L}])|люди|гост[ьие]|фанат|\b(crowd|group|squad|gang|friends|people|fans|bros)\b|(?<![\d])([2-9]|\d{2,})\s+\p{L})/iu;
+
+const LISTEN_REQUEST = /слуша|\blisten/i;
+
+const IDEA_LINE =
+	"MAKE THE IDEA OBVIOUS: the hero's action and every object named in the request are big, in the foreground and mentioned at least twice — never a tiny detail. Add no new hero and no hero action the request did not name.";
+
+const VIBE_LINE =
+	"42 VIBE (soak the user's idea in it, never replace the idea): a named person or animal wears the 42 look itself; a landscape, weather or object request stays that landscape, weather or object — the 42 crowd lives inside it; rainbow patchwork shaggy fur coats, leopard, zebra and cotton-candy furs, sequined jackets with golden epaulettes, fringe, crowns, gold chains with 42 medallions, RGB light strips and fiber-optic strands glowing in the fur, two or three fantasy creatures from the entourage next to the hero, the number 42 living on jerseys, medallions, balloons and horizontal bicolor flags (blue top half, red bottom half, a white 42 inside a golden laurel wreath — never national flags), hyper-saturated rainbow-and-gold palette.";
+
+// Короткий бриф в конце сообщения: маленькая LLM теряет правила из длинного
+// системного промпта, а последние строки сообщения соблюдает.
+export function buildBrief(userInput: string): string[] {
+	const brief: string[] = [];
+	if (GROUP_REQUEST.test(userInput)) {
+		brief.push(
+			"GROUP: the heroes are a group — describe three to five of them one by one (fur coat color and texture, headwear, accessory, pose, emotion), no two outfits alike, never «matching outfits» or «varied streetwear»; say the rest are just as loud and all different.",
+		);
+	}
+	if (LISTEN_REQUEST.test(userInput)) {
+		brief.push(
+			"LISTENING must be visible: huge glowing over-ear headphones on EVERY hero, eyes closed and heads nodding, rings of sound waves, speakers, and the album cover shown big on a screen, a zeppelin or in a hero's hands; mention the headphones in the first sentence and again later.",
+		);
+	}
+	brief.push(IDEA_LINE, VIBE_LINE);
+	return brief;
+}
+
 interface CanonCast {
 	name: string;
 	output: RegExp;
@@ -234,6 +269,18 @@ const CANON_CAST: readonly CanonCast[] = [
 	{ name: "jet ski", output: /\bjet skis?\b/i, input: /гидроцикл|jet ?ski/i },
 	{ name: "tank", output: /\btanks?\b/i, input: /танк|\btanks?\b/i },
 	{ name: "throne", output: /\bthrones?\b/i, input: /трон|throne/i },
+	{ name: "phoenix", output: /\bphoenix(es)?\b/i, input: /феникс|phoenix/i },
+	{ name: "unicorn", output: /\bunicorns?\b/i, input: /единорог|unicorn/i },
+	{ name: "dolphin", output: /\bdolphins?\b/i, input: /дельфин|dolphin/i },
+	{ name: "seal", output: /\bseals?\b/i, input: /тюлен|\bseals?\b/i },
+	// Выдуманный персонаж в пейзаже («закат» → «a figure in a fur coat»).
+	{
+		name: "invented figure",
+		output:
+			/\b(figure|man|woman|person|guy|girl|boy|character|stranger|rider|dancer|king|queen)s?\b/i,
+		input:
+			/человек|люд|мужчин|женщин|девуш|девоч|девчон|парн|парен|мальчик|братух|толп|фанат|гост|рыцар|солдат|воин|взвод|батальон|отряд|босс|президент|король|королев|царь|портрет|самура|танцор|байкер|шериф|(?<![\p{L}])(все|мы|я)(?![\p{L}])|\b(man|woman|girl|boy|people|person|samurai|knight|king|queen|crowd|guy|figure)s?\b/iu,
+	},
 ];
 
 const OPENING_WORDS = 10;
@@ -357,6 +404,11 @@ export const EXPLICIT_DETAILS: readonly DetailMarker[] = [
 	{ pattern: /танц|\bdanc/i, marker: "dance" },
 	{ pattern: /прыга|прыжок|\b(jump|leap)\b/i, marker: "jump" },
 	{ pattern: /слуша|\blisten/i, marker: "listen" },
+	{
+		pattern:
+			/(?<![\p{L}])(ест|едят|кушает|кушают|жу[её]т|жрут|жр[её]т|лопает|уплетает)(?![\p{L}])|\beat(s|ing)?\b/iu,
+		marker: "eat",
+	},
 	// Названный герой-животное не должен подменяться другим видом
 	// («мопс» → «corgi»), а реальный политик — терять замену на Босса.
 	{ pattern: /мопс|\bpugs?\b/i, marker: "pug" },
@@ -375,6 +427,7 @@ export const EXPLICIT_DETAILS: readonly DetailMarker[] = [
 	{ pattern: /медвед|\bbear\b/i, marker: "bear" },
 	{ pattern: /опосс?ум|\bopossum/i, marker: "opossum" },
 	{ pattern: /кабан|\bboar/i, marker: "boar" },
+	{ pattern: /свин|поросён|поросен|хряк|\b(pig|piglet)s?\b/i, marker: "pig" },
 	{
 		pattern:
 			/президент|министр|депутат|губернатор|(?<![\p{L}])мэр(?![\p{L}])|начальник/iu,
@@ -397,7 +450,8 @@ const DETAIL_MARKER_SYNONYMS: Record<string, RegExp> = {
 	armor: /armor|armour|plated|breastplate/i,
 	dance: /danc|waltz|sway/i,
 	jump: /jump|leap|mid-air/i,
-	listen: /listen|headphone|earbud|speaker/i,
+	// «Слушают» без наушников генератор не рисует: одних колонок мало.
+	listen: /headphone|earphone|earbud/i,
 	pug: /\bpugs?\b/i,
 	cat: /\b(cat|kitten|kitty)s?\b/i,
 	dog: /\b(dog|puppy|puppies|hound)s?\b/i,
@@ -406,15 +460,33 @@ const DETAIL_MARKER_SYNONYMS: Record<string, RegExp> = {
 	bear: /\bbears?\b/i,
 	opossum: /\bopossum/i,
 	boar: /\bboars?\b/i,
+	pig: /\b(pig|piglet|hog)s?\b/i,
+	eat: /\b(eat|eats|eating|munch|chew|devour|bite|biting|feast|gobbl)/i,
 	boss: /\bboss\b/i,
 };
 
+// Герой-животное из запроса обязан быть в первом предложении: мопсы из свиты
+// в конце текста не спасают, если героем стала «пушистая собака».
+const HERO_MARKERS = new Set([
+	"pug",
+	"cat",
+	"dog",
+	"tiger",
+	"wolf",
+	"bear",
+	"opossum",
+	"boar",
+	"pig",
+]);
+
 export function missingDetails(userInput: string, output: string): string[] {
 	const missing: string[] = [];
+	const firstSentence = output.split(/(?<=[.!?])\s/)[0] ?? output;
 	for (const detail of EXPLICIT_DETAILS) {
 		if (!detail.pattern.test(userInput)) continue;
 		const synonyms = DETAIL_MARKER_SYNONYMS[detail.marker];
-		if (!synonyms?.test(output)) missing.push(detail.marker);
+		const scope = HERO_MARKERS.has(detail.marker) ? firstSentence : output;
+		if (!synonyms?.test(scope)) missing.push(detail.marker);
 	}
 	return missing;
 }

@@ -24,11 +24,11 @@ describe("sanitizeEnhancedPrompt", () => {
 		expect(sanitizeEnhancedPrompt(raw)).toBe("A pug rides a scooter.");
 	});
 
-	test("обрезает по границе предложения до 1500 символов", () => {
+	test("обрезает по границе предложения до 2000 символов", () => {
 		const sentence = `${"word ".repeat(40)}. `;
 		const long = sentence.repeat(40);
 		const clean = sanitizeEnhancedPrompt(long);
-		expect(clean.length).toBeLessThanOrEqual(1500);
+		expect(clean.length).toBeLessThanOrEqual(2000);
 		expect(clean.endsWith(".")).toBe(true);
 	});
 

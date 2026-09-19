@@ -289,7 +289,7 @@ describe("свита не открывает промпт", () => {
 		).toEqual([]);
 		expect(
 			hijackedOpening(
-				"правая половина белая, а левая черная",
+				"человек, правая половина белая, а левая черная",
 				"A lion-hearted winged figure splits in two.",
 			),
 		).toEqual([]);
@@ -317,7 +317,7 @@ describe("слушают", () => {
 		expect(
 			missingDetails(
 				"Все слушают альбом",
-				"A crowd listens to giant speakers.",
+				"A crowd in glowing headphones listens to giant speakers.",
 			),
 		).toEqual([]);
 	});
@@ -376,5 +376,74 @@ describe("кавычки для генератора", () => {
 		expect(toGeneratorQuotes("a neon sign «SLAY» and «УЖЕ ВЫШЕЛ»")).toBe(
 			'a neon sign "SLAY" and "УЖЕ ВЫШЕЛ"',
 		);
+	});
+});
+
+describe("альбомы и треки", () => {
+	test("название альбома — точный текст, даже с опечаткой и дефисом", () => {
+		expect(
+			extractNamedTexts("42 братухи на самокатах слушают альбоом Magnum"),
+		).toEqual(["Magnum"]);
+		expect(extractNamedTexts("Все слушают альбом 5opka - Magnum")).toEqual([
+			"5opka - Magnum",
+		]);
+		expect(extractNamedTexts("слушают новый альбом")).toEqual([]);
+	});
+
+	test("колонок без наушников мало для «слушают»", () => {
+		expect(
+			missingDetails("Все слушают альбом", "A crowd near giant speakers."),
+		).toEqual(["listen"]);
+	});
+});
+
+describe("герой-животное в первом предложении", () => {
+	test("мопсы из свиты в конце не заменяют героя", () => {
+		expect(
+			missingDetails(
+				"мопс на самокате",
+				"A fluffy dog rides a scooter. Pugs in fur coats dance around.",
+			),
+		).toEqual(["pug"]);
+		expect(
+			missingDetails(
+				"мопс на самокате",
+				"A pug in a rainbow coat rides a scooter.",
+			),
+		).toEqual([]);
+	});
+});
+
+describe("ест", () => {
+	test("потеря еды ловится, «есть» в смысле «имеется» — нет", () => {
+		expect(
+			missingDetails("свинья ест попкорн", "A pig holds gold bars."),
+		).toEqual(["eat"]);
+		expect(
+			missingDetails("свинья ест попкорн", "A pig eats popcorn from a bucket."),
+		).toEqual([]);
+		expect(missingDetails("у кота есть корона", "A cat in a crown.")).toEqual(
+			[],
+		);
+	});
+});
+
+describe("пейзаж без выдуманного героя", () => {
+	test("фигура в начале пейзажа ловится, в запросе про людей — нет", () => {
+		expect(
+			hijackedOpening(
+				"закат",
+				"A colossal figure in a leopard coat stands at sunset.",
+			),
+		).toEqual(["invented figure"]);
+		expect(
+			hijackedOpening(
+				"Человек в костюме с крыльями",
+				"A winged humanoid figure splits down the middle.",
+			),
+		).toEqual([]);
+		expect(
+			hijackedOpening("дождь", "A torrential downpour drenches the plaza."),
+		).toEqual([]);
 	});
 });

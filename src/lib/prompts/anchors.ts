@@ -18,12 +18,12 @@ export interface AnchorCategory {
 
 const LOCATIONS = [
 	"a neon-drenched cyberpunk megacity with Cyrillic neon signs",
-	"a medieval castle banquet hall hung with blue-and-red banners",
+	"a medieval castle banquet hall hung with blue-over-red bicolor banners",
 	"a palace square at golden hour",
 	"a night highway arched with rainbow neon lights",
 	"a stadium concert stage with searchlights",
 	"a flooded underwater laboratory full of bubbles",
-	"a half-ruined city street with heroes mid-battle",
+	"a half-ruined city street turned into a block party",
 	"a sunset mountain ridge above the clouds",
 	"a golden throne room with marble columns",
 	"a rooftop helipad above the clouds",
@@ -41,16 +41,18 @@ const TRANSPORT = [
 ] as const;
 
 const CREATURES = [
-	"a pug in a leopard fur coat and gold chains",
-	"a hippopotamus DJ in a fur coat with headphones",
-	"giraffes riding electric scooters",
+	"a crowd of pugs in rainbow fur coats and tiny crowns",
+	"a hippopotamus DJ in a fur coat with glowing headphones",
+	"a hippopotamus general in a leopard peaked cap and golden epaulettes",
+	"boars riding RGB-lit electric scooters",
+	"seals with jetpacks leaving rainbow trails",
+	"a pig in shaggy rainbow fur eating popcorn",
 	"flamingos dripping in gold jewelry",
-	"a rhinoceros in a business suit",
-	"a squad of pugs in tiny tuxedos",
+	"phoenixes and unicorns circling overhead",
+	"dolphins wearing golden crowns",
+	"pugs in Napoleon bicorne hats and ermine capes",
 	"an anthropomorphic cactus in dark sunglasses",
-	"a lion wearing a diamond crown",
-	"a monkey in a sequined jacket",
-	"a battle-scarred armored turtle",
+	"a spiked turtle boss with jet turbines",
 ] as const;
 
 const LUXURY = [
@@ -61,7 +63,7 @@ const LUXURY = [
 	"oversized luxury sneakers",
 	"a gold chain with a giant 42 medallion",
 	"a glass case of rubies",
-	"a leopard fur coat with a towering fur collar",
+	"a leopard fur coat with a towering fur collar worn by the hero",
 ] as const;
 
 const SLOGANS = [
@@ -108,6 +110,9 @@ const PROPS = [
 	"a golden saxophone played by a flamingo",
 	"a velvet throne mounted on a hoverboard",
 	"a crystal trophy cabinet full of 42-shaped awards",
+	"a bouquet of balloons shaped like the number 42",
+	"champagne-bottle rockets spraying foam and sparks",
+	"a laughing sun wearing dark sunglasses",
 ] as const;
 
 export const ANCHOR_CATEGORIES: readonly AnchorCategory[] = [
@@ -157,6 +162,7 @@ export interface UserMessageOptions {
 	missingDetails?: string[];
 	hijackedBy?: string[];
 	omit?: readonly (keyof Anchors)[];
+	brief?: string[];
 }
 
 export function buildUserMessage(
@@ -222,5 +228,5 @@ ${textLine}${exactLine}${candidatesLine}${userOwnedLine}${missingLine}${hijackLi
 ${clean}
 >>>
 
-The hero of the image is what USER_REQUEST names (people stay people, named places stay places). Open the prompt with that hero, its action and its place; the anchors only decorate the background.`;
+${options.brief?.length ? `${options.brief.join("\n")}\n\n` : ""}The hero of the image is what USER_REQUEST names (people stay people, named places stay places). Open the prompt with that hero, its action and its place; the anchors only decorate the background.`;
 }
