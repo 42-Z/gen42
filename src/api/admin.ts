@@ -275,11 +275,13 @@ export const adminRoutes = {
             COUNT(*) FILTER (WHERE created_at >= DATE_TRUNC('day', NOW())) AS today_generations,
             COALESCE(AVG(duration_ms), 0) AS avg_duration_ms
           FROM generations
+          WHERE status = 'completed'
         `,
 					sql`
           SELECT g.user_id, u.email, COUNT(*) AS count
           FROM generations g
           JOIN "user" u ON g.user_id = u.id
+          WHERE g.status = 'completed'
           GROUP BY g.user_id, u.email
           ORDER BY count DESC
           LIMIT 10
