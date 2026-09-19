@@ -90,8 +90,48 @@ describe("anchors", () => {
 		expect(requestBlock).not.toContain("<<<");
 		expect(requestBlock).not.toContain(">>>");
 		expect(message.match(/<<<USER_REQUEST/g)?.length).toBe(1);
-		expect(message.slice(message.indexOf(">>>") + 3)).toContain(
+		expect(message.slice(0, message.indexOf("<<<USER_REQUEST"))).toContain(
 			"ANCHORS FOR THIS GENERATION",
 		);
+	});
+
+	test("запрос пользователя идёт последним, после якорей", () => {
+		const anchors = pickAnchors(() => 0);
+		const message = buildUserMessage("кот", anchors);
+		expect(message.indexOf("<<<USER_REQUEST")).toBeGreaterThan(
+			message.indexOf(anchors.location),
+		);
+		expect(
+			message.trimEnd().endsWith("the anchors only decorate the background."),
+		).toBe(true);
+	});
+
+	test("якоря, которые задал пользователь, не передаются", () => {
+		const anchors = pickAnchors(() => 0);
+		const message = buildUserMessage("кот в клубе, тёмные цвета", anchors, {
+			omit: ["location", "lighting"],
+		});
+		expect(message).not.toContain(anchors.location);
+		expect(message).not.toContain(anchors.lighting);
+		expect(message).toContain("USER-DEFINED");
+		expect(message).toContain(anchors.creatures);
+	});
+
+	test("лозунги капсом приходят кандидатами и вытесняют слоган каталога", () => {
+		const anchors = pickAnchors(() => 0);
+		const message = buildUserMessage("агитация СЛАВА 1 ВЗВОДУ", anchors, {
+			textRequested: true,
+			textCandidates: ["СЛАВА 1 ВЗВОДУ"],
+		});
+		expect(message).toContain("TEXT CANDIDATES");
+		expect(message).toContain("«СЛАВА 1 ВЗВОДУ»");
+		expect(message).not.toContain(`slogan: ${anchors.slogan}`);
+	});
+
+	test("медиумы якоря только реалистичные", () => {
+		const medium = ANCHOR_CATEGORIES.find((c) => c.key === "medium")!;
+		for (const value of medium.values) {
+			expect(value).toMatch(/photograph|3D render|film still/);
+		}
 	});
 });

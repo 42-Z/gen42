@@ -166,7 +166,7 @@ describe("enhancePrompt", () => {
 		);
 		expect(result.fallback).toBe(false);
 		expect(result.prompt).toContain("laser");
-		expect(result.prompt).toContain("«ЖИВИ ГРОМКО»");
+		expect(result.prompt).toContain('"ЖИВИ ГРОМКО"');
 		const retryCall = deps.callLlm.mock.calls[1] as unknown as
 			| [{ user: string }]
 			| undefined;
