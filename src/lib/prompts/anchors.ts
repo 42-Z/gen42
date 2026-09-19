@@ -61,7 +61,7 @@ const LUXURY = [
 	"oversized luxury sneakers",
 	"a gold chain with a giant 42 medallion",
 	"a glass case of rubies",
-	"a fur-collar coat on a velvet hanger",
+	"a leopard fur coat with a towering fur collar",
 ] as const;
 
 const SLOGANS = [
@@ -77,13 +77,15 @@ const SLOGANS = [
 	"БРАТУХА 42",
 ] as const;
 
+// Без явного стиля пользователя кадр реалистичный: стилизации (аниме,
+// пиксель-арт, комикс, масло) включаются только по запросу — USER_MEDIUM_HINTS.
 const MEDIUMS = [
 	"hyper-detailed cinematic photograph",
 	"cinematic 3D render with physically believable materials and realistic light",
-	"anime poster with speed lines and impact bubbles",
-	"pixel-art vaporwave collage",
-	"thick oil painting with canvas texture",
-	"comic-book cover art with halftone dots",
+	"glossy hip-hop album cover photograph with hard flash",
+	"cinematic film still shot on 35mm with anamorphic flares",
+	"hyper-real editorial magazine photograph",
+	"wide-angle night photograph with long-exposure light trails",
 ] as const;
 
 const LIGHTING = [
@@ -148,24 +150,35 @@ export function pickAnchors(random: () => number = Math.random): Anchors {
 	return picked as Anchors;
 }
 
+export interface UserMessageOptions {
+	textRequested?: boolean;
+	exactTexts?: string[];
+	textCandidates?: string[];
+	missingDetails?: string[];
+	hijackedBy?: string[];
+	omit?: readonly (keyof Anchors)[];
+}
+
 export function buildUserMessage(
 	userInput: string,
 	anchors: Anchors,
-	options: {
-		textRequested?: boolean;
-		exactTexts?: string[];
-		missingDetails?: string[];
-	} = {},
+	options: UserMessageOptions = {},
 ): string {
 	const clean = userInput
 		.trim()
 		.replace(/\s+/g, " ")
 		.replace(/<<<|>>>/g, " ");
 	const exactTexts = options.exactTexts ?? [];
+	const textCandidates = options.textCandidates ?? [];
+	const omit = new Set(options.omit ?? []);
 	const anchorLines = ANCHOR_CATEGORIES.filter(
 		(category) =>
 			(!category.requiresText || options.textRequested) &&
-			!(category.key === "slogan" && exactTexts.length > 0),
+			!(
+				category.key === "slogan" &&
+				(exactTexts.length > 0 || textCandidates.length > 0)
+			) &&
+			!omit.has(category.key),
 	)
 		.map((category) => `${category.label}: ${anchors[category.key]}`)
 		.join("\n");
@@ -178,16 +191,36 @@ export function buildUserMessage(
 		? `\nEXACT TEXT (must appear verbatim in the frame, no translation, no edits): ${exactTexts.map((text) => `«${text}»`).join(", ")}.`
 		: "";
 
+	const candidatesLine = textCandidates.length
+		? `\nTEXT CANDIDATES (the user wrote these slogans in caps; use one to three of them verbatim as the main inscriptions): ${textCandidates.map((text) => `«${text}»`).join(", ")}.`
+		: "";
+
+	const userOwned = [
+		omit.has("location") && "the place / setting",
+		omit.has("lighting") && "the colors, light and mood",
+	].filter(Boolean);
+	const userOwnedLine = userOwned.length
+		? `\nUSER-DEFINED (take these from the request, no anchor may replace them): ${userOwned.join("; ")}.`
+		: "";
+
+	const hijackLine = options.hijackedBy?.length
+		? `\nPREVIOUS ATTEMPT WAS REJECTED: it opened with the entourage (${options.hijackedBy.join(", ")}) instead of the user's subject. The first sentence must be about the user's own hero, action and place.`
+		: "";
+
 	const missingLine = options.missingDetails?.length
 		? `\nMISSING DETAILS FROM THE PREVIOUS ATTEMPT (they must appear explicitly and prominently): ${options.missingDetails.join(", ")}.`
 		: "";
 
-	return `<<<USER_REQUEST
+	// Запрос пользователя стоит последним: маленькие модели сильнее слушаются
+	// конца сообщения, и якоря не должны оказываться «последним словом».
+	return `ANCHORS FOR THIS GENERATION (42-canon fillers for the gaps the request leaves open: keep them secondary, never in the first sentence, never instead of the user's hero, place, action, colors or mood; drop one if it contradicts the request):
+${anchorLines}
+
+${textLine}${exactLine}${candidatesLine}${userOwnedLine}${missingLine}${hijackLine}
+
+<<<USER_REQUEST
 ${clean}
 >>>
 
-${textLine}${exactLine}
-
-ANCHORS FOR THIS GENERATION (must be woven in organically, keep the user's idea as the hero of the scene):
-${anchorLines}${missingLine}`;
+The hero of the image is what USER_REQUEST names (people stay people, named places stay places). Open the prompt with that hero, its action and its place; the anchors only decorate the background.`;
 }

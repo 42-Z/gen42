@@ -1,12 +1,20 @@
 import { describe, expect, test } from "bun:test";
 import {
 	detectUserMedium,
+	detectUserPalette,
+	detectUserSetting,
 	ensureClosingFormula,
+	extractCapsPhrases,
+	extractNamedTexts,
 	extractQuotedTexts,
 	hasMediumPhrase,
+	hijackedOpening,
 	maskUnrequestedTexts,
 	missingDetails,
+	openingSpan,
+	quoteUserCyrillic,
 	requestsText,
+	toGeneratorQuotes,
 } from "../prompts/style-hints";
 
 describe("requestsText", () => {
@@ -193,5 +201,180 @@ describe("границы русских стемов (регрессия рев�
 		expect(missingDetails("человек с крыльями", "A calm portrait.")).toEqual([
 			"wing",
 		]);
+	});
+});
+
+describe("текст из запросов сообщества", () => {
+	test("агитация и лозунг капсом — текстовый запрос", () => {
+		expect(
+			requestsText("Покажи как бы выглядела агитация с таким содержанием"),
+		).toBe(true);
+		expect(requestsText("СЛАВА 1 ВЗВОДУ 1 РОТЫ 🙏🔥")).toBe(true);
+		expect(requestsText("здание под названием SLAY")).toBe(true);
+	});
+
+	test("одиночные слова капсом лозунгом не считаются", () => {
+		expect(extractCapsPhrases("байкеры слушают VPN и MAGNUM")).toEqual([]);
+		expect(requestsText("байкеры слушают VPN")).toBe(false);
+	});
+
+	test("лозунг капсом извлекается целиком, с числами", () => {
+		expect(
+			extractCapsPhrases(
+				"агитация где СЛАВА 1 ВЗВОДУ 1 РОТЫ 1 БАТАЛЬОНА 42 ПРОПАГАНДЫ 🙏🔥",
+			),
+		).toEqual(["СЛАВА 1 ВЗВОДУ 1 РОТЫ 1 БАТАЛЬОНА 42 ПРОПАГАНДЫ"]);
+		expect(extractCapsPhrases("Пятёрку в SLAY KING 2026! 🏆")).toEqual([
+			"SLAY KING 2026",
+		]);
+	});
+
+	test("название после «под названием» — до первого обычного слова", () => {
+		expect(
+			extractNamedTexts(
+				"42 братухи нападают на здание под названием SLAY темные цвета",
+			),
+		).toEqual(["SLAY"]);
+		expect(extractNamedTexts("кафе с названием Золотой Мопс, ночь")).toEqual([
+			"Золотой Мопс",
+		]);
+		expect(extractNamedTexts("кот на диване")).toEqual([]);
+	});
+});
+
+describe("место и палитра запроса", () => {
+	test("место из запроса распознаётся", () => {
+		expect(detectUserSetting("джакузи в клубе с пачками денег")).toBe(true);
+		expect(detectUserSetting("опоссум-шериф, дикий запад")).toBe(true);
+		expect(detectUserSetting("кот")).toBe(false);
+		expect(detectUserSetting("всё горит, война")).toBe(false);
+	});
+
+	test("цвета и настроение из запроса распознаются", () => {
+		expect(
+			detectUserPalette("темные цвета песок желтые оттенки все горит"),
+		).toBe(true);
+		expect(detectUserPalette("кот")).toBe(false);
+	});
+});
+
+describe("свита не открывает промпт", () => {
+	test("подлежащее первого предложения — до предлога", () => {
+		expect(
+			openingSpan("A colossal cat on a diamond throne, pugs around."),
+		).toBe("A colossal cat");
+	});
+
+	test("свита из канона вместо героя ловится", () => {
+		expect(
+			hijackedOpening(
+				"42 братухи нападают на здание",
+				"A colossal army of golden-armored rhinos in suits storms the building.",
+			),
+		).toEqual(["rhinoceros"]);
+		expect(
+			hijackedOpening(
+				"агитация СЛАВА 1 ВЗВОДУ",
+				"A battle-scarred armored turtle tank rumbles onto the stage.",
+			),
+		).toEqual(["turtle", "tank"]);
+	});
+
+	test("герой пользователя и декор после предлога не считаются подменой", () => {
+		expect(
+			hijackedOpening("кот", "A colossal cat on a diamond throne with pugs."),
+		).toEqual([]);
+		expect(
+			hijackedOpening("мопс в короне", "A pug in a crown on a golden throne."),
+		).toEqual([]);
+		expect(
+			hijackedOpening(
+				"правая половина белая, а левая черная",
+				"A lion-hearted winged figure splits in two.",
+			),
+		).toEqual([]);
+	});
+});
+
+describe("кириллица из запроса", () => {
+	test("названия из запроса берутся в кавычки, остальное не трогается", () => {
+		expect(
+			quoteUserCyrillic(
+				"boars blast ГОРОДСКИЕ and ТУСА МЕДУЗА under «OPUS всем нашим», Привет",
+				"из саббуферов играет MAGNUM, ГОРОДСКИЕ, ТУСА МЕДУЗА",
+			),
+		).toBe(
+			"boars blast «ГОРОДСКИЕ» and «ТУСА МЕДУЗА» under «OPUS всем нашим», Привет",
+		);
+	});
+});
+
+describe("слушают", () => {
+	test("потеря прослушивания ловится", () => {
+		expect(
+			missingDetails("Все слушают альбом", "A golden 42 jumps over a wall."),
+		).toEqual(["listen"]);
+		expect(
+			missingDetails(
+				"Все слушают альбом",
+				"A crowd listens to giant speakers.",
+			),
+		).toEqual([]);
+	});
+});
+
+describe("названный герой не подменяется", () => {
+	test("мопс не становится корги, президент — не пропадает", () => {
+		expect(missingDetails("мопс", "A regal corgi on a stage.")).toEqual([
+			"pug",
+		]);
+		expect(
+			missingDetails(
+				"президент верхом на медведе",
+				"A golden bear on an elephant.",
+			),
+		).toEqual(["boss"]);
+		expect(
+			missingDetails(
+				"президент верхом на медведе",
+				"The Boss in a crown rides a bear.",
+			),
+		).toEqual([]);
+	});
+
+	test("«который», «защищён» и опечатки не считаются котом и щенком", () => {
+		expect(
+			missingDetails("человек, у котоьрого плащ, который защищен", "A man."),
+		).toEqual([]);
+		expect(missingDetails("кошка на диване", "A cat on a sofa.")).toEqual([]);
+		expect(missingDetails("неоновый кот-программист", "A dog.")).toEqual([
+			"cat",
+		]);
+	});
+});
+
+describe("имя из запроса без текстового запроса", () => {
+	test("транслитерируется, а не маскируется в 42", () => {
+		const quoted = quoteUserCyrillic(
+			"A regal cat named Барсик naps on a throne.",
+			"кот барсик спит на диване",
+			false,
+		);
+		expect(quoted).toBe("A regal cat named Barsik naps on a throne.");
+		expect(maskUnrequestedTexts(quoted)).toContain("Barsik");
+	});
+});
+
+describe("кавычки для генератора", () => {
+	test("типографские кавычки тоже становятся прямыми", () => {
+		expect(toGeneratorQuotes("a banner “СЛАВА 42” here")).toBe(
+			'a banner "СЛАВА 42" here',
+		);
+	});
+
+	test("ёлочки становятся прямыми кавычками", () => {
+		expect(toGeneratorQuotes("a neon sign «SLAY» and «УЖЕ ВЫШЕЛ»")).toBe(
+			'a neon sign "SLAY" and "УЖЕ ВЫШЕЛ"',
+		);
 	});
 });
