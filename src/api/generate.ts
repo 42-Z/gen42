@@ -7,6 +7,7 @@ import {
 } from "../lib/credits";
 import { sql } from "../lib/db";
 import { enhancePrompt } from "../lib/enhance";
+import { describeGenerationError } from "../lib/generation-error";
 import {
 	generateImage,
 	getZeroGPUQuota,
@@ -30,6 +31,55 @@ import { checkRateLimit } from "../lib/rate-limit";
 import { getImageUrl, uploadImage } from "../lib/storage";
 
 const MAX_ATTEMPTS = 5;
+
+/**
+ * Неуспешная попытка тоже попадает в историю: исходный промпт, что успели
+ * получить от LLM и причина. Кредиты возвращены, поэтому cost = 0.
+ * Ошибка записи не должна подменять ответ пользователю.
+ */
+async function recordFailedGeneration(params: {
+	userId: string;
+	prompt: string;
+	negativePrompt?: string;
+	engine: string;
+	model?: string;
+	width?: number;
+	height?: number;
+	steps?: number;
+	seed?: number;
+	enhanced: Awaited<ReturnType<typeof enhancePrompt>> | null;
+	apiKeyId: string | null;
+	durationMs: number;
+	error: unknown;
+}): Promise<void> {
+	const { enhanced } = params;
+	const isIdeogram = params.engine === "ideogram";
+	try {
+		await sql`
+      INSERT INTO generations
+        (id, user_id, prompt, enhanced_prompt, negative_prompt, model, width,
+         height, steps, seed, status, error_message, duration_ms, api_key_id,
+         llm_key_id, llm_model, llm_tokens, enhance_ms, style_version, engine,
+         cost)
+      VALUES
+        (${crypto.randomUUID()}, ${params.userId}, ${params.prompt},
+         ${enhanced?.prompt ?? null}, ${params.negativePrompt || null},
+         ${isIdeogram ? IDEOGRAM_MODE : params.model || "Turbo"},
+         ${params.width || 1024}, ${params.height || 1024},
+         ${isIdeogram ? IDEOGRAM_STEPS : params.steps || 8},
+         ${Number.isInteger(params.seed) ? (params.seed as number) : null},
+         'failed',
+         ${describeGenerationError(params.error)}, ${params.durationMs},
+         ${params.apiKeyId}, ${enhanced?.keyId ?? null},
+         ${enhanced?.model ?? null},
+         ${(enhanced?.inputTokens ?? 0) + (enhanced?.outputTokens ?? 0) || null},
+         ${enhanced?.durationMs ?? null}, ${enhanced?.styleVersion ?? null},
+         ${params.engine}, 0)
+    `;
+	} catch (err) {
+		console.error("Не удалось записать неуспешную генерацию:", err);
+	}
+}
 
 export const generateRoutes = {
 	"/api/models": {
@@ -66,12 +116,14 @@ export const generateRoutes = {
 
 			let creditSpent = false;
 			let currentKey: Awaited<ReturnType<typeof getAvailableKey>> | null = null;
+			let enhanced: Awaited<ReturnType<typeof enhancePrompt>> | null = null;
+			const requestStart = Date.now();
 
 			try {
 				await deductCredits(session.user.id, cost);
 				creditSpent = true;
 
-				const enhanced = await enhancePrompt(prompt);
+				enhanced = await enhancePrompt(prompt);
 				if (enhanced.fallback) {
 					console.warn(
 						`Обогащение промпта упало в fallback: ${enhanced.error ?? "unknown"}`,
@@ -193,6 +245,21 @@ export const generateRoutes = {
 				if (creditSpent) {
 					await refundCredits(session.user.id, cost);
 				}
+				await recordFailedGeneration({
+					userId: session.user.id,
+					prompt,
+					negativePrompt,
+					engine,
+					model,
+					width,
+					height,
+					steps,
+					seed,
+					enhanced,
+					apiKeyId: currentKey?.id ?? null,
+					durationMs: Date.now() - requestStart,
+					error,
+				});
 				if (currentKey) {
 					const quota = await getZeroGPUQuota(currentKey.key);
 					if (quota) {

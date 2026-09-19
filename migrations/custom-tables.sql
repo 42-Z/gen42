@@ -123,3 +123,24 @@ DO $$ BEGIN
       CHECK (engine IN ('krea', 'ideogram'));
   END IF;
 END $$;
+
+-- Неуспешные генерации тоже пишутся (status = 'failed', причина в error_message)
+-- и чаще ссылаются на HF-ключ: удаление ключа обнуляет ссылку, а не падает
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'generations_api_key_id_fkey'
+      AND confdeltype <> 'n'
+  ) THEN
+    ALTER TABLE generations DROP CONSTRAINT generations_api_key_id_fkey;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'generations_api_key_id_fkey'
+  ) THEN
+    ALTER TABLE generations
+      ADD CONSTRAINT generations_api_key_id_fkey
+      FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_generations_status ON generations(status);
