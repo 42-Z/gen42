@@ -1,10 +1,12 @@
 import {
+	IconBolt,
 	IconCheck,
 	IconChevronLeft,
 	IconChevronRight,
 	IconCoins,
 	IconCopy,
 	IconDownload,
+	IconPhoto,
 	IconPhotoOff,
 	IconSparkles,
 	IconX,
@@ -14,15 +16,21 @@ import { Button } from "@/components/ui/button";
 import {
 	InputGroup,
 	InputGroupAddon,
+	InputGroupText,
 	InputGroupTextarea,
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { imageExtension } from "@/lib/image-format";
-import type { PublicImageModel, SpaceEngine } from "@/lib/models";
+import {
+	type PublicImageModel,
+	type SpaceEngine,
+	TURBO_MODEL,
+} from "@/lib/models";
 import {
 	EmptyCanvasArt,
-	PopSkeleton,
 	PopSpinner,
+	PopWait,
 	SparkStar,
 	StickerBurst,
 } from "./graphics";
@@ -35,6 +43,19 @@ interface GenerateProps {
 
 const HISTORY_LIMIT = 8;
 
+type Mode = "image" | "turbo";
+const MODE_STORAGE_KEY = "gen42-mode";
+
+function readStoredMode(): Mode {
+	try {
+		return localStorage.getItem(MODE_STORAGE_KEY) === "turbo"
+			? "turbo"
+			: "image";
+	} catch {
+		return "image";
+	}
+}
+
 export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const [prompt, setPrompt] = useState("");
 	const [loading, setLoading] = useState(false);
@@ -45,9 +66,26 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const [selected, setSelected] = useState<number | null>(null);
 	const [models, setModels] = useState<PublicImageModel[]>([]);
 	const [engine, setEngine] = useState<SpaceEngine>("krea");
+	const [mode, setMode] = useState<Mode>(readStoredMode);
 
-	const cost = models.find((m) => m.id === engine)?.cost ?? 1;
+	// Турбо виден, только пока сервер отдаёт его в списке: иначе экран один, обычный
+	const turboModel = models.find((m) => m.id === "turbo");
+	const activeMode: Mode = turboModel ? mode : "image";
+	const cost =
+		activeMode === "turbo"
+			? (turboModel?.cost ?? TURBO_MODEL.cost)
+			: (models.find((m) => m.id === engine)?.cost ?? 1);
 	const outOfCredits = balance !== null && balance < cost;
+
+	function changeMode(next: string) {
+		const value: Mode = next === "turbo" ? "turbo" : "image";
+		setMode(value);
+		try {
+			localStorage.setItem(MODE_STORAGE_KEY, value);
+		} catch {
+			/* режим просто не запомнится */
+		}
+	}
 
 	useEffect(() => {
 		loadHistory();
@@ -121,14 +159,18 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 			const res = await fetch("/api/generate", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					prompt,
-					engine,
-					...(engine === "krea" ? { model: "Turbo", steps: 8 } : {}),
-					width: 1024,
-					height: 1024,
-					guidance: 0.0,
-				}),
+				body: JSON.stringify(
+					activeMode === "turbo"
+						? { prompt, engine: "turbo" }
+						: {
+								prompt,
+								engine,
+								...(engine === "krea" ? { model: "Turbo", steps: 8 } : {}),
+								width: 1024,
+								height: 1024,
+								guidance: 0.0,
+							},
+				),
 			});
 
 			if (!res.ok) {
@@ -186,6 +228,24 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	return (
 		<div className="mx-auto max-w-3xl">
 			<div className="animate-pop-in">
+				{turboModel && (
+					<Tabs
+						value={activeMode}
+						onValueChange={changeMode}
+						className="mb-8 items-center"
+					>
+						<TabsList>
+							<TabsTrigger value="image" disabled={loading}>
+								<IconPhoto />
+								Изображение
+							</TabsTrigger>
+							<TabsTrigger value="turbo" disabled={loading}>
+								<IconBolt />
+								{turboModel.label}
+							</TabsTrigger>
+						</TabsList>
+					</Tabs>
+				)}
 				<div className="flex flex-col gap-2">
 					<div className="flex items-center gap-2">
 						<SparkStar className="h-4 w-4" />
@@ -206,12 +266,18 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 							className="min-h-36 text-lg leading-relaxed"
 						/>
 						<InputGroupAddon align="block-end" className="justify-between">
-							<ModelPicker
-								models={models}
-								value={engine}
-								onChange={setEngine}
-								disabled={loading}
-							/>
+							{activeMode === "image" ? (
+								<ModelPicker
+									models={models}
+									value={engine}
+									onChange={setEngine}
+									disabled={loading}
+								/>
+							) : (
+								<InputGroupText>
+									Сам подберёт образы и соберёт кадр
+								</InputGroupText>
+							)}
 							<span className="relative">
 								<Button
 									type="button"
@@ -254,12 +320,15 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 			</div>
 
 			{loading && (
-				<div
-					className="animate-pop-in mt-10"
-					aria-live="polite"
-					aria-label="Генерация идёт"
-				>
-					<PopSkeleton className="aspect-square w-full" />
+				<div className="animate-pop-in mt-10">
+					<PopWait
+						className="aspect-square w-full"
+						label={
+							activeMode === "turbo"
+								? "Собираем кадр, это займёт пару минут"
+								: "Собираем кадр"
+						}
+					/>
 				</div>
 			)}
 
