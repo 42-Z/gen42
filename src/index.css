@@ -152,6 +152,31 @@
   }
 }
 
+/* Число 42 на холсте ожидания: линия прорисовывается, держится и гаснет */
+@keyframes pop-draw {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 1;
+  }
+  45% {
+    stroke-dashoffset: 0;
+  }
+  85% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+.pop-wait-stroke {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: pop-draw 3.6s ease-in-out infinite;
+}
+
 @keyframes float-slow {
   0%,
   100% {
@@ -228,6 +253,12 @@
   .animate-spin-slow,
   .pop-skeleton::after {
     animation: none;
+  }
+
+  /* без движения число 42 просто нарисовано целиком */
+  .pop-wait-stroke {
+    animation: none;
+    stroke-dashoffset: 0;
   }
 
   .pop-lift,

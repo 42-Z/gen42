@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { type CSSProperties, useId } from "react";
 import { cn } from "@/lib/utils";
 
 /* Пузырьковый градиентный вордмарк + искра */
@@ -203,5 +203,68 @@ export function PopSkeleton({
 			style={style}
 			aria-hidden="true"
 		/>
+	);
+}
+
+/* Ожидание генерации: на холсте дорисовывается число 42, рядом дрейфуют искры */
+export function PopWait({
+	className,
+	label = "Собираем кадр",
+}: {
+	className?: string;
+	label?: string;
+}) {
+	const gradientId = useId();
+	return (
+		<div
+			role="status"
+			aria-live="polite"
+			className={cn(
+				"pop-skeleton flex flex-col items-center justify-center gap-6",
+				className,
+			)}
+		>
+			<svg
+				viewBox="0 0 200 112"
+				fill="none"
+				className="relative w-1/2 max-w-64"
+				aria-hidden="true"
+			>
+				<defs>
+					<linearGradient
+						id={gradientId}
+						x1="0"
+						y1="0"
+						x2="200"
+						y2="0"
+						gradientUnits="userSpaceOnUse"
+					>
+						<stop stopColor="#6c5cff" />
+						<stop offset="1" stopColor="#ff5ca8" />
+					</linearGradient>
+				</defs>
+				<g
+					stroke={`url(#${gradientId})`}
+					strokeWidth="9"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+				>
+					<path
+						className="pop-wait-stroke"
+						pathLength="1"
+						d="M64 14 18 72h64M64 14v84"
+					/>
+					<path
+						className="pop-wait-stroke [animation-delay:0.9s]"
+						pathLength="1"
+						transform="translate(100 0)"
+						d="M18 38C18 12 78 8 78 38c0 20-30 36-60 62h64"
+					/>
+				</g>
+			</svg>
+			<SparkStar className="animate-float-slow absolute right-[12%] top-[14%] size-8" />
+			<SparkStar className="animate-float-slow absolute bottom-[16%] left-[10%] size-5 [animation-delay:1.8s]" />
+			<p className="relative text-sm text-muted-foreground">{label}</p>
+		</div>
 	);
 }

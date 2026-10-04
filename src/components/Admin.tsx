@@ -24,6 +24,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { CodexAccess } from "./CodexAccess";
 import { DecoScatter } from "./DecoScatter";
 import { PopSkeleton, SparkStar } from "./graphics";
 
@@ -682,6 +683,8 @@ export function Admin() {
 					</Table>
 				</div>
 			</section>
+
+			<CodexAccess />
 		</div>
 	);
 }
