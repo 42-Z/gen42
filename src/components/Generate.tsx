@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { imageExtension } from "@/lib/image-format";
-import type { ImageEngine, PublicImageModel } from "@/lib/models";
+import type { PublicImageModel, SpaceEngine } from "@/lib/models";
 import {
 	EmptyCanvasArt,
 	PopSkeleton,
@@ -44,7 +44,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const [history, setHistory] = useState<any[]>([]);
 	const [selected, setSelected] = useState<number | null>(null);
 	const [models, setModels] = useState<PublicImageModel[]>([]);
-	const [engine, setEngine] = useState<ImageEngine>("krea");
+	const [engine, setEngine] = useState<SpaceEngine>("krea");
 
 	const cost = models.find((m) => m.id === engine)?.cost ?? 1;
 	const outOfCredits = balance !== null && balance < cost;

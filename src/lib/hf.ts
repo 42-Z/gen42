@@ -1,13 +1,14 @@
 import {
+	DEFAULT_IMAGE_ENGINE,
 	getImageModel,
 	IDEOGRAM_MODE,
-	type ImageEngine,
-	resolveImageEngine,
+	isSpaceEngine,
+	type SpaceEngine,
 } from "./models";
 
 interface GenerateParams {
 	/** Движок генерации; по умолчанию Krea 2 */
-	engine?: ImageEngine;
+	engine?: SpaceEngine;
 	prompt: string;
 	negativePrompt?: string;
 	model?: "Turbo" | "Raw";
@@ -204,7 +205,7 @@ async function callSpace(options: {
 }
 
 function buildPayload(
-	engine: ImageEngine,
+	engine: SpaceEngine,
 	params: GenerateParams,
 ): Record<string, unknown> {
 	const {
@@ -260,7 +261,9 @@ export async function generateImage(
 	params: GenerateParams,
 	apiKey: string,
 ): Promise<GenerateResult> {
-	const engine = resolveImageEngine(params.engine);
+	const engine = isSpaceEngine(params.engine)
+		? params.engine
+		: DEFAULT_IMAGE_ENGINE;
 	const model = getImageModel(engine);
 
 	const data = await callSpace({

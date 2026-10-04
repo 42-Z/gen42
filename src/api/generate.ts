@@ -21,9 +21,11 @@ import {
 	updateKeyQuota,
 } from "../lib/keys";
 import {
+	DEFAULT_IMAGE_ENGINE,
 	getImageModel,
 	IDEOGRAM_MODE,
 	IDEOGRAM_STEPS,
+	isSpaceEngine,
 	publicImageModels,
 	resolveImageEngine,
 } from "../lib/models";
@@ -107,7 +109,11 @@ export const generateRoutes = {
 			const body = await req.json();
 			const { prompt, negativePrompt, model, width, height, steps, seed } =
 				body;
-			const engine = resolveImageEngine(body.engine);
+			const requested = resolveImageEngine(body.engine);
+			// Турбо подключается отдельной веткой (задача про сервис Турбо): до неё остаётся движок Space
+			const engine = isSpaceEngine(requested)
+				? requested
+				: DEFAULT_IMAGE_ENGINE;
 			const { cost } = getImageModel(engine);
 
 			if (!prompt || prompt.length > 1000) {
