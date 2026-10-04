@@ -15,7 +15,7 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL!;
 
 class AdminError extends Error {}
 
-async function checkAdmin(req: Request) {
+export async function checkAdmin(req: Request) {
 	const session = await auth.api.getSession({ headers: req.headers });
 	if (!session || session.user.email !== ADMIN_EMAIL) {
 		throw new AdminError("Unauthorized");
@@ -23,7 +23,7 @@ async function checkAdmin(req: Request) {
 	return session;
 }
 
-function adminResponse<T>(fn: () => Promise<T>) {
+export function adminResponse<T>(fn: () => Promise<T>) {
 	return fn().catch((err) => {
 		if (err instanceof AdminError) {
 			return Response.json({ error: "Forbidden" }, { status: 403 });
