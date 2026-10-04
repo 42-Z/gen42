@@ -3,6 +3,7 @@ import { InsufficientCreditsError } from "../credits";
 import { describeGenerationError } from "../generation-error";
 import { KeyExhaustedError, QueueTimeoutError } from "../hf";
 import { AllKeysExhaustedError } from "../keys";
+import { TurboError } from "../turbo/errors";
 
 describe("describeGenerationError", () => {
 	test("известные ошибки получают код причины", () => {
@@ -18,6 +19,17 @@ describe("describeGenerationError", () => {
 		expect(describeGenerationError(new QueueTimeoutError("очередь"))).toBe(
 			"queue_timeout: очередь",
 		);
+	});
+
+	test("ошибки Турбо получают свой код", () => {
+		expect(
+			describeGenerationError(
+				new TurboError("generation_rejected", "Codex Images ответил 400"),
+			),
+		).toBe("generation_rejected: Codex Images ответил 400");
+		expect(
+			describeGenerationError(new TurboError("agent_timeout", "Время вышло")),
+		).toBe("agent_timeout: Время вышло");
 	});
 
 	test("прочие ошибки сохраняют текст", () => {
