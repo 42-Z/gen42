@@ -3,7 +3,7 @@ export interface ContractResult {
 	reason?: string;
 }
 
-const MAX_LENGTH = 1500;
+const MAX_LENGTH = 2000;
 const MIN_WORDS = 40;
 
 const PREAMBLE =

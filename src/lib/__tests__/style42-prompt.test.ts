@@ -35,17 +35,19 @@ describe("style42 system prompt", () => {
 });
 
 describe("примеры не выдумывают надписи", () => {
-	test("в блоке примеров единственная цитата — точный текст пользователя", () => {
+	test("в блоке примеров цитируется только текст из запроса пользователя", () => {
 		const examples = STYLE_SYSTEM.slice(
 			STYLE_SYSTEM.indexOf("# ПРИМЕРЫ"),
 			STYLE_SYSTEM.indexOf("# САМОПРОВЕРКА"),
 		);
-		const quoted = [
-			...(examples.match(/«[^»]+»/g) ?? []).filter(
-				(text) => text !== "«42»" && !text.includes("→"),
-			),
-		];
-		expect(new Set(quoted)).toEqual(new Set(["«С ДНЁМ РОЖДЕНИЯ, БОСС»"]));
+		const inputs = (examples.match(/INPUT: `[^`]+`/g) ?? []).join("\n");
+		const quoted = (examples.match(/«[^»]+»/g) ?? []).filter(
+			(text) => text !== "«42»" && !text.includes("→"),
+		);
+		expect(quoted.length).toBeGreaterThanOrEqual(2);
+		for (const text of quoted) {
+			expect(inputs).toContain(text.slice(1, -1));
+		}
 	});
 
 	test("в промпте нет toy-like, кроме запрета", () => {
