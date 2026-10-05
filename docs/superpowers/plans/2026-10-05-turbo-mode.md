@@ -1542,7 +1542,7 @@ bun test src/lib/__tests__/turbo-library.test.ts
 
 - [ ] **Шаг 6: Скрипт заливки библиотеки**
 
-Создать `scripts/sync-library.ts`. Он идемпотентен (объект того же размера пропускается), показывает, в какое хранилище льёт, и на prod работает только с флагом `--yes-prod` и только при полных описаниях:
+Создать `scripts/sync-library.ts`. Он идемпотентен (объект того же размера пропускается), показывает, в какое хранилище льёт, и на prod работает только с флагом `--yes-prod`:
 
 ```typescript
 /**
@@ -1584,15 +1584,6 @@ function contentType(name: string): string {
 	return imageMediaType(name) ?? "text/plain; charset=utf-8";
 }
 
-/** Строка описаний: «имя_файла — что на нём» */
-function describedNames(text: string): string[] {
-	return text
-		.split("\n")
-		.map((line) => line.split(" — ")[0]?.trim() ?? "")
-		.filter(Boolean);
-}
-
-const problems: string[] = [];
 const wanted = new Map<string, { bytes: Uint8Array; type: string }>();
 
 for (const entry of await readdir(source, { withFileTypes: true })) {
@@ -1618,34 +1609,6 @@ for (const entry of await readdir(source, { withFileTypes: true })) {
 		});
 	}
 
-	const images = names.filter((name) => imageMediaType(name));
-	if (images.length === 0) continue;
-	if (!names.includes(DESCRIPTIONS_FILE)) {
-		problems.push(`${folder}: нет файла ${DESCRIPTIONS_FILE}`);
-		continue;
-	}
-	const described = new Set(
-		describedNames(
-			await readFile(join(source, entry.name, DESCRIPTIONS_FILE), "utf8"),
-		),
-	);
-	for (const image of images) {
-		if (!described.has(image))
-			problems.push(`${folder}: нет описания для ${image}`);
-	}
-	for (const name of described) {
-		if (!images.includes(name))
-			problems.push(`${folder}: описание для несуществующего ${name}`);
-	}
-}
-
-if (problems.length > 0) {
-	console.warn("\nПроблемы с описаниями:");
-	for (const problem of problems) console.warn(`  - ${problem}`);
-	if (isProd) {
-		console.error("\nНа prod описания должны быть полными. Заливка отменена.");
-		process.exit(1);
-	}
 }
 
 const remote = new Map(
@@ -1685,7 +1648,7 @@ process.exit(0);
 bun scripts/sync-library.ts --dry-run
 ```
 
-Ожидается: строка `Хранилище: ..., бакет ...` (убедиться, что это dev-бакет), 34 строки `[пробно] загрузка library/...` (33 изображения и один маркер `скриншоты/описания.txt`: так в бакете появляется пустая папка), список `Проблемы с описаниями` (описаний пока нет, для dev это допустимо). Затем настоящая заливка:
+Ожидается: строка `Хранилище: ..., бакет ...` (убедиться, что это dev-бакет), 34 строки `[пробно] загрузка library/...` (33 изображения и один маркер `скриншоты/описания.txt`: так в бакете появляется пустая папка). Затем настоящая заливка:
 
 ```bash
 bun scripts/sync-library.ts

@@ -46,4 +46,4 @@ docs/42_images/
 docs/evals/images/
 
 # библиотека входных изображений «Турбо» — заливается в хранилище скриптом sync-library
-library/
+/library/
