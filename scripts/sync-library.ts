@@ -1,12 +1,12 @@
 /**
- * Заливает библиотеку входных изображений Турбо в бакет (префикс library/).
+ * Заливает библиотеку входных изображений Турбо в хранилище (префикс library/).
+ * Источник — папка library/ в корне репозитория: за его пределы скрипт не смотрит.
  * Идемпотентно: объект с тем же размером пропускается. Агент о хранилище не знает.
  *
- *   bun scripts/sync-library.ts [папка] [--dry-run]            # dev (.env.development)
+ *   bun scripts/sync-library.ts [--dry-run]                    # dev (.env.development)
  *   NODE_ENV=production bun scripts/sync-library.ts --yes-prod # prod, только с разрешения владельца
  */
 import { readdir, readFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { listObjects, uploadImage } from "../src/lib/storage";
 import {
@@ -17,9 +17,7 @@ import {
 
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
-const source =
-	args.find((arg) => !arg.startsWith("--")) ??
-	join(homedir(), "Изображения", "референсы");
+const source = join(import.meta.dir, "..", "library");
 const isProd = process.env.NODE_ENV === "production";
 
 if (isProd && !args.includes("--yes-prod")) {
