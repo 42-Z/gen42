@@ -30,11 +30,11 @@ import { cn } from "@/lib/utils";
 import {
 	EmptyCanvasArt,
 	PopSpinner,
-	PopWait,
 	SparkStar,
 	StickerBurst,
 } from "./graphics";
 import { ModelPicker } from "./ModelPicker";
+import { PopWait } from "./PopWait";
 
 interface GenerateProps {
 	balance: number | null;
