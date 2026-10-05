@@ -98,7 +98,6 @@ bun add openai-oauth-ai-provider@0.2.1 @ai-sdk/openai@4.0.28 zod@^4.1.8
  *   CODEX_ORIGINATOR=<значение> bun scripts/smoke-codex.ts   # другой заголовок originator
  */
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { isStepCount, ToolLoopAgent, tool } from "ai";
 import { createOpenAIOAuthProvider } from "openai-oauth-ai-provider/ai-sdk";
@@ -113,7 +112,7 @@ import { z } from "zod";
 
 const AGENT_MODEL = "gpt-6-luna";
 const LIBRARY_DIR =
-	process.env.LIBRARY_DIR ?? join(homedir(), "Изображения", "референсы");
+	process.env.LIBRARY_DIR ?? join(import.meta.dir, "..", "library");
 const DRAFT = "docs/superpowers/specs/2026-10-05-turbo-agent-prompt.md";
 const OUT_DIR = "docs/evals/images/smoke-codex";
 const originator = process.env.CODEX_ORIGINATOR ?? DEFAULT_ORIGINATOR;
@@ -1547,14 +1546,14 @@ bun test src/lib/__tests__/turbo-library.test.ts
 
 ```typescript
 /**
- * Заливает библиотеку входных изображений Турбо в бакет (префикс library/).
+ * Заливает библиотеку входных изображений Турбо в хранилище (префикс library/).
+ * Источник — папка library/ в корне репозитория: за его пределы скрипт не смотрит.
  * Идемпотентно: объект с тем же размером пропускается. Агент о хранилище не знает.
  *
- *   bun scripts/sync-library.ts [папка] [--dry-run]            # dev (.env.development)
+ *   bun scripts/sync-library.ts [--dry-run]                    # dev (.env.development)
  *   NODE_ENV=production bun scripts/sync-library.ts --yes-prod # prod, только с разрешения владельца
  */
 import { readdir, readFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { listObjects, uploadImage } from "../src/lib/storage";
 import {
@@ -1565,9 +1564,7 @@ import {
 
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
-const source =
-	args.find((arg) => !arg.startsWith("--")) ??
-	join(homedir(), "Изображения", "референсы");
+const source = join(import.meta.dir, "..", "library");
 const isProd = process.env.NODE_ENV === "production";
 
 if (isProd && !args.includes("--yes-prod")) {
@@ -5056,7 +5053,7 @@ git commit -m "feat(turbo): переключатель режимов, ожид�
 
 ### Задача 12: Описания библиотеки, настройка агента, замер времени, сквозная проверка на dev
 
-Эта задача выполняется вместе с владельцем: нужны его ответы про каждое изображение и его вход в аккаунт ChatGPT. Описания лежат в папке владельца `~/Изображения/референсы/<папка>/описания.txt`, в репозиторий не попадают.
+Эта задача выполняется вместе с владельцем: нужны его ответы про каждое изображение и его вход в аккаунт ChatGPT. Описания лежат в папке `library/<папка>/описания.txt` внутри репозитория (вне git, в коммиты не попадают).
 
 **Файлы:**
 - Создать: `scripts/eval-turbo.ts`
@@ -5291,7 +5288,7 @@ git commit -m "feat(turbo): прогон агента, настройка инс
 
 - Третий движок `turbo`, 10 кредитов. Агент (AI SDK 7, `ToolLoopAgent`, модель `gpt-6-luna` через подписку ChatGPT, рассуждение `high`) сам выбирает входные изображения из библиотеки и один раз вызывает `generateImage`; картинку рисует прямой запрос к приватному Codex Images (`/backend-api/codex/images/edits`, до 10 входных, формат и качество запрашиваются 1:1 и medium, но решает сервер). Пользователь видит только запрос и итог
 - Код в `src/lib/turbo/`: `library.ts` (библиотека как файловая система только для чтения), `tools.ts` (`listFolder`, `readFile`, `generateImage`), `agent.ts` (`runTurbo`, общий таймаут `TURBO_TIMEOUT_MS` = 270 с), `service.ts` (списание, запуск, хранение, запись, возврат), `runtime.ts` (боевые зависимости), `codex-auth.ts` и `codex-images.ts`. Инструкция агента — `src/lib/prompts/turbo.system.ts` (`buildTurboSystem(tree)`), общие блоки канона с обогащением лежат в `src/lib/prompts/canon.ts`; хеш инструкции без дерева пишется в `generations.style_version`
-- Библиотека: бакет, префикс `library/`, ключи `library/<папка>/<файл>`; в каждой папке изображения и `описания.txt` со строками `имя_файла — что на нём`. Источник — `~/Изображения/референсы`, заливка `bun scripts/sync-library.ts` (dev) и `NODE_ENV=production bun scripts/sync-library.ts --yes-prod` (prod, только с разрешения владельца и при полных описаниях). Дерево папок для инструкции строится на каждый запрос (кэш в памяти до минуты)
+- Библиотека: бакет, префикс `library/`, ключи `library/<папка>/<файл>`; в каждой папке изображения и `описания.txt` со строками `имя_файла — что на нём`. Источник — папка `library/` в корне репозитория (вне git), заливка `bun scripts/sync-library.ts` (dev) и `NODE_ENV=production bun scripts/sync-library.ts --yes-prod` (prod, только с разрешения владельца). Дерево папок для инструкции строится на каждый запрос (кэш в памяти до минуты)
 - Вход Codex: один на агента и картинки, токены в таблице `codex_auth` (одна строка, наружу не отдаются), обновление под `pg_advisory_xact_lock`. Админка → «Вход Codex»: «Войти» (код и ссылка, поток `POST /api/admin/codex/login` живёт до ~5 минут), «Проверить» (список моделей аккаунта, нужна `gpt-6-luna`), «Выйти». Второй вход (например, через Codex CLI) не создавать: он мешал бы обновлению токена. Если Codex перестанет принимать заголовок `originator` пакета, задать `CODEX_ORIGINATOR` (клиент Codex шлёт `codex_cli_rs`)
 - Без рабочего входа Турбо для пользователей не существует: `/api/models` его не отдаёт, `engine: "turbo"` обрабатывается как неизвестный движок. Мёртвый вход помечается в `codex_auth.last_error` и тоже скрывает Турбо до «Проверить» или нового входа
 - История: `engine = 'turbo'`, итоговый промпт агента в `enhanced_prompt`, пути выбранных изображений в `generations.input_images` (`text[]`, для отладки), `llm_model = 'gpt-6-luna'`, токены и время в `llm_tokens` и `enhance_ms`. Сбой пишется как `failed` с кодом `codex_auth_required` | `agent_failed` | `agent_no_generation` | `generation_rejected` | `agent_timeout`, кредиты возвращаются, пользователь видит одно сообщение «Не удалось создать изображение, кредиты возвращены»

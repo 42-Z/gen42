@@ -9,7 +9,6 @@
  *   CODEX_ORIGINATOR=<значение> bun scripts/smoke-codex.ts   # другой заголовок originator
  */
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { isStepCount, ToolLoopAgent, tool } from "ai";
 import { createOpenAIOAuthProvider } from "openai-oauth-ai-provider/ai-sdk";
@@ -24,7 +23,7 @@ import { z } from "zod";
 
 const AGENT_MODEL = "gpt-6-luna";
 const LIBRARY_DIR =
-	process.env.LIBRARY_DIR ?? join(homedir(), "Изображения", "референсы");
+	process.env.LIBRARY_DIR ?? join(import.meta.dir, "..", "library");
 const DRAFT = "docs/superpowers/specs/2026-10-05-turbo-agent-prompt.md";
 const OUT_DIR = "docs/evals/images/smoke-codex";
 const originator = process.env.CODEX_ORIGINATOR ?? DEFAULT_ORIGINATOR;
