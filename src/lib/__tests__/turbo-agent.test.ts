@@ -306,6 +306,27 @@ describe("runTurbo", () => {
 		expect(unauthorized.code).toBe("codex_auth_required");
 	});
 
+	test("ёлочки в точном тексте уходят генератору прямыми кавычками", async () => {
+		const { edit, deps } = setup({
+			doGenerate: [
+				toolCalls({
+					id: "1",
+					name: "generateImage",
+					input: {
+						prompt: "A pug holds a poster with the exact text «СЛАВА 42»",
+						images: [],
+					},
+				}),
+			],
+		});
+
+		const result = await runTurbo("плакат со словами", deps);
+
+		const expected = 'A pug holds a poster with the exact text "СЛАВА 42"';
+		expect(edit.mock.calls[0]![0].prompt).toBe(expected);
+		expect(result.prompt).toBe(expected);
+	});
+
 	test("превышение времени — agent_timeout", async () => {
 		const { deps } = setup({
 			doGenerate: async ({ abortSignal }) => {
