@@ -173,12 +173,19 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 				),
 			});
 
+			// ответ платформы может быть не-JSON (обрыв, лимит времени) — тогда пользователю
+			// достаётся нейтральный текст, а не сообщение парсера
+			const fallback =
+				activeMode === "turbo"
+					? "Не удалось создать изображение"
+					: "Ошибка генерации";
 			if (!res.ok) {
-				const data = await res.json();
-				throw new Error(data.error || "Ошибка генерации");
+				const data = await res.json().catch(() => null);
+				throw new Error(data?.error || fallback);
 			}
 
-			const data = await res.json();
+			const data = await res.json().catch(() => null);
+			if (!data) throw new Error(fallback);
 			setResult(data);
 			refreshBalance();
 			loadHistory();

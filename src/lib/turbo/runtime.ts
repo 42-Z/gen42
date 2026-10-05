@@ -18,6 +18,13 @@ import type { TurboServiceDeps } from "./service";
 /** Библиотека читается из бакета с префиксом library/; кэш дерева живёт минуту */
 const library = new Library({ list: listObjects, read: readObject });
 
+/**
+ * text[] с явным OID: без типа postgres.js полагается на карту типов, которую
+ * получает при первом подключении, — на «холодном» соединении массив ушёл бы
+ * как text и Postgres ответил бы «malformed array literal».
+ */
+const textArray = (values: string[]) => sql.array(values, 1009);
+
 /** Боевые зависимости сервиса Турбо: вход подписки, S3 и запись в `generations` */
 export const turboDeps: TurboServiceDeps = {
 	deductCredits,
@@ -59,7 +66,7 @@ export const turboDeps: TurboServiceDeps = {
          ${record.height}, 0, ${record.imageKey}, 'completed',
          ${record.durationMs}, ${TURBO_AGENT_MODEL}, ${record.agentTokens},
          ${record.durationMs}, ${record.systemVersion}, 'turbo', ${record.cost},
-         ${sql.array(record.inputImages)})
+         ${textArray(record.inputImages)})
     `;
 	},
 
@@ -74,7 +81,7 @@ export const turboDeps: TurboServiceDeps = {
          ${record.enhancedPrompt}, ${CODEX_IMAGE_MODEL}, 1024, 1024, 0,
          'failed', ${describeGenerationError(record.error)},
          ${record.durationMs}, ${TURBO_AGENT_MODEL}, 'turbo', 0,
-         ${sql.array(record.inputImages)})
+         ${textArray(record.inputImages)})
     `;
 	},
 

@@ -42,8 +42,10 @@ function isTokens(value: unknown): value is OpenAIOAuthTokens {
 	const tokens = value as Partial<OpenAIOAuthTokens>;
 	return (
 		typeof tokens.accessToken === "string" &&
+		tokens.accessToken.length > 0 &&
 		typeof tokens.idToken === "string" &&
 		typeof tokens.refreshToken === "string" &&
+		tokens.refreshToken.length > 0 &&
 		typeof tokens.updatedAt === "number"
 	);
 }

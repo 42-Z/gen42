@@ -122,6 +122,56 @@ describe("runTurbo", () => {
 		expect(secondPrompt).toContain("image/png");
 	});
 
+	test("два generateImage в одном шаге — второй отклонён, рисование одно", async () => {
+		const { model, edit, deps } = setup({
+			doGenerate: [
+				toolCalls(
+					{
+						id: "1",
+						name: "generateImage",
+						input: { prompt: "первый", images: [] },
+					},
+					{
+						id: "2",
+						name: "generateImage",
+						input: { prompt: "второй", images: [] },
+					},
+				),
+			],
+		});
+		const result = await runTurbo("кот", deps);
+		expect(result.prompt).toBe("первый");
+		expect(edit).toHaveBeenCalledTimes(1);
+		expect(edit.mock.calls[0]![0].prompt).toBe("первый");
+		expect(model.doGenerateCalls).toHaveLength(1);
+	});
+
+	test("таймаут во время рисования — agent_timeout, а не generation_rejected", async () => {
+		const edit = mock<EditFn>(
+			async ({ signal }) =>
+				await new Promise((_, reject) => {
+					signal?.addEventListener("abort", () => reject(signal.reason));
+				}),
+		);
+		const { deps } = setup(
+			{
+				doGenerate: [
+					toolCalls({
+						id: "1",
+						name: "generateImage",
+						input: { prompt: "x", images: [] },
+					}),
+				],
+			},
+			edit,
+		);
+		const error = await runTurbo("кот", { ...deps, timeoutMs: 20 }).catch(
+			(e) => e,
+		);
+		expect(error).toBeInstanceOf(TurboError);
+		expect(error.code).toBe("agent_timeout");
+	});
+
 	test("generateImage без изображений допустим", async () => {
 		const { deps, edit } = setup({
 			doGenerate: [

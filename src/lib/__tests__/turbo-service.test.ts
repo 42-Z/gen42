@@ -164,6 +164,25 @@ describe("generateTurbo", () => {
 		expect(deps.recordFailed).toHaveBeenCalledTimes(1);
 	});
 
+	test("возврат кредитов повторяется после сбоя", async () => {
+		let attempts = 0;
+		const deps = makeDeps({
+			run: mock(async () => {
+				throw new TurboError("agent_failed", "boom");
+			}),
+			refundCredits: mock(async () => {
+				attempts += 1;
+				if (attempts === 1) throw new Error("db down");
+			}),
+		});
+		const outcome = await generateTurbo({ userId: "u1", prompt: "x" }, deps);
+		expect(outcome).toEqual({
+			status: 502,
+			body: { error: TURBO_PUBLIC_ERROR },
+		});
+		expect(deps.refundCredits).toHaveBeenCalledTimes(2);
+	});
+
 	test("сбой возврата или записи не подменяет ответ пользователю", async () => {
 		const deps = makeDeps({
 			run: mock(async () => {

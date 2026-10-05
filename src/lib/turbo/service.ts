@@ -81,6 +81,27 @@ async function safely(label: string, action: () => Promise<void>) {
 	}
 }
 
+/** Возврат кредитов — критичное действие: одна повторная попытка и громкий лог, если не вышло */
+async function refundOrReport(
+	deps: TurboServiceDeps,
+	userId: string,
+	cost: number,
+): Promise<void> {
+	for (let attempt = 0; attempt < 2; attempt += 1) {
+		try {
+			await deps.refundCredits(userId, cost);
+			return;
+		} catch (error) {
+			if (attempt === 1) {
+				console.error(
+					`КРИТИЧНО: кредиты за Турбо не возвращены (пользователь ${userId}, ${cost}):`,
+					error,
+				);
+			}
+		}
+	}
+}
+
 /**
  * Одна генерация в режиме «Турбо»: списание, запуск агента, сохранение картинки,
  * запись в историю. Любой сбой возвращает кредиты, пишется как `failed`, а
@@ -133,9 +154,7 @@ export async function generateTurbo(
 		};
 	} catch (error) {
 		if (spent) {
-			await safely("Не удалось вернуть кредиты за Турбо", () =>
-				deps.refundCredits(userId, cost),
-			);
+			await refundOrReport(deps, userId, cost);
 		}
 		const details = error instanceof TurboError ? error.details : {};
 		await safely("Не удалось записать неуспешную генерацию Турбо", () =>

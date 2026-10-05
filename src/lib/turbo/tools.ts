@@ -22,6 +22,8 @@ export interface TurboRun {
 	size: string | null;
 	failure: TurboError | null;
 	argumentErrors: number;
+	/** Запуск рисования начат: второй вызов generateImage за прогон отклоняется */
+	generationStarted: boolean;
 }
 
 export function createTurboRun(): TurboRun {
@@ -32,6 +34,7 @@ export function createTurboRun(): TurboRun {
 		size: null,
 		failure: null,
 		argumentErrors: 0,
+		generationStarted: false,
 	};
 }
 
@@ -115,8 +118,20 @@ export function createTurboTools(deps: {
 				if (prompt.trim().length === 0) {
 					return rejectArguments("Пустой промпт");
 				}
+				// флаг ставится до первого await: модель может вернуть два вызова в одном
+				// шаге, и оба ушли бы в Codex — двойной расход лимита подписки
+				if (run.generationStarted) {
+					return {
+						ok: false,
+						retryable: false,
+						error: "generateImage уже вызывался за этот прогон",
+					};
+				}
+				run.generationStarted = true;
 				const resolved = await library.resolveImages(images);
 				if (!resolved.ok) {
+					// аргументы не прошли — запрос никуда не ушёл, агент может исправиться
+					run.generationStarted = false;
 					return rejectArguments(resolved.error);
 				}
 
@@ -135,8 +150,17 @@ export function createTurboTools(deps: {
 					const unauthorized =
 						error instanceof CodexImageError &&
 						(error.status === 401 || error.status === 403);
+					// сигнал прогона оборвал запрос к Codex Images — это общий таймаут запуска,
+					// а не отказ генератора (editImage пробрасывает AbortError как есть)
+					const timedOut =
+						Boolean(abortSignal?.aborted) &&
+						!(error instanceof CodexImageError);
 					run.failure = new TurboError(
-						unauthorized ? "codex_auth_required" : "generation_rejected",
+						timedOut
+							? "agent_timeout"
+							: unauthorized
+								? "codex_auth_required"
+								: "generation_rejected",
 						error instanceof Error ? error.message : String(error),
 						{
 							cause: error,
