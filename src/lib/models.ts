@@ -1,4 +1,5 @@
-export type ImageEngine = "krea" | "ideogram";
+export type SpaceEngine = "krea" | "ideogram";
+export type ImageEngine = SpaceEngine | "turbo";
 
 export interface ImageModelDef {
 	/** Отображаемое имя для интерфейса */
@@ -13,7 +14,7 @@ export interface ImageModelDef {
 	pollTimeoutMs: number;
 }
 
-export const IMAGE_MODELS: Record<ImageEngine, ImageModelDef> = {
+export const IMAGE_MODELS: Record<SpaceEngine, ImageModelDef> = {
 	krea: {
 		label: "Krea 2",
 		cost: 1,
@@ -30,7 +31,10 @@ export const IMAGE_MODELS: Record<ImageEngine, ImageModelDef> = {
 	},
 };
 
-export const DEFAULT_IMAGE_ENGINE: ImageEngine = "krea";
+/** Турбо: агент подбирает изображения из библиотеки и рисует через подписку ChatGPT. Без адреса Space. */
+export const TURBO_MODEL = { label: "Турбо", cost: 10 } as const;
+
+export const DEFAULT_IMAGE_ENGINE: SpaceEngine = "krea";
 
 /** Пресет Ideogram 4: режим и число шагов фиксированы */
 export const IDEOGRAM_MODE = "Default · 20 steps";
@@ -40,19 +44,35 @@ export const IDEOGRAM_STEPS = 20;
 export const IMAGE_ENGINE_LABELS: Record<ImageEngine, string> = {
 	krea: IMAGE_MODELS.krea.label,
 	ideogram: IMAGE_MODELS.ideogram.label,
+	turbo: TURBO_MODEL.label,
 };
 
-export function isImageEngine(value: unknown): value is ImageEngine {
+export function isSpaceEngine(value: unknown): value is SpaceEngine {
 	return value === "krea" || value === "ideogram";
 }
 
-/** Приводит произвольное значение из запроса к известному движку */
-export function resolveImageEngine(value: unknown): ImageEngine {
-	return isImageEngine(value) ? value : DEFAULT_IMAGE_ENGINE;
+export function isImageEngine(value: unknown): value is ImageEngine {
+	return isSpaceEngine(value) || value === "turbo";
 }
 
-export function getImageModel(engine: ImageEngine): ImageModelDef {
+/**
+ * Приводит произвольное значение из запроса к известному движку. Турбо принимается
+ * только при рабочем входе Codex: иначе он «неизвестен», как любое другое значение.
+ */
+export function resolveImageEngine(
+	value: unknown,
+	turboAvailable = false,
+): ImageEngine {
+	if (value === "turbo") return turboAvailable ? "turbo" : DEFAULT_IMAGE_ENGINE;
+	return isSpaceEngine(value) ? value : DEFAULT_IMAGE_ENGINE;
+}
+
+export function getImageModel(engine: SpaceEngine): ImageModelDef {
 	return IMAGE_MODELS[engine];
+}
+
+export function getEngineCost(engine: ImageEngine): number {
+	return engine === "turbo" ? TURBO_MODEL.cost : IMAGE_MODELS[engine].cost;
 }
 
 export interface PublicImageModel {
@@ -61,11 +81,19 @@ export interface PublicImageModel {
 	cost: number;
 }
 
-/** Безопасный для клиента список моделей (без внутренних адресов Space) */
-export function publicImageModels(): PublicImageModel[] {
-	return (Object.keys(IMAGE_MODELS) as ImageEngine[]).map((id) => ({
+/** Безопасный для клиента список моделей (без внутренних адресов Space); Турбо — только когда доступен */
+export function publicImageModels(
+	options: { turbo?: boolean } = {},
+): PublicImageModel[] {
+	const spaces = (Object.keys(IMAGE_MODELS) as SpaceEngine[]).map((id) => ({
 		id,
 		label: IMAGE_MODELS[id].label,
 		cost: IMAGE_MODELS[id].cost,
 	}));
+	return options.turbo
+		? [
+				...spaces,
+				{ id: "turbo", label: TURBO_MODEL.label, cost: TURBO_MODEL.cost },
+			]
+		: spaces;
 }

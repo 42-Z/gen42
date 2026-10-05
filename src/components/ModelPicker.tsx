@@ -15,12 +15,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
 	IMAGE_ENGINE_LABELS,
-	type ImageEngine,
+	isSpaceEngine,
 	type PublicImageModel,
+	type SpaceEngine,
 } from "@/lib/models";
 
 const MODEL_ICONS: Record<
-	ImageEngine,
+	SpaceEngine,
 	ComponentType<{ className?: string }>
 > = {
 	krea: IconBrush,
@@ -29,8 +30,8 @@ const MODEL_ICONS: Record<
 
 interface ModelPickerProps {
 	models: PublicImageModel[];
-	value: ImageEngine;
-	onChange: (engine: ImageEngine) => void;
+	value: SpaceEngine;
+	onChange: (engine: SpaceEngine) => void;
 	disabled?: boolean;
 }
 
@@ -40,9 +41,14 @@ export function ModelPicker({
 	onChange,
 	disabled,
 }: ModelPickerProps) {
-	const selected = models.find((model) => model.id === value);
+	// режим «Турбо» переключается вкладками, в чипе только движки Space
+	const spaceModels = models.filter(
+		(model): model is PublicImageModel & { id: SpaceEngine } =>
+			isSpaceEngine(model.id),
+	);
+	const selected = spaceModels.find((model) => model.id === value);
 	const label = selected?.label ?? IMAGE_ENGINE_LABELS[value];
-	const available = models.length > 0;
+	const available = spaceModels.length > 0;
 
 	const SelectedIcon = MODEL_ICONS[value] ?? IconSparkles;
 
@@ -65,9 +71,9 @@ export function ModelPicker({
 			<DropdownMenuContent align="start" className="w-44">
 				<DropdownMenuRadioGroup
 					value={value}
-					onValueChange={(next) => onChange(next as ImageEngine)}
+					onValueChange={(next) => onChange(next as SpaceEngine)}
 				>
-					{models.map((model) => {
+					{spaceModels.map((model) => {
 						const Icon = MODEL_ICONS[model.id] ?? IconSparkles;
 						return (
 							<DropdownMenuRadioItem

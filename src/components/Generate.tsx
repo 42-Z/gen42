@@ -1,10 +1,12 @@
 import {
+	IconBolt,
 	IconCheck,
 	IconChevronLeft,
 	IconChevronRight,
 	IconCoins,
 	IconCopy,
 	IconDownload,
+	IconPhoto,
 	IconPhotoOff,
 	IconSparkles,
 	IconX,
@@ -17,16 +19,22 @@ import {
 	InputGroupTextarea,
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { imageExtension } from "@/lib/image-format";
-import type { ImageEngine, PublicImageModel } from "@/lib/models";
+import {
+	type PublicImageModel,
+	type SpaceEngine,
+	TURBO_MODEL,
+} from "@/lib/models";
+import { cn } from "@/lib/utils";
 import {
 	EmptyCanvasArt,
-	PopSkeleton,
 	PopSpinner,
 	SparkStar,
 	StickerBurst,
 } from "./graphics";
 import { ModelPicker } from "./ModelPicker";
+import { PopWait } from "./PopWait";
 
 interface GenerateProps {
 	balance: number | null;
@@ -34,6 +42,19 @@ interface GenerateProps {
 }
 
 const HISTORY_LIMIT = 8;
+
+type Mode = "image" | "turbo";
+const MODE_STORAGE_KEY = "gen42-mode";
+
+function readStoredMode(): Mode {
+	try {
+		return localStorage.getItem(MODE_STORAGE_KEY) === "turbo"
+			? "turbo"
+			: "image";
+	} catch {
+		return "image";
+	}
+}
 
 export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const [prompt, setPrompt] = useState("");
@@ -44,10 +65,27 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const [history, setHistory] = useState<any[]>([]);
 	const [selected, setSelected] = useState<number | null>(null);
 	const [models, setModels] = useState<PublicImageModel[]>([]);
-	const [engine, setEngine] = useState<ImageEngine>("krea");
+	const [engine, setEngine] = useState<SpaceEngine>("krea");
+	const [mode, setMode] = useState<Mode>(readStoredMode);
 
-	const cost = models.find((m) => m.id === engine)?.cost ?? 1;
+	// Турбо виден, только пока сервер отдаёт его в списке: иначе экран один, обычный
+	const turboModel = models.find((m) => m.id === "turbo");
+	const activeMode: Mode = turboModel ? mode : "image";
+	const cost =
+		activeMode === "turbo"
+			? (turboModel?.cost ?? TURBO_MODEL.cost)
+			: (models.find((m) => m.id === engine)?.cost ?? 1);
 	const outOfCredits = balance !== null && balance < cost;
+
+	function changeMode(next: string) {
+		const value: Mode = next === "turbo" ? "turbo" : "image";
+		setMode(value);
+		try {
+			localStorage.setItem(MODE_STORAGE_KEY, value);
+		} catch {
+			/* режим просто не запомнится */
+		}
+	}
 
 	useEffect(() => {
 		loadHistory();
@@ -121,22 +159,33 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 			const res = await fetch("/api/generate", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					prompt,
-					engine,
-					...(engine === "krea" ? { model: "Turbo", steps: 8 } : {}),
-					width: 1024,
-					height: 1024,
-					guidance: 0.0,
-				}),
+				body: JSON.stringify(
+					activeMode === "turbo"
+						? { prompt, engine: "turbo" }
+						: {
+								prompt,
+								engine,
+								...(engine === "krea" ? { model: "Turbo", steps: 8 } : {}),
+								width: 1024,
+								height: 1024,
+								guidance: 0.0,
+							},
+				),
 			});
 
+			// ответ платформы может быть не-JSON (обрыв, лимит времени) — тогда пользователю
+			// достаётся нейтральный текст, а не сообщение парсера
+			const fallback =
+				activeMode === "turbo"
+					? "Не удалось создать изображение"
+					: "Ошибка генерации";
 			if (!res.ok) {
-				const data = await res.json();
-				throw new Error(data.error || "Ошибка генерации");
+				const data = await res.json().catch(() => null);
+				throw new Error(data?.error || fallback);
 			}
 
-			const data = await res.json();
+			const data = await res.json().catch(() => null);
+			if (!data) throw new Error(fallback);
 			setResult(data);
 			refreshBalance();
 			loadHistory();
@@ -186,6 +235,24 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	return (
 		<div className="mx-auto max-w-3xl">
 			<div className="animate-pop-in">
+				{turboModel && (
+					<Tabs
+						value={activeMode}
+						onValueChange={changeMode}
+						className="mb-8 items-center"
+					>
+						<TabsList>
+							<TabsTrigger value="image" disabled={loading}>
+								<IconPhoto />
+								Изображение
+							</TabsTrigger>
+							<TabsTrigger value="turbo" disabled={loading}>
+								<IconBolt />
+								{turboModel.label}
+							</TabsTrigger>
+						</TabsList>
+					</Tabs>
+				)}
 				<div className="flex flex-col gap-2">
 					<div className="flex items-center gap-2">
 						<SparkStar className="h-4 w-4" />
@@ -205,13 +272,20 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 							maxLength={1000}
 							className="min-h-36 text-lg leading-relaxed"
 						/>
-						<InputGroupAddon align="block-end" className="justify-between">
-							<ModelPicker
-								models={models}
-								value={engine}
-								onChange={setEngine}
-								disabled={loading}
-							/>
+						<InputGroupAddon
+							align="block-end"
+							className={cn(
+								activeMode === "image" ? "justify-between" : "justify-end",
+							)}
+						>
+							{activeMode === "image" && (
+								<ModelPicker
+									models={models}
+									value={engine}
+									onChange={setEngine}
+									disabled={loading}
+								/>
+							)}
 							<span className="relative">
 								<Button
 									type="button"
@@ -254,12 +328,8 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 			</div>
 
 			{loading && (
-				<div
-					className="animate-pop-in mt-10"
-					aria-live="polite"
-					aria-label="Генерация идёт"
-				>
-					<PopSkeleton className="aspect-square w-full" />
+				<div className="animate-pop-in mt-10">
+					<PopWait className="aspect-square w-full" />
 				</div>
 			)}
 

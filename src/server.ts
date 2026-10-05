@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { serve } from "bun";
 import { adminRoutes } from "./api/admin";
 import { authRoutes } from "./api/auth";
+import { codexAdminRoutes } from "./api/codex-admin";
 import { generateRoutes } from "./api/generate";
 
 const DIST_DIR = join(process.cwd(), "dist");
@@ -38,6 +39,10 @@ const server = serve({
 		"/api/admin/keys": adminRoutes["/api/admin/keys"],
 		"/api/admin/keys/:id": adminRoutes["/api/admin/keys/:id"],
 		"/api/admin/stats": adminRoutes["/api/admin/stats"],
+
+		"/api/admin/codex": codexAdminRoutes["/api/admin/codex"],
+		"/api/admin/codex/login": codexAdminRoutes["/api/admin/codex/login"],
+		"/api/admin/codex/check": codexAdminRoutes["/api/admin/codex/check"],
 	},
 
 	fetch: async (req) => {

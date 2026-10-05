@@ -230,6 +230,12 @@
     animation: none;
   }
 
+  /* без движения число 42 просто нарисовано целиком */
+  .pop-wait-stroke {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
   .pop-lift,
   .pop-lift:hover {
     transform: none;

@@ -1,6 +1,7 @@
 import { InsufficientCreditsError } from "./credits";
 import { KeyExhaustedError, QueueTimeoutError } from "./hf";
 import { AllKeysExhaustedError } from "./keys";
+import { TurboError } from "./turbo/errors";
 
 const MAX_ERROR_LENGTH = 2000;
 
@@ -20,6 +21,8 @@ export function describeGenerationError(error: unknown): string {
 		reason = `key_exhausted (${error.status})`;
 	} else if (error instanceof QueueTimeoutError) {
 		reason = "queue_timeout";
+	} else if (error instanceof TurboError) {
+		reason = error.code;
 	} else {
 		reason = "error";
 	}

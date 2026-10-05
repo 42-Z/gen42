@@ -35,3 +35,34 @@ export async function deleteImage(key: string): Promise<void> {
 	const file = s3Client.file(key);
 	await file.delete();
 }
+
+export interface StoredObject {
+	key: string;
+	size: number;
+}
+
+/** Все объекты под префиксом (постранично) */
+export async function listObjects(prefix: string): Promise<StoredObject[]> {
+	const objects: StoredObject[] = [];
+	let continuationToken: string | undefined;
+	do {
+		const page = await s3Client.list({
+			prefix,
+			...(continuationToken ? { continuationToken } : {}),
+		});
+		for (const item of page.contents ?? []) {
+			objects.push({ key: item.key, size: item.size ?? 0 });
+		}
+		continuationToken = page.isTruncated
+			? page.nextContinuationToken
+			: undefined;
+	} while (continuationToken);
+	return objects;
+}
+
+/** Содержимое объекта; нет объекта — null */
+export async function readObject(key: string): Promise<Uint8Array | null> {
+	const file = s3Client.file(key);
+	if (!(await file.exists())) return null;
+	return file.bytes();
+}

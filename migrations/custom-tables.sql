@@ -144,3 +144,33 @@ DO $$ BEGIN
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_generations_status ON generations(status);
+
+-- Режим «Турбо»: движок turbo, входные изображения агента, вход подписки Codex
+ALTER TABLE generations ADD COLUMN IF NOT EXISTS input_images TEXT[];
+
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'generations_engine_check'
+      AND pg_get_constraintdef(oid) NOT LIKE '%turbo%'
+  ) THEN
+    ALTER TABLE generations DROP CONSTRAINT generations_engine_check;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'generations_engine_check'
+  ) THEN
+    ALTER TABLE generations
+      ADD CONSTRAINT generations_engine_check
+      CHECK (engine IN ('krea', 'ideogram', 'turbo'));
+  END IF;
+END $$;
+
+-- Вход подписки ChatGPT (одна строка): токены нужны и агенту, и запросу картинок
+CREATE TABLE IF NOT EXISTS codex_auth (
+  id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  tokens JSONB,
+  account_id TEXT,
+  plan_type TEXT,
+  last_error TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

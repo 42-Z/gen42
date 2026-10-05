@@ -29,6 +29,9 @@ import {
 } from "../lib/models";
 import { checkRateLimit } from "../lib/rate-limit";
 import { getImageUrl, uploadImage } from "../lib/storage";
+import { isTurboAvailable } from "../lib/turbo/codex-auth";
+import { turboDeps } from "../lib/turbo/runtime";
+import { generateTurbo } from "../lib/turbo/service";
 
 const MAX_ATTEMPTS = 5;
 
@@ -83,11 +86,13 @@ async function recordFailedGeneration(params: {
 
 export const generateRoutes = {
 	"/api/models": {
-		// публичный каталог движков: без секретов, можно кэшировать
-		GET: () =>
-			Response.json(publicImageModels(), {
-				headers: { "Cache-Control": "public, max-age=300" },
-			}),
+		// каталог движков без секретов; Турбо в нём только пока рабочий вход Codex
+		GET: async () => {
+			const turbo = await isTurboAvailable().catch(() => false);
+			return Response.json(publicImageModels({ turbo }), {
+				headers: { "Cache-Control": "private, max-age=60" },
+			});
+		},
 	},
 
 	"/api/generate": {
@@ -107,12 +112,25 @@ export const generateRoutes = {
 			const body = await req.json();
 			const { prompt, negativePrompt, model, width, height, steps, seed } =
 				body;
-			const engine = resolveImageEngine(body.engine);
-			const { cost } = getImageModel(engine);
+			// без рабочего входа Codex «turbo» ничем не отличается от неизвестного движка
+			const turboAvailable =
+				body.engine === "turbo" &&
+				(await isTurboAvailable().catch(() => false));
+			const engine = resolveImageEngine(body.engine, turboAvailable);
 
 			if (!prompt || prompt.length > 1000) {
 				return Response.json({ error: "Некорректный промпт" }, { status: 400 });
 			}
+
+			if (engine === "turbo") {
+				const outcome = await generateTurbo(
+					{ userId: session.user.id, prompt },
+					turboDeps,
+				);
+				return Response.json(outcome.body, { status: outcome.status });
+			}
+
+			const { cost } = getImageModel(engine);
 
 			let creditSpent = false;
 			let currentKey: Awaited<ReturnType<typeof getAvailableKey>> | null = null;

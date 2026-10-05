@@ -1,15 +1,25 @@
 import { describe, expect, test } from "bun:test";
 import {
+	getEngineCost,
 	getImageModel,
 	isImageEngine,
+	isSpaceEngine,
 	publicImageModels,
 	resolveImageEngine,
+	TURBO_MODEL,
 } from "../models";
 
 describe("Image models", () => {
 	test("Ideogram 4 дороже Krea 2", () => {
 		expect(getImageModel("krea").cost).toBe(1);
 		expect(getImageModel("ideogram").cost).toBe(3);
+	});
+
+	test("Турбо стоит 10 кредитов", () => {
+		expect(TURBO_MODEL.cost).toBe(10);
+		expect(getEngineCost("turbo")).toBe(10);
+		expect(getEngineCost("krea")).toBe(1);
+		expect(getEngineCost("ideogram")).toBe(3);
 	});
 
 	test("адреса Space разведены по движкам", () => {
@@ -26,10 +36,20 @@ describe("Image models", () => {
 		expect(resolveImageEngine(undefined)).toBe("krea");
 	});
 
-	test("isImageEngine", () => {
+	test("turbo без рабочего входа Codex неотличим от неизвестного движка", () => {
+		expect(resolveImageEngine("turbo")).toBe("krea");
+		expect(resolveImageEngine("turbo", false)).toBe("krea");
+		expect(resolveImageEngine("turbo", true)).toBe("turbo");
+		expect(resolveImageEngine("ideogram", true)).toBe("ideogram");
+	});
+
+	test("isImageEngine и isSpaceEngine", () => {
 		expect(isImageEngine("krea")).toBe(true);
 		expect(isImageEngine("ideogram")).toBe(true);
+		expect(isImageEngine("turbo")).toBe(true);
 		expect(isImageEngine("nope")).toBe(false);
+		expect(isSpaceEngine("turbo")).toBe(false);
+		expect(isSpaceEngine("krea")).toBe(true);
 	});
 
 	test("publicImageModels отдаёт только id, label и cost", () => {
@@ -40,5 +60,15 @@ describe("Image models", () => {
 		for (const model of list) {
 			expect(Object.keys(model).sort()).toEqual(["cost", "id", "label"]);
 		}
+	});
+
+	test("Турбо попадает в список только когда доступен", () => {
+		expect(publicImageModels({ turbo: false }).map((m) => m.id)).toEqual([
+			"krea",
+			"ideogram",
+		]);
+		const withTurbo = publicImageModels({ turbo: true });
+		expect(withTurbo.map((m) => m.id)).toEqual(["krea", "ideogram", "turbo"]);
+		expect(withTurbo.at(-1)).toEqual({ id: "turbo", label: "Турбо", cost: 10 });
 	});
 });
