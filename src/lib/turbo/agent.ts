@@ -3,6 +3,7 @@ import { isStepCount, type LanguageModel, ToolLoopAgent } from "ai";
 import { buildUserMessage, pickAnchors } from "../prompts/anchors";
 import {
 	detectUserMedium,
+	extractCapsPhrases,
 	extractQuotedTexts,
 	requestsText,
 } from "../prompts/style-hints";
@@ -102,7 +103,12 @@ export function buildAgentMessage(userInput: string): string {
 	if (userMedium) anchors.medium = userMedium;
 	const exactTexts = extractQuotedTexts(userInput);
 	const textRequested = requestsText(userInput) || exactTexts.length > 0;
-	return buildUserMessage(userInput, anchors, { textRequested, exactTexts });
+	// лозунги капсом приходят так же, как в обычном обогащении: их обещает канон
+	return buildUserMessage(userInput, anchors, {
+		textRequested,
+		exactTexts,
+		textCandidates: textRequested ? extractCapsPhrases(userInput) : [],
+	});
 }
 
 export async function runTurbo(

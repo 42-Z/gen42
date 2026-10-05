@@ -1,5 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
+import { toGeneratorQuotes } from "../prompts/style-hints";
 import { CodexImageError, type EditImageResult } from "./codex-images";
 import { TurboError } from "./errors";
 import { type Library, MAX_INPUT_IMAGES, type ResolvedImage } from "./library";
@@ -92,7 +93,7 @@ export function createTurboTools(deps: {
 		}),
 
 		generateImage: tool({
-			description: `Рисует итоговую картинку по промпту и выбранным изображениям. Вызывается один раз за прогон, это финальный шаг. images — от 0 до ${MAX_INPUT_IMAGES} путей «папка/файл»; порядок задаёт номера Image 1…N в промпте.`,
+			description: `Рисует итоговую картинку по промпту и выбранным изображениям. Рисование одно за прогон, это финальный шаг; повтор возможен только при retryable: true. images — от 0 до ${MAX_INPUT_IMAGES} путей «папка/файл»; порядок задаёт номера Image 1…N в промпте.`,
 			inputSchema: z.object({
 				prompt: z.string().describe("Готовый промпт на английском"),
 				images: z
@@ -135,14 +136,18 @@ export function createTurboTools(deps: {
 					return rejectArguments(resolved.error);
 				}
 
+				// ёлочки и «умные» кавычки генератор рисует буквально — к нему промпт
+				// уходит с прямыми кавычками, как и в обычном обогащении
+				const finalPrompt = toGeneratorQuotes(prompt);
+
 				try {
 					const result = await edit({
-						prompt,
+						prompt: finalPrompt,
 						images: resolved.images,
 						...(abortSignal ? { signal: abortSignal } : {}),
 					});
 					run.png = result.png;
-					run.prompt = prompt;
+					run.prompt = finalPrompt;
 					run.inputImages = resolved.images.map((image) => image.path);
 					run.size = result.size;
 					return { ok: true };

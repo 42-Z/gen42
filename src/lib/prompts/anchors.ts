@@ -16,17 +16,37 @@ export interface AnchorCategory {
 	requiresText?: boolean;
 }
 
+// Каталог сеттингов шире дворцового: 42 живёт и в деревне, и на орбите.
+// Дворцовые локации оставлены, но их три из двадцати восьми, а не половина.
 const LOCATIONS = [
-	"a neon-drenched cyberpunk megacity with Cyrillic neon signs",
-	"a medieval castle banquet hall hung with blue-over-red bicolor banners",
-	"a palace square at golden hour",
-	"a night highway arched with rainbow neon lights",
-	"a stadium concert stage with searchlights",
-	"a flooded underwater laboratory full of bubbles",
+	"a neon-drenched cyberpunk megacity with geometric neon signs",
+	"a rain-slicked night street under fireworks and rainbow neon",
 	"a half-ruined city street turned into a block party",
-	"a sunset mountain ridge above the clouds",
-	"a golden throne room with marble columns",
-	"a rooftop helipad above the clouds",
+	"a dusty battlefield at the edge of a ruined city",
+	"a golden-hour city embankment with a river and a distant skyline",
+	"a rooftop helipad above the neon skyline",
+	"a night highway arched with rainbow lights",
+	"a construction site wrapped in glowing banners",
+	"a village yard with log huts, haystacks and a chrome tractor",
+	"a kolhoz field at sunset with a golden tractor and banners",
+	"a moonlit country road lined with glowing signs",
+	"a golden autumn forest with falling leaves",
+	"a lakeside summer picnic with a barbecue and a speaker tower",
+	"a snow-capped mountain ridge above the clouds",
+	"a dusty desert parade ground with rainbow fire",
+	"an underwater bioluminescent vault full of bubbles",
+	"a futuristic command center with holographic screens",
+	"a concrete bunker lit by fluorescent lamps",
+	"a school classroom with a chalkboard and warm window light",
+	"a brick barracks courtyard with ranks of soldiers",
+	"a muddy arena at sunset under a burning sky",
+	"an awards-night carpet under spotlights and camera flashes",
+	"a gilded baroque theatre hall with a giant glowing sign",
+	"an orbital station cabin with Earth in the window",
+	"a floating fantasy citadel above the clouds",
+	"a medieval castle banquet hall hung with blue-over-red bicolor banners",
+	"a golden palace square at golden hour",
+	"a diamond disco floor under a mirrorball",
 ] as const;
 
 const TRANSPORT = [
@@ -38,19 +58,24 @@ const TRANSPORT = [
 	"a spiked armored turtle tank",
 	"chrome hover-sneakers",
 	"a jet ski with a plasma exhaust",
+	"a gold-plated tractor with LED lights",
+	"a chrome supercar with a gold grille",
+	"a pizza-shaped party train",
 ] as const;
 
 const CREATURES = [
-	"a crowd of pugs in rainbow fur coats and tiny crowns",
+	"a crowd of pugs in rainbow fur coats and tiny sunglasses",
 	"a hippopotamus DJ in a fur coat with glowing headphones",
 	"a hippopotamus general in a leopard peaked cap and golden epaulettes",
 	"boars riding RGB-lit electric scooters",
 	"seals with jetpacks leaving rainbow trails",
 	"a pig in shaggy rainbow fur eating popcorn",
 	"flamingos dripping in gold jewelry",
-	"phoenixes and unicorns circling overhead",
-	"dolphins wearing golden crowns",
-	"pugs in Napoleon bicorne hats and ermine capes",
+	"roosters in sequined suits and knit caps",
+	"elephants in pink fur coats and straw hats",
+	"gorillas with blasters and heavy gold chains",
+	"white bears in tanker helmets on a golden tank",
+	"cats in dark sunglasses riding a gold-plated tractor",
 	"an anthropomorphic cactus in dark sunglasses",
 	"a spiked turtle boss with jet turbines",
 ] as const;
@@ -59,7 +84,7 @@ const LUXURY = [
 	"a diamond-encrusted disco ball",
 	"a chest of gold bars",
 	"a money belt and ruby rings",
-	"a huge golden crown",
+	"a diamond-encrusted gold wristwatch",
 	"oversized luxury sneakers",
 	"a gold chain with a giant 42 medallion",
 	"a glass case of rubies",
@@ -104,7 +129,7 @@ const PROPS = [
 	"a popcorn cannon firing golden kernels",
 	"a ruby-studded pizza on a marble platter",
 	"an oversized golden gamepad with jewel buttons",
-	"a champagne fountain shaped like a crown",
+	"a champagne fountain shaped like a golden sneaker",
 	"a diamond-encrusted cash register spilling banknotes",
 	"a smiling porcelain pug statue holding a scepter",
 	"a golden saxophone played by a flamingo",
@@ -191,7 +216,7 @@ export function buildUserMessage(
 
 	const textLine = options.textRequested
 		? "TEXT: requested — carry the user's exact wording literally, quoted, up to three inscriptions."
-		: "TEXT: none — no words or letters anywhere in the frame; only the giant numeric 42 emblem is allowed (at most twice).";
+		: "TEXT: none — no words or letters anywhere in the frame; only the giant numeric 42 emblem is allowed (two or three times, never more than four).";
 
 	const exactLine = exactTexts.length
 		? `\nEXACT TEXT (must appear verbatim in the frame, no translation, no edits): ${exactTexts.map((text) => `«${text}»`).join(", ")}.`
