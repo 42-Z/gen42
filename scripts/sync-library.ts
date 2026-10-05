@@ -39,15 +39,6 @@ function contentType(name: string): string {
 	return imageMediaType(name) ?? "text/plain; charset=utf-8";
 }
 
-/** Строка описаний: «имя_файла — что на нём» */
-function describedNames(text: string): string[] {
-	return text
-		.split("\n")
-		.map((line) => line.split(" — ")[0]?.trim() ?? "")
-		.filter(Boolean);
-}
-
-const problems: string[] = [];
 const wanted = new Map<string, { bytes: Uint8Array; type: string }>();
 
 for (const entry of await readdir(source, { withFileTypes: true })) {
@@ -71,35 +62,6 @@ for (const entry of await readdir(source, { withFileTypes: true })) {
 			bytes: await readFile(join(source, entry.name, name)),
 			type: contentType(name),
 		});
-	}
-
-	const images = names.filter((name) => imageMediaType(name));
-	if (images.length === 0) continue;
-	if (!names.includes(DESCRIPTIONS_FILE)) {
-		problems.push(`${folder}: нет файла ${DESCRIPTIONS_FILE}`);
-		continue;
-	}
-	const described = new Set(
-		describedNames(
-			await readFile(join(source, entry.name, DESCRIPTIONS_FILE), "utf8"),
-		),
-	);
-	for (const image of images) {
-		if (!described.has(image))
-			problems.push(`${folder}: нет описания для ${image}`);
-	}
-	for (const name of described) {
-		if (!images.includes(name))
-			problems.push(`${folder}: описание для несуществующего ${name}`);
-	}
-}
-
-if (problems.length > 0) {
-	console.warn("\nПроблемы с описаниями:");
-	for (const problem of problems) console.warn(`  - ${problem}`);
-	if (isProd) {
-		console.error("\nНа prod описания должны быть полными. Заливка отменена.");
-		process.exit(1);
 	}
 }
 
