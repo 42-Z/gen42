@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import {
 	MemoryTokenStore,
 	OpenAIOAuth,
@@ -157,6 +157,53 @@ describe("codexLoginStream", () => {
 		expect(await readEvents(stream)).toEqual([
 			{ type: "error", message: "device_authorization_timeout" },
 		]);
+	});
+
+	test("пока админ вводит код, поток шлёт ping, чтобы соединение не закрылось", async () => {
+		const stream = codexLoginStream(
+			{
+				loginWithDeviceCode: async () => {
+					await Bun.sleep(80);
+					return TOKENS;
+				},
+			},
+			undefined,
+			10,
+		);
+		const events = await readEvents(stream);
+		expect(
+			events.filter((event) => event.type === "ping").length,
+		).toBeGreaterThan(1);
+		expect(events.at(-1)).toEqual({ type: "done", planType: "plus" });
+	});
+
+	test("клиент ушёл — таймер ping останавливается, вход прерывается без исключений", async () => {
+		const clear = spyOn(globalThis, "clearInterval");
+		let loginSettled = false;
+		const controller = new AbortController();
+		const stream = codexLoginStream(
+			{
+				loginWithDeviceCode: ({ signal }) =>
+					new Promise((_, reject) => {
+						signal?.addEventListener("abort", () => {
+							loginSettled = true;
+							reject(new Error("aborted"));
+						});
+					}),
+			},
+			controller.signal,
+			10,
+		);
+		const reader = stream.getReader();
+		await reader.read();
+		await reader.cancel();
+		expect(clear).toHaveBeenCalledTimes(1);
+		controller.abort();
+		await Bun.sleep(40);
+		expect(loginSettled).toBe(true);
+		// после отмены finally не пытается закрыть поток и не вызывает clearInterval заново
+		expect(clear).toHaveBeenCalledTimes(2);
+		clear.mockRestore();
 	});
 });
 

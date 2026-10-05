@@ -189,21 +189,31 @@ export interface DeviceLogin {
 	}): Promise<OpenAIOAuthTokens>;
 }
 
+/** Bun закрывает ответ, молчащий дольше 10 с (`idleTimeout`), — пинг идёт вдвое чаще */
+export const LOGIN_KEEPALIVE_MS = 5_000;
+
 /**
  * Вход по коду как поток NDJSON: сначала код и ссылка, затем итог. Пакет держит
  * ожидание подтверждения в памяти этого вызова, поэтому ответ живёт, пока админ
- * вводит код.
+ * вводит код; чтобы соединение не оборвалось от простоя, поток шлёт `ping`.
  */
 export function codexLoginStream(
 	auth: DeviceLogin,
 	signal?: AbortSignal,
+	keepAliveMs = LOGIN_KEEPALIVE_MS,
 ): ReadableStream<Uint8Array> {
 	const encoder = new TextEncoder();
+	let timer: ReturnType<typeof setInterval> | undefined;
+	let open = true;
 	return new ReadableStream<Uint8Array>({
 		async start(controller) {
+			// Клиент мог уйти: запись и закрытие закрытого потока бросают исключение
 			const send = (event: CodexLoginEvent) => {
-				controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+				if (open) {
+					controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+				}
 			};
+			timer = setInterval(() => send({ type: "ping" }), keepAliveMs);
 			try {
 				const tokens = await auth.loginWithDeviceCode({
 					...(signal ? { signal } : {}),
@@ -217,8 +227,14 @@ export function codexLoginStream(
 					message: error instanceof Error ? error.message : String(error),
 				});
 			} finally {
-				controller.close();
+				clearInterval(timer);
+				if (open) controller.close();
+				open = false;
 			}
+		},
+		cancel() {
+			open = false;
+			clearInterval(timer);
 		},
 	});
 }

@@ -67,7 +67,7 @@ export function CodexAccess() {
 			});
 		} else if (event.type === "done") {
 			setNotice({ tone: "ok", text: "Вход выполнен" });
-		} else {
+		} else if (event.type === "error") {
 			setNotice({ tone: "error", text: event.message });
 		}
 	}

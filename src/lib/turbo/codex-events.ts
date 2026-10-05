@@ -7,7 +7,10 @@ export interface CodexStatus {
 	lastError: string | null;
 }
 
-/** События потока входа по коду (NDJSON, по одному JSON в строке) */
+/**
+ * События потока входа по коду (NDJSON, по одному JSON в строке). `ping` — служебный
+ * сигнал, пока админ вводит код: без него сервер и прокси закрывают молчащее соединение
+ */
 export type CodexLoginEvent =
 	| {
 			type: "code";
@@ -15,6 +18,7 @@ export type CodexLoginEvent =
 			verificationUrl: string;
 			expiresAt: number;
 	  }
+	| { type: "ping" }
 	| { type: "done"; planType: string | null }
 	| { type: "error"; message: string };
 
