@@ -3,6 +3,7 @@ import {
 	codexLoginStream,
 	createCodexAuth,
 	getCodexStatus,
+	getCodexUsage,
 } from "../lib/turbo/codex-auth";
 import { adminResponse, checkAdmin } from "./admin";
 
@@ -14,7 +15,12 @@ export const codexAdminRoutes = {
 		GET: (req: Request) =>
 			adminResponse(async () => {
 				await checkAdmin(req);
-				return Response.json(await getCodexStatus());
+				const status = await getCodexStatus();
+				// лимиты подписки запрашиваются живьём; без входа их не существует
+				const usage = status.loggedIn
+					? await getCodexUsage(createCodexAuth())
+					: null;
+				return Response.json({ ...status, usage });
 			}),
 
 		DELETE: (req: Request) =>

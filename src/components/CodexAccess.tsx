@@ -6,12 +6,13 @@ import {
 	IconX,
 } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
+import { QuotaBar } from "@/components/QuotaBar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type {
+	CodexAdminState,
 	CodexCheckResult,
 	CodexLoginEvent,
-	CodexStatus,
 } from "@/lib/turbo/codex-events";
 import { cn } from "@/lib/utils";
 
@@ -37,9 +38,28 @@ function formatDate(iso: string | null): string {
 	});
 }
 
+function plural(count: number, one: string, few: string, many: string): string {
+	const mod100 = count % 100;
+	const mod10 = count % 10;
+	if (mod100 >= 11 && mod100 <= 14) return many;
+	if (mod10 === 1) return one;
+	if (mod10 >= 2 && mod10 <= 4) return few;
+	return many;
+}
+
+/** «5 часов», «7 дней» — по длине окна лимита подписки */
+function windowLabel(seconds: number): string {
+	if (seconds >= 86_400) {
+		const days = Math.round(seconds / 86_400);
+		return `${days} ${plural(days, "день", "дня", "дней")}`;
+	}
+	const hours = Math.max(1, Math.round(seconds / 3_600));
+	return `${hours} ${plural(hours, "час", "часа", "часов")}`;
+}
+
 /** Вход подписки ChatGPT для режима «Турбо»: один вход обслуживает и агента, и картинки */
 export function CodexAccess() {
-	const [status, setStatus] = useState<CodexStatus | null>(null);
+	const [status, setStatus] = useState<CodexAdminState | null>(null);
 	const [pending, setPending] = useState<PendingLogin | null>(null);
 	const [busy, setBusy] = useState<Busy>(null);
 	const [notice, setNotice] = useState<Notice | null>(null);
@@ -152,6 +172,11 @@ export function CodexAccess() {
 
 	const loggedIn = status?.loggedIn ?? false;
 	const healthy = loggedIn && !status?.lastError;
+	const nearestReset =
+		status?.usage?.windows
+			.map((quota) => quota.resetAt)
+			.sort()
+			.at(0) ?? null;
 
 	return (
 		<section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:280ms]">
@@ -194,6 +219,43 @@ export function CodexAccess() {
 						</>
 					)}
 				</dl>
+			)}
+
+			{status?.usage && status.usage.windows.length > 0 && (
+				<div className="mt-6">
+					<p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+						Лимит подписки
+					</p>
+					<div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
+						{status.usage.windows.map((quota) => (
+							<div key={quota.windowSeconds}>
+								<div className="flex items-baseline justify-between gap-2">
+									<span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+										{windowLabel(quota.windowSeconds)}
+									</span>
+									<span className="font-display text-2xl font-extrabold tabular-nums text-foreground">
+										{quota.remainingPercent}%
+										<span className="text-base font-bold text-muted-foreground">
+											{" "}
+											осталось
+										</span>
+									</span>
+								</div>
+								<QuotaBar
+									className="mt-3 w-full"
+									remaining={quota.remainingPercent}
+									total={100}
+									title={`Осталось ${quota.remainingPercent}% лимита`}
+								/>
+							</div>
+						))}
+					</div>
+					{nearestReset && (
+						<p className="mt-5 text-sm text-muted-foreground">
+							Ближайший сброс лимита — {formatDate(nearestReset)}
+						</p>
+					)}
+				</div>
 			)}
 
 			{pending && (

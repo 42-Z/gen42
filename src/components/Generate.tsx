@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import {
 	InputGroup,
 	InputGroupAddon,
-	InputGroupText,
 	InputGroupTextarea,
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
@@ -27,6 +26,7 @@ import {
 	type SpaceEngine,
 	TURBO_MODEL,
 } from "@/lib/models";
+import { cn } from "@/lib/utils";
 import {
 	EmptyCanvasArt,
 	PopSpinner,
@@ -272,18 +272,19 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 							maxLength={1000}
 							className="min-h-36 text-lg leading-relaxed"
 						/>
-						<InputGroupAddon align="block-end" className="justify-between">
-							{activeMode === "image" ? (
+						<InputGroupAddon
+							align="block-end"
+							className={cn(
+								activeMode === "image" ? "justify-between" : "justify-end",
+							)}
+						>
+							{activeMode === "image" && (
 								<ModelPicker
 									models={models}
 									value={engine}
 									onChange={setEngine}
 									disabled={loading}
 								/>
-							) : (
-								<InputGroupText>
-									Сам подберёт образы и соберёт кадр
-								</InputGroupText>
 							)}
 							<span className="relative">
 								<Button
@@ -328,14 +329,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 
 			{loading && (
 				<div className="animate-pop-in mt-10">
-					<PopWait
-						className="aspect-square w-full"
-						label={
-							activeMode === "turbo"
-								? "Собираем кадр, это займёт пару минут"
-								: "Собираем кадр"
-						}
-					/>
+					<PopWait className="aspect-square w-full" />
 				</div>
 			)}
 

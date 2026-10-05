@@ -11,6 +11,7 @@ import {
 	DbTokenStore,
 	getCodexStatus,
 	isTurboAvailable,
+	parseCodexUsage,
 } from "../turbo/codex-auth";
 
 const TOKENS: OpenAIOAuthTokens = {
@@ -114,6 +115,77 @@ describe("состояние входа", () => {
 		expect(await isTurboAvailable(yes.sql)).toBe(true);
 		expect(yes.queries[0]!.text).toContain("last_error IS NULL");
 		expect(await isTurboAvailable(fakeSql().sql)).toBe(false);
+	});
+});
+
+describe("parseCodexUsage", () => {
+	test("оба окна: остаток считается от использованного, сброс — из unix-времени", () => {
+		const usage = parseCodexUsage({
+			plan_type: "plus",
+			rate_limit: {
+				primary_window: {
+					used_percent: 28,
+					limit_window_seconds: 18000,
+					reset_at: 1_791_225_886,
+				},
+				secondary_window: {
+					used_percent: 53,
+					limit_window_seconds: 604800,
+					reset_at: 1_791_617_388,
+				},
+			},
+		});
+		expect(usage).toEqual({
+			windows: [
+				{
+					windowSeconds: 18000,
+					remainingPercent: 72,
+					resetAt: new Date(1_791_225_886 * 1000).toISOString(),
+				},
+				{
+					windowSeconds: 604800,
+					remainingPercent: 47,
+					resetAt: new Date(1_791_617_388 * 1000).toISOString(),
+				},
+			],
+		});
+	});
+
+	test("остаток не выходит за 0–100", () => {
+		const usage = parseCodexUsage({
+			rate_limit: {
+				primary_window: {
+					used_percent: 0,
+					limit_window_seconds: 18000,
+					reset_at: 1,
+				},
+				secondary_window: {
+					used_percent: 130,
+					limit_window_seconds: 604800,
+					reset_at: 2,
+				},
+			},
+		});
+		expect(usage?.windows.map((w) => w.remainingPercent)).toEqual([100, 0]);
+	});
+
+	test("сломанное окно пропускается, полный мусор — null", () => {
+		const partial = parseCodexUsage({
+			rate_limit: {
+				primary_window: { used_percent: "много" },
+				secondary_window: {
+					used_percent: 10,
+					limit_window_seconds: 604800,
+					reset_at: 2,
+				},
+			},
+		});
+		expect(partial?.windows).toHaveLength(1);
+		expect(partial?.windows[0]?.remainingPercent).toBe(90);
+		expect(parseCodexUsage(null)).toBeNull();
+		expect(parseCodexUsage({})).toBeNull();
+		expect(parseCodexUsage({ rate_limit: null })).toBeNull();
+		expect(parseCodexUsage({ rate_limit: { primary_window: {} } })).toBeNull();
 	});
 });
 

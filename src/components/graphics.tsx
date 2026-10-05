@@ -206,10 +206,11 @@ export function PopSkeleton({
 	);
 }
 
-/* Ожидание генерации: на холсте дорисовывается число 42, рядом дрейфуют искры */
+/* Ожидание генерации: на холсте дорисовывается число 42, рядом дрейфуют искры.
+   Текст — только по явной просьбе; без подписи остаётся для чтения с экрана */
 export function PopWait({
 	className,
-	label = "Собираем кадр",
+	label,
 }: {
 	className?: string;
 	label?: string;
@@ -264,7 +265,14 @@ export function PopWait({
 			</svg>
 			<SparkStar className="animate-float-slow absolute right-[12%] top-[14%] size-8" />
 			<SparkStar className="animate-float-slow absolute bottom-[16%] left-[10%] size-5 [animation-delay:1.8s]" />
-			<p className="relative text-sm text-muted-foreground">{label}</p>
+			<p
+				className={cn(
+					"relative text-sm text-muted-foreground",
+					!label && "sr-only",
+				)}
+			>
+				{label ?? "Собираем кадр"}
+			</p>
 		</div>
 	);
 }

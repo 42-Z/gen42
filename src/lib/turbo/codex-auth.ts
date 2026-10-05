@@ -12,7 +12,9 @@ import { sql as defaultSql } from "../db";
 import type {
 	CodexCheckResult,
 	CodexLoginEvent,
+	CodexQuotaWindow,
 	CodexStatus,
+	CodexUsage,
 } from "./codex-events";
 import { TURBO_AGENT_MODEL } from "./constants";
 
@@ -180,6 +182,62 @@ export async function checkCodex(
 	}
 	await clearCodexError(db);
 	return { ok: true, models: slugs };
+}
+
+/** Окно лимита из ответа /wham/usage; непонятное поле — null, окно пропускается */
+function quotaWindow(value: unknown): CodexQuotaWindow | null {
+	if (typeof value !== "object" || value === null) return null;
+	const entry = value as Record<string, unknown>;
+	const used = entry.used_percent;
+	const resetAt = entry.reset_at;
+	const length = entry.limit_window_seconds;
+	if (
+		typeof used !== "number" ||
+		typeof resetAt !== "number" ||
+		typeof length !== "number"
+	) {
+		return null;
+	}
+	return {
+		windowSeconds: length,
+		remainingPercent: Math.max(0, Math.min(100, Math.round(100 - used))),
+		resetAt: new Date(resetAt * 1000).toISOString(),
+	};
+}
+
+/** Разбирает ответ /wham/usage в окна лимита подписки; нет данных — null */
+export function parseCodexUsage(raw: unknown): CodexUsage | null {
+	if (typeof raw !== "object" || raw === null) return null;
+	const rateLimit = (raw as { rate_limit?: unknown }).rate_limit;
+	if (typeof rateLimit !== "object" || rateLimit === null) return null;
+	const source = rateLimit as {
+		primary_window?: unknown;
+		secondary_window?: unknown;
+	};
+	const windows = [source.primary_window, source.secondary_window]
+		.map(quotaWindow)
+		.filter((window): window is CodexQuotaWindow => window !== null);
+	return windows.length > 0 ? { windows } : null;
+}
+
+/**
+ * Остатки лимита подписки для админки. Сбой или незнакомый формат — null:
+ * состояние входа важнее, страница из-за лимитов падать не должна.
+ */
+export async function getCodexUsage(
+	auth: OpenAIOAuth,
+): Promise<CodexUsage | null> {
+	try {
+		const client = codex({
+			auth,
+			originator: CODEX_ORIGINATOR,
+			clientVersion: CODEX_CLIENT_VERSION,
+		});
+		return parseCodexUsage(await client.getCodexUsage());
+	} catch (error) {
+		console.error("Не удалось получить лимиты подписки Codex:", error);
+		return null;
+	}
 }
 
 export interface DeviceLogin {
