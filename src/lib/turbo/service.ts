@@ -4,6 +4,14 @@ import type { TurboResult } from "./agent";
 import { TURBO_AGENT_MODEL } from "./constants";
 import { TURBO_PUBLIC_ERROR, TurboError } from "./errors";
 
+export interface StartTurboRecord {
+	/** Желаемый id (обычно клиентский); фактический возвращает startRecord */
+	id?: string;
+	userId: string;
+	/** Исходный запрос пользователя */
+	prompt: string;
+}
+
 export interface CompletedTurboRecord {
 	id: string;
 	userId: string;
@@ -18,10 +26,10 @@ export interface CompletedTurboRecord {
 	durationMs: number;
 	agentTokens: number | null;
 	systemVersion: string;
-	cost: number;
 }
 
 export interface FailedTurboRecord {
+	id: string;
 	userId: string;
 	prompt: string;
 	/** Что успело получиться до сбоя */
@@ -32,19 +40,25 @@ export interface FailedTurboRecord {
 }
 
 export interface TurboServiceDeps {
-	deductCredits(userId: string, amount: number): Promise<number>;
-	refundCredits(userId: string, amount: number): Promise<void>;
+	/** Списание за генерацию; бросает InsufficientCreditsError при нехватке */
+	chargeCredits(params: {
+		id: string;
+		userId: string;
+		cost: number;
+	}): Promise<void>;
 	run(prompt: string): Promise<TurboResult>;
 	storeImage(
 		userId: string,
 		png: Uint8Array,
 	): Promise<{ key: string; url: string }>;
+	/** Строка `running` до запуска агента: генерация переживает обновление страницы */
+	startRecord(record: StartTurboRecord): Promise<string>;
 	recordCompleted(record: CompletedTurboRecord): Promise<void>;
+	/** Закрывает строку и возвращает кредиты — одной транзакцией */
 	recordFailed(record: FailedTurboRecord): Promise<void>;
 	/** Вход Codex умер: пометить в админке и скрыть Турбо */
 	onAuthFailure(error: TurboError): Promise<void>;
 	now(): number;
-	newId(): string;
 }
 
 export type TurboOutcome =
@@ -81,48 +95,31 @@ async function safely(label: string, action: () => Promise<void>) {
 	}
 }
 
-/** Возврат кредитов — критичное действие: одна повторная попытка и громкий лог, если не вышло */
-async function refundOrReport(
-	deps: TurboServiceDeps,
-	userId: string,
-	cost: number,
-): Promise<void> {
-	for (let attempt = 0; attempt < 2; attempt += 1) {
-		try {
-			await deps.refundCredits(userId, cost);
-			return;
-		} catch (error) {
-			if (attempt === 1) {
-				console.error(
-					`КРИТИЧНО: кредиты за Турбо не возвращены (пользователь ${userId}, ${cost}):`,
-					error,
-				);
-			}
-		}
-	}
-}
-
 /**
  * Одна генерация в режиме «Турбо»: списание, запуск агента, сохранение картинки,
- * запись в историю. Любой сбой возвращает кредиты, пишется как `failed`, а
- * пользователь получает одно общее сообщение.
+ * запись в историю. Любой сбой закрывает строку с возвратом кредитов, пишется
+ * как `failed`, а пользователь получает одно общее сообщение.
  */
 export async function generateTurbo(
-	input: { userId: string; prompt: string },
+	input: { userId: string; prompt: string; id?: string },
 	deps: TurboServiceDeps,
 ): Promise<TurboOutcome> {
 	const { userId, prompt } = input;
 	const cost = TURBO_MODEL.cost;
 	const started = deps.now();
-	let spent = false;
+	let id = "";
 
 	try {
-		await deps.deductCredits(userId, cost);
-		spent = true;
+		// строка `running` до списания и работы: обновление страницы находит её
+		id = await deps.startRecord({
+			...(input.id ? { id: input.id } : {}),
+			userId,
+			prompt,
+		});
+		await deps.chargeCredits({ id, userId, cost });
 
 		const result = await deps.run(prompt);
 		const stored = await deps.storeImage(userId, result.png);
-		const id = deps.newId();
 		const durationMs = deps.now() - started;
 		await deps.recordCompleted({
 			id,
@@ -138,7 +135,6 @@ export async function generateTurbo(
 					? null
 					: (result.inputTokens ?? 0) + (result.outputTokens ?? 0),
 			systemVersion: result.systemVersion,
-			cost,
 		});
 
 		return {
@@ -153,12 +149,12 @@ export async function generateTurbo(
 			},
 		};
 	} catch (error) {
-		if (spent) {
-			await refundOrReport(deps, userId, cost);
-		}
 		const details = error instanceof TurboError ? error.details : {};
+		// запись закрывает строку и возвращает кредиты одной транзакцией;
+		// если она не удалась, это сделает ленивое закрытие зависших
 		await safely("Не удалось записать неуспешную генерацию Турбо", () =>
 			deps.recordFailed({
+				id,
 				userId,
 				prompt,
 				enhancedPrompt: details.prompt ?? null,

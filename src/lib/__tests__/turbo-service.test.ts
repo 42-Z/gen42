@@ -30,18 +30,17 @@ const RESULT: TurboResult = {
 function makeDeps(overrides: Partial<TurboServiceDeps> = {}) {
 	let clock = 1_000;
 	const deps = {
-		deductCredits: mock(async () => 90),
-		refundCredits: mock(async () => {}),
+		chargeCredits: mock(async () => {}),
 		run: mock(async () => RESULT),
 		storeImage: mock(async () => ({
 			key: "generations/u1/1.png",
 			url: "https://s3/img",
 		})),
+		startRecord: mock(async () => "gen-1"),
 		recordCompleted: mock(async () => {}),
 		recordFailed: mock(async () => {}),
 		onAuthFailure: mock(async () => {}),
 		now: () => (clock += 500),
-		newId: () => "gen-1",
 		...overrides,
 	};
 	return deps as typeof deps & TurboServiceDeps;
@@ -63,8 +62,15 @@ describe("generateTurbo", () => {
 			deps,
 		);
 
-		expect(deps.deductCredits).toHaveBeenCalledWith("u1", 10);
-		expect(deps.refundCredits).not.toHaveBeenCalled();
+		expect(deps.startRecord).toHaveBeenCalledWith({
+			userId: "u1",
+			prompt: "пятёрка на троне",
+		});
+		expect(deps.chargeCredits).toHaveBeenCalledWith({
+			id: "gen-1",
+			userId: "u1",
+			cost: 10,
+		});
 		expect(outcome).toEqual({
 			status: 200,
 			body: {
@@ -88,13 +94,12 @@ describe("generateTurbo", () => {
 			durationMs: 500,
 			agentTokens: 150,
 			systemVersion: "abcdef0123456789",
-			cost: 10,
 		});
 	});
 
-	test("мало кредитов: 402, агент не запускается, возврата нет", async () => {
+	test("мало кредитов: 402, агент не запускается, сбой пишется", async () => {
 		const deps = makeDeps({
-			deductCredits: mock(async () => {
+			chargeCredits: mock(async () => {
 				throw new InsufficientCreditsError();
 			}),
 		});
@@ -104,11 +109,10 @@ describe("generateTurbo", () => {
 			body: { error: "Недостаточно кредитов" },
 		});
 		expect(deps.run).not.toHaveBeenCalled();
-		expect(deps.refundCredits).not.toHaveBeenCalled();
 		expect(deps.recordFailed).toHaveBeenCalledTimes(1);
 	});
 
-	test("отказ генерации: возврат, запись failed с промптом, общее сообщение", async () => {
+	test("отказ генерации: запись failed с промптом, общее сообщение", async () => {
 		const error = new TurboError(
 			"generation_rejected",
 			"Codex Images ответил 400",
@@ -127,8 +131,8 @@ describe("generateTurbo", () => {
 			status: 502,
 			body: { error: TURBO_PUBLIC_ERROR },
 		});
-		expect(deps.refundCredits).toHaveBeenCalledWith("u1", 10);
 		expect(deps.recordFailed).toHaveBeenCalledWith({
+			id: "gen-1",
 			userId: "u1",
 			prompt: "x",
 			enhancedPrompt: "final prompt",
@@ -151,7 +155,7 @@ describe("generateTurbo", () => {
 		expect(deps.onAuthFailure).toHaveBeenCalledWith(error);
 	});
 
-	test("любая другая ошибка тоже возвращает кредиты", async () => {
+	test("любая другая ошибка тоже пишется как failed", async () => {
 		const deps = makeDeps({
 			storeImage: mock(async () => {
 				throw new Error("S3 недоступен");
@@ -159,37 +163,24 @@ describe("generateTurbo", () => {
 		});
 		const outcome = await generateTurbo({ userId: "u1", prompt: "x" }, deps);
 		expect(outcome.status).toBe(502);
-		expect(deps.refundCredits).toHaveBeenCalledWith("u1", 10);
 		expect(deps.recordCompleted).not.toHaveBeenCalled();
 		expect(deps.recordFailed).toHaveBeenCalledTimes(1);
 	});
 
-	test("возврат кредитов повторяется после сбоя", async () => {
-		let attempts = 0;
-		const deps = makeDeps({
-			run: mock(async () => {
-				throw new TurboError("agent_failed", "boom");
-			}),
-			refundCredits: mock(async () => {
-				attempts += 1;
-				if (attempts === 1) throw new Error("db down");
-			}),
+	test("клиентский id уходит в запись генерации", async () => {
+		const deps = makeDeps();
+		await generateTurbo({ userId: "u1", prompt: "x", id: "client-id" }, deps);
+		expect(deps.startRecord).toHaveBeenCalledWith({
+			id: "client-id",
+			userId: "u1",
+			prompt: "x",
 		});
-		const outcome = await generateTurbo({ userId: "u1", prompt: "x" }, deps);
-		expect(outcome).toEqual({
-			status: 502,
-			body: { error: TURBO_PUBLIC_ERROR },
-		});
-		expect(deps.refundCredits).toHaveBeenCalledTimes(2);
 	});
 
-	test("сбой возврата или записи не подменяет ответ пользователю", async () => {
+	test("сбой записи не подменяет ответ пользователю", async () => {
 		const deps = makeDeps({
 			run: mock(async () => {
 				throw new TurboError("agent_failed", "boom");
-			}),
-			refundCredits: mock(async () => {
-				throw new Error("db down");
 			}),
 			recordFailed: mock(async () => {
 				throw new Error("db down");

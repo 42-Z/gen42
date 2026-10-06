@@ -1,4 +1,4 @@
-import { sql } from "./db";
+import { type SqlExecutor, sql } from "./db";
 
 export class InsufficientCreditsError extends Error {
 	constructor() {
@@ -31,15 +31,20 @@ export async function addCredits(
 	return row!.balance;
 }
 
+/**
+ * Списание; `executor` — чтобы выполнить его в той же транзакции, что и запись
+ * о генерации (списанные кредиты и строка должны появляться сообща).
+ */
 export async function deductCredits(
 	userId: string,
 	amount: number,
+	executor: SqlExecutor = sql,
 ): Promise<number> {
 	if (!Number.isInteger(amount) || amount < 1) {
 		throw new Error(`Invalid credit amount: ${amount}`);
 	}
 
-	const rows = await sql`
+	const rows = await executor`
     UPDATE credits
     SET balance = balance - ${amount}, updated_at = NOW()
     WHERE user_id = ${userId} AND balance >= ${amount}
@@ -52,14 +57,16 @@ export async function deductCredits(
 	return rows[0]!.balance;
 }
 
+/** Возврат; см. `deductCredits` про `executor` */
 export async function refundCredits(
 	userId: string,
 	amount: number,
+	executor: SqlExecutor = sql,
 ): Promise<void> {
 	if (!Number.isInteger(amount) || amount < 1) {
 		throw new Error(`Invalid credit amount: ${amount}`);
 	}
-	await sql`
+	await executor`
     UPDATE credits
     SET balance = balance + ${amount}, updated_at = NOW()
     WHERE user_id = ${userId}

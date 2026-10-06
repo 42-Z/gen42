@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { InsufficientCreditsError } from "../credits";
-import { describeGenerationError } from "../generation-error";
+import {
+	describeGenerationError,
+	publicGenerationError,
+} from "../generation-error";
 import { KeyExhaustedError, QueueTimeoutError } from "../hf";
 import { AllKeysExhaustedError } from "../keys";
-import { TurboError } from "../turbo/errors";
+import { TURBO_PUBLIC_ERROR, TurboError } from "../turbo/errors";
 
 describe("describeGenerationError", () => {
 	test("известные ошибки получают код причины", () => {
@@ -43,5 +46,27 @@ describe("describeGenerationError", () => {
 	test("длинный текст обрезается", () => {
 		const text = describeGenerationError(new Error("x".repeat(5000)));
 		expect(text.length).toBe(2000);
+	});
+});
+
+describe("publicGenerationError", () => {
+	test("известные коды получают понятные сообщения", () => {
+		expect(
+			publicGenerationError("insufficient_credits: Insufficient credits"),
+		).toBe("Недостаточно кредитов");
+		expect(publicGenerationError("all_keys_exhausted: All exhausted")).toBe(
+			"Все ключи исчерпаны, попробуйте позже",
+		);
+		expect(publicGenerationError("interrupted: прервано")).toBe(
+			"Генерация была прервана, кредиты возвращены",
+		);
+	});
+
+	test("сбои Турбо и прочие получают общие сообщения", () => {
+		expect(publicGenerationError("agent_timeout: Время вышло")).toBe(
+			TURBO_PUBLIC_ERROR,
+		);
+		expect(publicGenerationError("error: boom")).toBe("Ошибка генерации");
+		expect(publicGenerationError(null)).toBe("Ошибка генерации");
 	});
 });

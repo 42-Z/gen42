@@ -1,7 +1,11 @@
 import { InsufficientCreditsError } from "./credits";
 import { KeyExhaustedError, QueueTimeoutError } from "./hf";
 import { AllKeysExhaustedError } from "./keys";
-import { TurboError } from "./turbo/errors";
+import {
+	TURBO_ERROR_CODES,
+	TURBO_PUBLIC_ERROR,
+	TurboError,
+} from "./turbo/errors";
 
 const MAX_ERROR_LENGTH = 2000;
 
@@ -27,4 +31,24 @@ export function describeGenerationError(error: unknown): string {
 		reason = "error";
 	}
 	return `${reason}: ${message}`.slice(0, MAX_ERROR_LENGTH);
+}
+
+/**
+ * Текст `generations.error_message` для пользователя: машинный код меняется на
+ * понятное сообщение. При любом сбое кредиты уже возвращены — это отражено в
+ * сообщениях.
+ */
+export function publicGenerationError(errorMessage: string | null): string {
+	const code = errorMessage?.split(":")[0];
+	if (code === "insufficient_credits") return "Недостаточно кредитов";
+	if (code === "all_keys_exhausted") {
+		return "Все ключи исчерпаны, попробуйте позже";
+	}
+	if (code === "interrupted") {
+		return "Генерация была прервана, кредиты возвращены";
+	}
+	if (code && (TURBO_ERROR_CODES as readonly string[]).includes(code)) {
+		return TURBO_PUBLIC_ERROR;
+	}
+	return "Ошибка генерации";
 }

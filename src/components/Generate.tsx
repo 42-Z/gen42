@@ -11,7 +11,7 @@ import {
 	IconSparkles,
 	IconX,
 } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	InputGroup,
@@ -46,6 +46,56 @@ const HISTORY_LIMIT = 8;
 type Mode = "image" | "turbo";
 const MODE_STORAGE_KEY = "gen42-mode";
 
+/** Идущая генерация: по этому ключу она возобновляется после обновления страницы */
+const PENDING_KEY = "gen42-pending";
+/** Последняя показанная картинка: она не должна пропадать при обновлении */
+const RESULT_KEY = "gen42-result";
+const POLL_INTERVAL_MS = 2500;
+/** Серверная генерация живёт не дольше 5 минут; дольше не ждём */
+const POLL_TIMEOUT_MS = 8 * 60_000;
+
+/** id генерации придумывает клиент — иначе после обновления её не найти */
+function newGenerationId(): string {
+	try {
+		return crypto.randomUUID();
+	} catch {
+		return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+	}
+}
+
+function readStored(key: string): string | null {
+	try {
+		return localStorage.getItem(key);
+	} catch {
+		return null;
+	}
+}
+
+function rememberPending(id: string) {
+	try {
+		localStorage.setItem(PENDING_KEY, id);
+	} catch {
+		/* хранилище недоступно — генерация просто не переживёт обновление */
+	}
+}
+
+function forgetPending() {
+	try {
+		localStorage.removeItem(PENDING_KEY);
+	} catch {
+		/* нечего забывать */
+	}
+}
+
+function rememberResult(id: string) {
+	try {
+		localStorage.removeItem(PENDING_KEY);
+		localStorage.setItem(RESULT_KEY, id);
+	} catch {
+		/* хранилище недоступно — просто не запомнится */
+	}
+}
+
 function readStoredMode(): Mode {
 	try {
 		return localStorage.getItem(MODE_STORAGE_KEY) === "turbo"
@@ -60,6 +110,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const [prompt, setPrompt] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [result, setResult] = useState<any>(null);
+	const [resultPrompt, setResultPrompt] = useState("");
 	const [error, setError] = useState("");
 	const [seedCopied, setSeedCopied] = useState(false);
 	const [history, setHistory] = useState<any[]>([]);
@@ -67,6 +118,10 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const [models, setModels] = useState<PublicImageModel[]>([]);
 	const [engine, setEngine] = useState<SpaceEngine>("krea");
 	const [mode, setMode] = useState<Mode>(readStoredMode);
+	const pollTimer = useRef<number | null>(null);
+	// асинхронные продолжения не должны жить дольше экрана: он снимается при
+	// переходе в админку
+	const aliveRef = useRef(true);
 
 	// Турбо виден, только пока сервер отдаёт его в списке: иначе экран один, обычный
 	const turboModel = models.find((m) => m.id === "turbo");
@@ -88,8 +143,14 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	}
 
 	useEffect(() => {
+		aliveRef.current = true;
 		loadHistory();
 		loadModels();
+		resumeGeneration();
+		return () => {
+			aliveRef.current = false;
+			if (pollTimer.current !== null) clearTimeout(pollTimer.current);
+		};
 	}, []);
 
 	async function loadModels() {
@@ -147,12 +208,140 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 		}
 	}
 
+	async function fetchGeneration(id: string): Promise<any | null> {
+		try {
+			const res = await fetch(`/api/generations/${id}`);
+			if (!res.ok) return null;
+			return await res.json();
+		} catch {
+			return null;
+		}
+	}
+
+	async function fetchActiveGeneration(): Promise<any | null> {
+		try {
+			const res = await fetch("/api/generations/active");
+			if (!res.ok) return null;
+			return await res.json();
+		} catch {
+			return null;
+		}
+	}
+
+	function showResult(rec: any) {
+		setResult({
+			id: rec.id,
+			image_url: rec.image_url,
+			seed: rec.seed,
+			engine: rec.engine,
+			cost: rec.cost,
+			duration: rec.duration,
+		});
+		setResultPrompt(rec.prompt ?? "");
+	}
+
+	/** Итог генерации: картинка или ошибка вместо ожидания */
+	function settleGeneration(rec: any) {
+		setLoading(false);
+		if (rec.status === "completed") {
+			rememberResult(rec.id);
+			showResult(rec);
+			refreshBalance();
+			loadHistory();
+			return;
+		}
+		forgetPending();
+		setError(rec.error || "Не удалось создать изображение, кредиты возвращены");
+		refreshBalance();
+	}
+
+	function pollGeneration(id: string, deadline: number) {
+		if (pollTimer.current !== null) clearTimeout(pollTimer.current);
+		pollTimer.current = window.setTimeout(async () => {
+			if (!aliveRef.current) return;
+			const rec = await fetchGeneration(id);
+			if (!aliveRef.current) return;
+			if (rec) {
+				if (rec.status === "running") {
+					if (Date.now() < deadline) {
+						pollGeneration(id, deadline);
+						return;
+					}
+					// сервер молчит дольше обычного — не держим экран в ожидании
+					forgetPending();
+					setLoading(false);
+					setError("Не удалось дождаться результата, обновите страницу");
+					return;
+				}
+				settleGeneration(rec);
+				return;
+			}
+			// запрос не прошёл — пробуем ещё, вдруг это сбой сети
+			if (Date.now() < deadline) {
+				pollGeneration(id, deadline);
+				return;
+			}
+			forgetPending();
+			setLoading(false);
+			setError("Не удалось получить результат, обновите страницу");
+		}, POLL_INTERVAL_MS);
+	}
+
+	function waitForGeneration(rec: any) {
+		if (!aliveRef.current) return;
+		setPrompt(rec.prompt ?? "");
+		setResult(null);
+		setResultPrompt("");
+		setError("");
+		setSeedCopied(false);
+		setLoading(true);
+		pollGeneration(rec.id, Date.now() + POLL_TIMEOUT_MS);
+	}
+
+	/**
+	 * Обновление страницы не должно терять процесс: идущая генерация
+	 * (запомненная или из другой вкладки) продолжает ждаться здесь, а последняя
+	 * картинка возвращается на экран.
+	 */
+	async function resumeGeneration() {
+		const pendingId = readStored(PENDING_KEY);
+		if (pendingId) {
+			const rec = await fetchGeneration(pendingId);
+			if (rec?.status === "running") {
+				waitForGeneration(rec);
+				return;
+			}
+			forgetPending();
+			if (rec) {
+				settleGeneration(rec);
+				return;
+			}
+		}
+
+		const active = await fetchActiveGeneration();
+		if (active) {
+			waitForGeneration(active);
+			return;
+		}
+
+		const lastId = readStored(RESULT_KEY);
+		if (lastId) {
+			const rec = await fetchGeneration(lastId);
+			if (rec?.status === "completed") showResult(rec);
+		}
+	}
+
 	async function handleGenerate() {
-		if (!prompt.trim() || outOfCredits) return;
+		if (!prompt.trim() || outOfCredits || loading) return;
+
+		// id придумывает клиент: так генерация находится после обновления страницы
+		const id = newGenerationId();
+		rememberPending(id);
 
 		setLoading(true);
 		setError("");
 		setResult(null);
+		setResultPrompt("");
 		setSeedCopied(false);
 
 		try {
@@ -161,10 +350,11 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(
 					activeMode === "turbo"
-						? { prompt, engine: "turbo" }
+						? { prompt, engine: "turbo", id }
 						: {
 								prompt,
 								engine,
+								id,
 								...(engine === "krea" ? { model: "Turbo", steps: 8 } : {}),
 								width: 1024,
 								height: 1024,
@@ -179,21 +369,34 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 				activeMode === "turbo"
 					? "Не удалось создать изображение"
 					: "Ошибка генерации";
-			if (!res.ok) {
-				const data = await res.json().catch(() => null);
+			const data = await res.json().catch(() => null);
+			if (!res.ok || !data) {
+				// сервер ответил — генерация завершена, возобновлять нечего
+				forgetPending();
 				throw new Error(data?.error || fallback);
 			}
 
-			const data = await res.json().catch(() => null);
-			if (!data) throw new Error(fallback);
+			rememberResult(data.id ?? id);
+			setLoading(false);
 			setResult(data);
+			setResultPrompt(prompt);
 			refreshBalance();
 			loadHistory();
 		} catch (err: any) {
+			// обрыв связи или сбой ответа: строка на сервере — источник правды
+			const rec = await fetchGeneration(id);
+			if (rec?.status === "running") {
+				waitForGeneration(rec);
+				return;
+			}
+			if (rec) {
+				settleGeneration(rec);
+				return;
+			}
+			forgetPending();
+			setLoading(false);
 			setError(err.message);
 			refreshBalance();
-		} finally {
-			setLoading(false);
 		}
 	}
 
@@ -347,7 +550,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 					<div className="group relative overflow-hidden rounded-[22px]">
 						<img
 							src={result.image_url}
-							alt={prompt || "Сгенерированное изображение"}
+							alt={resultPrompt || prompt || "Сгенерированное изображение"}
 							className="block w-full transition-transform duration-500 group-hover:scale-[1.015]"
 						/>
 					</div>
