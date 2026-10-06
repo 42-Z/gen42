@@ -1,6 +1,9 @@
-import { deductCredits, refundCredits } from "../credits";
-import { sql } from "../db";
-import { describeGenerationError } from "../generation-error";
+import {
+	chargeGeneration,
+	completeGeneration,
+	failGeneration,
+	startGeneration,
+} from "../generations";
 import { buildTurboSystem } from "../prompts/turbo.system";
 import { getImageUrl, listObjects, readObject, uploadImage } from "../storage";
 import { runTurbo } from "./agent";
@@ -18,17 +21,11 @@ import type { TurboServiceDeps } from "./service";
 /** Библиотека читается из бакета с префиксом library/; кэш дерева живёт минуту */
 const library = new Library({ list: listObjects, read: readObject });
 
-/**
- * text[] с явным OID: без типа postgres.js полагается на карту типов, которую
- * получает при первом подключении, — на «холодном» соединении массив ушёл бы
- * как text и Postgres ответил бы «malformed array literal».
- */
-const textArray = (values: string[]) => sql.array(values, 1009);
-
 /** Боевые зависимости сервиса Турбо: вход подписки, S3 и запись в `generations` */
 export const turboDeps: TurboServiceDeps = {
-	deductCredits,
-	refundCredits,
+	async chargeCredits(params) {
+		await chargeGeneration(params);
+	},
 
 	async run(prompt) {
 		// новый менеджер входа на запуск: токены читаются из базы, а не из памяти экземпляра
@@ -54,35 +51,45 @@ export const turboDeps: TurboServiceDeps = {
 		return { key, url: await getImageUrl(key) };
 	},
 
+	async startRecord(record) {
+		return startGeneration({
+			...(record.id ? { id: record.id } : {}),
+			userId: record.userId,
+			prompt: record.prompt,
+			engine: "turbo",
+			model: CODEX_IMAGE_MODEL,
+			width: 1024,
+			height: 1024,
+			steps: 0,
+		});
+	},
+
 	async recordCompleted(record) {
-		await sql`
-      INSERT INTO generations
-        (id, user_id, prompt, enhanced_prompt, model, width, height, steps,
-         image_key, status, duration_ms, llm_model, llm_tokens, enhance_ms,
-         style_version, engine, cost, input_images)
-      VALUES
-        (${record.id}, ${record.userId}, ${record.prompt},
-         ${record.enhancedPrompt}, ${CODEX_IMAGE_MODEL}, ${record.width},
-         ${record.height}, 0, ${record.imageKey}, 'completed',
-         ${record.durationMs}, ${TURBO_AGENT_MODEL}, ${record.agentTokens},
-         ${record.durationMs}, ${record.systemVersion}, 'turbo', ${record.cost},
-         ${textArray(record.inputImages)})
-    `;
+		await completeGeneration({
+			id: record.id,
+			imageKey: record.imageKey,
+			seed: null,
+			width: record.width,
+			height: record.height,
+			enhancedPrompt: record.enhancedPrompt,
+			durationMs: record.durationMs,
+			llmModel: TURBO_AGENT_MODEL,
+			llmTokens: record.agentTokens,
+			enhanceMs: record.durationMs,
+			styleVersion: record.systemVersion,
+			inputImages: record.inputImages,
+		});
 	},
 
 	async recordFailed(record) {
-		await sql`
-      INSERT INTO generations
-        (id, user_id, prompt, enhanced_prompt, model, width, height, steps,
-         status, error_message, duration_ms, llm_model, engine, cost,
-         input_images)
-      VALUES
-        (${crypto.randomUUID()}, ${record.userId}, ${record.prompt},
-         ${record.enhancedPrompt}, ${CODEX_IMAGE_MODEL}, 1024, 1024, 0,
-         'failed', ${describeGenerationError(record.error)},
-         ${record.durationMs}, ${TURBO_AGENT_MODEL}, 'turbo', 0,
-         ${textArray(record.inputImages)})
-    `;
+		await failGeneration({
+			id: record.id,
+			error: record.error,
+			enhancedPrompt: record.enhancedPrompt,
+			durationMs: record.durationMs,
+			llmModel: TURBO_AGENT_MODEL,
+			inputImages: record.inputImages,
+		});
 	},
 
 	async onAuthFailure(error) {
@@ -90,5 +97,4 @@ export const turboDeps: TurboServiceDeps = {
 	},
 
 	now: Date.now,
-	newId: () => crypto.randomUUID(),
 };

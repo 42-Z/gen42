@@ -1,9 +1,13 @@
-export type TurboErrorCode =
-	| "codex_auth_required"
-	| "agent_failed"
-	| "agent_no_generation"
-	| "generation_rejected"
-	| "agent_timeout";
+/** Все коды сбоев режима «Турбо»; порядок не важен */
+export const TURBO_ERROR_CODES = [
+	"codex_auth_required",
+	"agent_failed",
+	"agent_no_generation",
+	"generation_rejected",
+	"agent_timeout",
+] as const;
+
+export type TurboErrorCode = (typeof TURBO_ERROR_CODES)[number];
 
 /** Что успело получиться до сбоя; пишется в историю для отладки */
 export interface TurboErrorDetails {

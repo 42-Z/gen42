@@ -1,13 +1,17 @@
 import { auth } from "../lib/auth";
-import {
-	deductCredits,
-	getCredits,
-	InsufficientCreditsError,
-	refundCredits,
-} from "../lib/credits";
+import { getCredits, InsufficientCreditsError } from "../lib/credits";
 import { sql } from "../lib/db";
 import { enhancePrompt } from "../lib/enhance";
-import { describeGenerationError } from "../lib/generation-error";
+import { publicGenerationError } from "../lib/generation-error";
+import {
+	chargeGeneration,
+	completeGeneration,
+	failGeneration,
+	type GenerationRecord,
+	getActiveGeneration,
+	getGeneration,
+	startGeneration,
+} from "../lib/generations";
 import {
 	generateImage,
 	getZeroGPUQuota,
@@ -35,53 +39,27 @@ import { generateTurbo } from "../lib/turbo/service";
 
 const MAX_ATTEMPTS = 5;
 
-/**
- * Неуспешная попытка тоже попадает в историю: исходный промпт, что успели
- * получить от LLM и причина. Кредиты возвращены, поэтому cost = 0.
- * Ошибка записи не должна подменять ответ пользователю.
- */
-async function recordFailedGeneration(params: {
-	userId: string;
-	prompt: string;
-	negativePrompt?: string;
-	engine: string;
-	model?: string;
-	width?: number;
-	height?: number;
-	steps?: number;
-	seed?: number;
-	enhanced: Awaited<ReturnType<typeof enhancePrompt>> | null;
-	apiKeyId: string | null;
-	durationMs: number;
-	error: unknown;
-}): Promise<void> {
-	const { enhanced } = params;
-	const isIdeogram = params.engine === "ideogram";
-	try {
-		await sql`
-      INSERT INTO generations
-        (id, user_id, prompt, enhanced_prompt, negative_prompt, model, width,
-         height, steps, seed, status, error_message, duration_ms, api_key_id,
-         llm_key_id, llm_model, llm_tokens, enhance_ms, style_version, engine,
-         cost)
-      VALUES
-        (${crypto.randomUUID()}, ${params.userId}, ${params.prompt},
-         ${enhanced?.prompt ?? null}, ${params.negativePrompt || null},
-         ${isIdeogram ? IDEOGRAM_MODE : params.model || "Turbo"},
-         ${params.width || 1024}, ${params.height || 1024},
-         ${isIdeogram ? IDEOGRAM_STEPS : params.steps || 8},
-         ${Number.isInteger(params.seed) ? (params.seed as number) : null},
-         'failed',
-         ${describeGenerationError(params.error)}, ${params.durationMs},
-         ${params.apiKeyId}, ${enhanced?.keyId ?? null},
-         ${enhanced?.model ?? null},
-         ${(enhanced?.inputTokens ?? 0) + (enhanced?.outputTokens ?? 0) || null},
-         ${enhanced?.durationMs ?? null}, ${enhanced?.styleVersion ?? null},
-         ${params.engine}, 0)
-    `;
-	} catch (err) {
-		console.error("Не удалось записать неуспешную генерацию:", err);
-	}
+/** Запись истории для клиента: картинка пресайнится только для завершённых */
+async function generationJson(record: GenerationRecord) {
+	return {
+		id: record.id,
+		status: record.status,
+		prompt: record.prompt,
+		engine: record.engine,
+		model: record.model,
+		seed: record.seed,
+		cost: record.cost,
+		image_url:
+			record.status === "completed" && record.imageKey
+				? await getImageUrl(record.imageKey)
+				: null,
+		error:
+			record.status === "failed"
+				? publicGenerationError(record.errorMessage)
+				: null,
+		duration: record.durationMs,
+		created_at: record.createdAt,
+	};
 }
 
 export const generateRoutes = {
@@ -124,22 +102,86 @@ export const generateRoutes = {
 
 			if (engine === "turbo") {
 				const outcome = await generateTurbo(
-					{ userId: session.user.id, prompt },
+					{
+						userId: session.user.id,
+						prompt,
+						...(typeof body.id === "string" ? { id: body.id } : {}),
+					},
 					turboDeps,
 				);
 				return Response.json(outcome.body, { status: outcome.status });
 			}
 
 			const { cost } = getImageModel(engine);
+			const isIdeogram = engine === "ideogram";
+			const storedModel = isIdeogram ? IDEOGRAM_MODE : model || "Turbo";
+			const storedSteps = isIdeogram ? IDEOGRAM_STEPS : steps || 8;
+			const storedWidth = width || 1024;
+			const storedHeight = height || 1024;
 
-			let creditSpent = false;
 			let currentKey: Awaited<ReturnType<typeof getAvailableKey>> | null = null;
 			let enhanced: Awaited<ReturnType<typeof enhancePrompt>> | null = null;
 			const requestStart = Date.now();
 
+			// строка `running` появляется до списания и всей работы: обновление
+			// страницы находит по ней процесс и дожидается результата
+			let generationId: string;
 			try {
-				await deductCredits(session.user.id, cost);
-				creditSpent = true;
+				generationId = await startGeneration({
+					...(typeof body.id === "string" ? { id: body.id } : {}),
+					userId: session.user.id,
+					prompt,
+					negativePrompt,
+					engine,
+					model: storedModel,
+					width: storedWidth,
+					height: storedHeight,
+					steps: storedSteps,
+				});
+			} catch (error) {
+				console.error("Generation error:", error);
+				return Response.json(
+					{ error: "Internal server error" },
+					{ status: 500 },
+				);
+			}
+
+			/**
+			 * Сбой тоже закрывает строку: исходный промпт, что успели получить от LLM
+			 * и причина. Кредиты возвращает сама запись — одной транзакцией с
+			 * закрытием. Ошибка записи не подменяет ответ пользователю.
+			 */
+			const recordFailure = async (error: unknown) => {
+				try {
+					const closed = await failGeneration({
+						id: generationId,
+						error,
+						seed: Number.isInteger(seed) ? (seed as number) : null,
+						durationMs: Date.now() - requestStart,
+						enhancedPrompt: enhanced?.prompt ?? null,
+						apiKeyId: currentKey?.id ?? null,
+						llmKeyId: enhanced?.keyId ?? null,
+						llmModel: enhanced?.model ?? null,
+						llmTokens:
+							(enhanced?.inputTokens ?? 0) + (enhanced?.outputTokens ?? 0) ||
+							null,
+						enhanceMs: enhanced?.durationMs ?? null,
+						styleVersion: enhanced?.styleVersion ?? null,
+					});
+					if (!closed) {
+						console.warn(`Генерация ${generationId} уже закрыта другим путём`);
+					}
+				} catch (err) {
+					console.error("Не удалось записать неуспешную генерацию:", err);
+				}
+			};
+
+			try {
+				await chargeGeneration({
+					id: generationId,
+					userId: session.user.id,
+					cost,
+				});
 
 				enhanced = await enhancePrompt(prompt);
 				if (enhanced.fallback) {
@@ -224,26 +266,27 @@ export const generateRoutes = {
 				const imageKey = `generations/${session.user.id}/${Date.now()}.${imageExtension(contentType)}`;
 				await uploadImage(imageKey, imageBuffer, contentType);
 
-				const generationId = crypto.randomUUID();
-				const storedModel =
-					engine === "ideogram" ? IDEOGRAM_MODE : model || "Turbo";
-				const storedSteps = engine === "ideogram" ? IDEOGRAM_STEPS : steps || 8;
-				await sql`
-          INSERT INTO generations
-            (id, user_id, prompt, enhanced_prompt, negative_prompt, model, width,
-             height, steps, seed, image_key, status, duration_ms, api_key_id,
-             llm_key_id, llm_model, llm_tokens, enhance_ms, style_version,
-             engine, cost)
-          VALUES
-            (${generationId}, ${session.user.id}, ${prompt}, ${enhanced.prompt},
-             ${negativePrompt || null}, ${storedModel}, ${width || 1024},
-             ${height || 1024}, ${storedSteps}, ${result.seed}, ${imageKey},
-             'completed', ${duration}, ${currentKey!.id}, ${enhanced.keyId},
-             ${enhanced.model},
-             ${(enhanced.inputTokens ?? 0) + (enhanced.outputTokens ?? 0) || null},
-             ${enhanced.durationMs}, ${enhanced.styleVersion},
-             ${engine}, ${cost})
-        `;
+				const closed = await completeGeneration({
+					id: generationId,
+					imageKey,
+					seed: result.seed,
+					width: storedWidth,
+					height: storedHeight,
+					enhancedPrompt: enhanced.prompt,
+					durationMs: duration,
+					apiKeyId: currentKey!.id,
+					llmKeyId: enhanced.keyId,
+					llmModel: enhanced.model,
+					llmTokens:
+						(enhanced.inputTokens ?? 0) + (enhanced.outputTokens ?? 0) || null,
+					enhanceMs: enhanced.durationMs,
+					styleVersion: enhanced.styleVersion,
+				});
+				if (!closed) {
+					console.warn(
+						`Генерация ${generationId} закрыта другим путём — результат не в истории`,
+					);
+				}
 				const quota = await getZeroGPUQuota(currentKey!.key);
 				if (quota) {
 					await updateKeyQuota(currentKey!.id, quota);
@@ -260,24 +303,7 @@ export const generateRoutes = {
 					cost,
 				});
 			} catch (error: any) {
-				if (creditSpent) {
-					await refundCredits(session.user.id, cost);
-				}
-				await recordFailedGeneration({
-					userId: session.user.id,
-					prompt,
-					negativePrompt,
-					engine,
-					model,
-					width,
-					height,
-					steps,
-					seed,
-					enhanced,
-					apiKeyId: currentKey?.id ?? null,
-					durationMs: Date.now() - requestStart,
-					error,
-				});
+				await recordFailure(error);
 				if (currentKey) {
 					const quota = await getZeroGPUQuota(currentKey.key);
 					if (quota) {
@@ -329,6 +355,34 @@ export const generateRoutes = {
 			);
 
 			return Response.json(withUrls);
+		},
+	},
+
+	"/api/generations/active": {
+		// идущая генерация пользователя: страница находит её после обновления
+		GET: async (req: Request) => {
+			const session = await auth.api.getSession({ headers: req.headers });
+			if (!session) {
+				return Response.json({ error: "Unauthorized" }, { status: 401 });
+			}
+			const record = await getActiveGeneration(session.user.id);
+			return Response.json(record ? await generationJson(record) : null);
+		},
+	},
+
+	"/api/generations/:id": {
+		// статус одной генерации: им опрашивается идущий процесс
+		GET: async (req: Request) => {
+			const session = await auth.api.getSession({ headers: req.headers });
+			if (!session) {
+				return Response.json({ error: "Unauthorized" }, { status: 401 });
+			}
+			const { id } = (req as any).params;
+			const record = await getGeneration(session.user.id, id);
+			if (!record) {
+				return Response.json({ error: "Не найдено" }, { status: 404 });
+			}
+			return Response.json(await generationJson(record));
 		},
 	},
 

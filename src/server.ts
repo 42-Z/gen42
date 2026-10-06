@@ -32,6 +32,8 @@ const server = serve({
 
 		"/api/generate": generateRoutes["/api/generate"],
 		"/api/generations": generateRoutes["/api/generations"],
+		"/api/generations/active": generateRoutes["/api/generations/active"],
+		"/api/generations/:id": generateRoutes["/api/generations/:id"],
 		"/api/me": generateRoutes["/api/me"],
 		"/api/models": generateRoutes["/api/models"],
 
