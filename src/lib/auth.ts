@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { Kysely } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
-import { sql } from "./db";
+import { DAILY_GRANT_CREDITS, grantSignupCredits } from "./credits";
 
 const kysely = new Kysely({
 	dialect: new PostgresJSDialect({
@@ -10,7 +10,7 @@ const kysely = new Kysely({
 	}),
 });
 
-export const SIGNUP_BONUS_CREDITS = 1;
+export const SIGNUP_BONUS_CREDITS = DAILY_GRANT_CREDITS;
 
 export const auth = betterAuth({
 	database: {
@@ -33,11 +33,7 @@ export const auth = betterAuth({
 			create: {
 				after: async (user) => {
 					try {
-						await sql`
-              INSERT INTO credits (user_id, balance)
-              VALUES (${user.id}, ${SIGNUP_BONUS_CREDITS})
-              ON CONFLICT (user_id) DO NOTHING
-            `;
+						await grantSignupCredits(user.id);
 					} catch (error) {
 						console.error(
 							`Не удалось выдать стартовые кредиты пользователю ${user.id}:`,

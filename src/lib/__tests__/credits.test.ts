@@ -20,6 +20,9 @@ const {
 	addCredits,
 	deductCredits,
 	refundCredits,
+	grantDailyCredits,
+	grantSignupCredits,
+	DAILY_GRANT_CREDITS,
 	InsufficientCreditsError,
 } = await import("../credits");
 
@@ -76,5 +79,45 @@ describe("Credits", () => {
 		const values = mockSql.mock.calls[0]!.slice(1);
 		expect(strings.join("?")).toContain("balance = balance + ?");
 		expect(values).toContain(3);
+	});
+
+	test("grantDailyCredits начисляет 42 и дату МСК каждому ещё не получившему за день", async () => {
+		expect(DAILY_GRANT_CREDITS).toBe(42);
+		responses = {
+			"RETURNING user_id": [{ user_id: "u1" }, { user_id: "u2" }],
+		};
+
+		const granted = await grantDailyCredits();
+		expect(granted).toBe(2);
+
+		const strings = mockSql.mock.calls[0]![0] as TemplateStringsArray;
+		const values = mockSql.mock.calls[0]!.slice(1);
+		expect(strings.join("?")).toContain("Europe/Moscow");
+		expect(strings.join("?")).toContain("NOT EXISTS");
+		expect(strings.join("?")).toContain("last_grant_date");
+		expect(values).toContain(42);
+	});
+
+	test("grantDailyCredits идемпотентен: начислённый за день пользователь не возвращается", async () => {
+		responses = { "RETURNING user_id": [] };
+
+		const granted = await grantDailyCredits();
+		expect(granted).toBe(0);
+
+		const strings = mockSql.mock.calls[0]![0] as TemplateStringsArray;
+		// защита от двойной выдачи при одновременных вызовах крона
+		expect(strings.join("?")).toContain("IS DISTINCT FROM");
+	});
+
+	test("grantSignupCredits выдаёт стартовый баланс с датой МСК", async () => {
+		await grantSignupCredits("user-123");
+
+		const strings = mockSql.mock.calls[0]![0] as TemplateStringsArray;
+		const values = mockSql.mock.calls[0]!.slice(1);
+		expect(strings.join("?")).toContain("DO NOTHING");
+		expect(strings.join("?")).toContain("last_grant_date");
+		expect(strings.join("?")).toContain("Europe/Moscow");
+		expect(values).toContain("user-123");
+		expect(values).toContain(DAILY_GRANT_CREDITS);
 	});
 });

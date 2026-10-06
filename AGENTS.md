@@ -54,12 +54,13 @@ bun run format       # форматер (biome)
 
 ## Архитектура
 
-- `src/server.ts` — единственный entrypoint: API-роуты (`/api/auth/*`, `/api/generate`, `/api/generations`, `/api/me`, `/api/models`, `/api/admin/*`) + раздача `dist/`. Не создавать отдельные entrypoints
+- `src/server.ts` — единственный entrypoint: API-роуты (`/api/auth/*`, `/api/generate`, `/api/generations`, `/api/me`, `/api/models`, `/api/admin/*`, `/api/cron/*`) + раздача `dist/`. Не создавать отдельные entrypoints
 - `src/lib/models.ts` — реестр движков генерации `IMAGE_MODELS` (krea / ideogram): адрес Space, стоимость в кредитах, таймаут; Турбо описан отдельно (`TURBO_MODEL`, 10 кредитов, без Space); `publicImageModels({ turbo })` отдаёт клиенту только `id/label/cost` и добавляет Турбо только при рабочем входе Codex
 - `src/lib/llm.ts` — единый клиент LLM-провайдеров: реестр `LLM_PROVIDERS` и generic `callLlm({ provider, … })` на AI SDK v7 (`ai` + `@ai-sdk/openai-compatible`)
 - `src/api/` — обработчики роутов; `src/lib/` — доменная логика (credits, keys, models, hf, llm, enhance, storage, rate-limit); `src/lib/prompts/` — промпт-инженерия стиля «42»
 - Ключи всех провайдеров живут только в таблице `api_keys` (`provider`: `huggingface` | `poolside` | `inception`) и управляются через админку (`/api/admin/keys`: добавление, проверка, удаление; `?provider=` выбирает список). В env и файлах они не хранятся, API отдаёт их маскированными
-- Баланс пользователя: генерация списывает стоимость движка из `IMAGE_MODELS` (Krea 2 — 1, Ideogram 4 — 3, Турбо — 10) — `src/lib/credits.ts` (`deductCredits`/`refundCredits`). Новому пользователю при регистрации даётся 1 стартовый кредит (hook `databaseHooks.user.create.after` в `src/lib/auth.ts`, константа `SIGNUP_BONUS_CREDITS`)
+- Баланс пользователя: генерация списывает стоимость движка из `IMAGE_MODELS` (Krea 2 — 1, Ideogram 4 — 3, Турбо — 10) — `src/lib/credits.ts` (`deductCredits`/`refundCredits`). Новому пользователю при регистрации даётся 42 кредита (`grantSignupCredits`, hook `databaseHooks.user.create.after` в `src/lib/auth.ts`; константа `SIGNUP_BONUS_CREDITS` = `DAILY_GRANT_CREDITS`)
+- Ежедневная выдача: крон Vercel (`vercel.json` → `crons`, `0 21 * * *` = 00:00 МСК) бьёт в `GET /api/cron/daily-credits`, секрет — `Bearer CRON_SECRET` (переменная `CRON_SECRET` в Vercel; без неё роут отвечает 401). Начисление — `grantDailyCredits()` в `src/lib/credits.ts`: один атомарный SQL, `+42` (`DAILY_GRANT_CREDITS`) каждому, у кого строки `credits` нет или `last_grant_date < сегодня (МСК)`; идемпотентно (повторный вызов за день — 0), гонка двух одновременных вызовов закрыта `IS DISTINCT FROM` в `DO UPDATE`. Hobby-план запускает крон «внутри часа» — выдача приходит между 00:00 и 01:00 МСК, а не ровно в полночь; Vercel не ретраит упавший крон — пропущенный день значит потерянную выдачу для всех (догонок нет, защита от дублей есть). Неактивные пользователи копят 42/день без ограничений — осознанно
 - Первый пользователь с email из `ADMIN_EMAIL` — админ
 
 ## Хранилище (S3)
