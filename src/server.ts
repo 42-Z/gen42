@@ -4,6 +4,7 @@ import { serve } from "bun";
 import { adminRoutes } from "./api/admin";
 import { authRoutes } from "./api/auth";
 import { codexAdminRoutes } from "./api/codex-admin";
+import { cronRoutes } from "./api/cron";
 import { generateRoutes } from "./api/generate";
 
 const DIST_DIR = join(process.cwd(), "dist");
@@ -43,6 +44,8 @@ const server = serve({
 		"/api/admin/codex": codexAdminRoutes["/api/admin/codex"],
 		"/api/admin/codex/login": codexAdminRoutes["/api/admin/codex/login"],
 		"/api/admin/codex/check": codexAdminRoutes["/api/admin/codex/check"],
+
+		"/api/cron/daily-credits": cronRoutes["/api/cron/daily-credits"],
 	},
 
 	fetch: async (req) => {

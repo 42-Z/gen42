@@ -174,3 +174,6 @@ CREATE TABLE IF NOT EXISTS codex_auth (
   last_error TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Ежедневная выдача кредитов: дата последнего начисления (граница дня — полночь МСК)
+ALTER TABLE credits ADD COLUMN IF NOT EXISTS last_grant_date DATE;

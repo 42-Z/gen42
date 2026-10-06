@@ -4,6 +4,12 @@
 	"framework": "bun",
 	"buildCommand": "bun run build",
 	"outputDirectory": "dist",
+	"crons": [
+		{
+			"path": "/api/cron/daily-credits",
+			"schedule": "0 21 * * *"
+		}
+	],
 	"functions": {
 		"src/server.ts": {
 			"maxDuration": 300,
