@@ -30,6 +30,15 @@ const PROMPTS = [
 	"плакат с надписью «СЛАВА 42»",
 	"Мафаня в майке оранджэнг раздаёт слитки",
 	"Даванков и Романцев играют в шахматы с бегемотом",
+	"Пятёрка уничтожает богему",
+	"Пятёрка поёт на сцене",
+	"Пятёрка в обычный будний день",
+	"экзамен по математике",
+	"3 взвод идёт в атаку на хейтеров",
+	"мопс слушает альбом Magnum Opus",
+	"дедлайн",
+	"утро в деревне",
+	"новогодняя ёлка",
 ];
 
 const generate = process.argv.includes("--generate");
@@ -96,10 +105,14 @@ for (const [index, prompt] of selected.entries()) {
 			`# ${prompt}  (${seconds} с${generate ? `, из них рисование ${Math.round(imageMs / 1000)} с` : ""}, токенов ${(result.inputTokens ?? 0) + (result.outputTokens ?? 0)})`,
 		);
 		console.log(`  изображения: ${result.inputImages.join(", ") || "нет"}`);
+		const opened = result.toolCalls
+			.filter((call) => call.toolName === "readFile")
+			.map((call) => (call.input as { path: string }).path);
+		console.log(`  прочитано агентом: ${opened.join(", ") || "ничего"}`);
 		console.log(`  промпт: ${result.prompt}\n`);
 		await appendFile(
 			jsonl,
-			`${JSON.stringify({ prompt, version, seconds, imageSeconds: Math.round(imageMs / 1000), inputImages: result.inputImages, finalPrompt: result.prompt, size: result.size })}\n`,
+			`${JSON.stringify({ prompt, version, seconds, imageSeconds: Math.round(imageMs / 1000), inputImages: result.inputImages, toolCalls: result.toolCalls, finalPrompt: result.prompt, size: result.size })}\n`,
 		);
 	} catch (error) {
 		const message =

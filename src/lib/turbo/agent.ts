@@ -1,8 +1,12 @@
 import { createHash } from "node:crypto";
-import { isStepCount, type LanguageModel, ToolLoopAgent } from "ai";
-import { buildUserMessage, pickAnchors } from "../prompts/anchors";
 import {
-	detectUserMedium,
+	isStepCount,
+	type LanguageModel,
+	ToolChoiceViolationError,
+	ToolLoopAgent,
+} from "ai";
+import { buildUserMessage } from "../prompts/anchors";
+import {
 	extractCapsPhrases,
 	extractQuotedTexts,
 	requestsText,
@@ -32,6 +36,8 @@ export interface TurboResult {
 	/** Итоговый промпт, который агент отдал генератору */
 	prompt: string;
 	inputImages: string[];
+	/** Вызовы инструментов по шагам прогона: видно, какие папки и изображения агент открывал */
+	toolCalls: { toolName: string; input: unknown }[];
 	/** Размер, который выбрал сервер */
 	size: string | null;
 	inputTokens: number | null;
@@ -85,6 +91,14 @@ export function classifyAgentError(
 	signal: AbortSignal,
 ): TurboError {
 	if (error instanceof TurboError) return error;
+	// модель ответила без вызова инструмента при toolChoice "required"
+	if (ToolChoiceViolationError.isInstance(error)) {
+		return new TurboError(
+			"agent_no_generation",
+			"Агент завершил работу, не вызвав generateImage",
+			{ cause: error },
+		);
+	}
 	const message = error instanceof Error ? error.message : String(error);
 	const name = (error as { name?: string } | null)?.name;
 	if (signal.aborted || name === "TimeoutError" || name === "AbortError") {
@@ -96,15 +110,16 @@ export function classifyAgentError(
 	return new TurboError("agent_failed", message, { cause: error });
 }
 
-/** Сообщение пользователя для агента: запрос, признак текста и якоря, как у обычного обогащения */
+/**
+ * Сообщение пользователя для агента: запрос, признак текста и точные цитаты.
+ * Случайных якорей канона здесь нет: они тянули каждый кадр к одному набору
+ * (золото, трактор, дирижабль), а идею агент должен придумывать сам.
+ */
 export function buildAgentMessage(userInput: string): string {
-	const anchors = pickAnchors();
-	const userMedium = detectUserMedium(userInput);
-	if (userMedium) anchors.medium = userMedium;
 	const exactTexts = extractQuotedTexts(userInput);
 	const textRequested = requestsText(userInput) || exactTexts.length > 0;
 	// лозунги капсом приходят так же, как в обычном обогащении: их обещает канон
-	return buildUserMessage(userInput, anchors, {
+	return buildUserMessage(userInput, null, {
 		textRequested,
 		exactTexts,
 		textCandidates: textRequested ? extractCapsPhrases(userInput) : [],
@@ -127,6 +142,9 @@ export async function runTurbo(
 			instructions: system,
 			tools: createTurboTools({ library: deps.library, edit: deps.edit, run }),
 			reasoning: "high",
+			// агент либо вызывает инструмент, либо заканчивает; ответа текстом без
+			// generateImage (редкий сбой модели) не бывает: ToolChoice из документации AI SDK
+			toolChoice: "required",
 			stopWhen: [
 				() => isRunFinished(run),
 				isStepCount(deps.maxSteps ?? TURBO_MAX_STEPS),
@@ -142,6 +160,9 @@ export async function runTurbo(
 				png: run.png,
 				prompt: run.prompt,
 				inputImages: run.inputImages,
+				toolCalls: result.steps.flatMap((step) =>
+					step.toolCalls.map(({ toolName, input }) => ({ toolName, input })),
+				),
 				size: run.size,
 				inputTokens: result.usage.inputTokens ?? null,
 				outputTokens: result.usage.outputTokens ?? null,

@@ -106,6 +106,13 @@ describe("runTurbo", () => {
 		expect(result.png).toEqual(RESULT_PNG);
 		expect(result.prompt).toBe("The person from Image 1 on a throne");
 		expect(result.inputImages).toEqual(["пятерка/a.png"]);
+		expect(result.toolCalls.map((call) => call.toolName)).toEqual([
+			"listFolder",
+			"readFile",
+			"readFile",
+			"generateImage",
+		]);
+		expect(result.toolCalls[2]!.input).toEqual({ path: "пятерка/a.png" });
 		expect(result.inputTokens).toBe(20);
 		expect(model.doGenerateCalls).toHaveLength(2);
 		expect(edit).toHaveBeenCalledTimes(1);

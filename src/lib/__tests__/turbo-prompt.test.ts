@@ -1,30 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { STYLE_SYSTEM } from "../prompts";
-import {
-	CANON_COMPOSITION_AND_VARIATIONS,
-	CANON_CORE,
-	CANON_EFFECTS_AND_MEDIUMS,
-	CANON_FIDELITY,
-	CANON_TEXT_POLICY,
-} from "../prompts/canon";
+import { CANON_FIDELITY } from "../prompts/canon";
 import { buildTurboSystem } from "../prompts/turbo.system";
 
-const SHARED = {
-	CANON_FIDELITY,
-	CANON_CORE,
-	CANON_EFFECTS_AND_MEDIUMS,
-	CANON_TEXT_POLICY,
-	CANON_COMPOSITION_AND_VARIATIONS,
-};
-
 describe("общие блоки канона", () => {
-	for (const [name, block] of Object.entries(SHARED)) {
-		test(`${name} входит в обе инструкции дословно`, () => {
-			expect(block.length).toBeGreaterThan(100);
-			expect(STYLE_SYSTEM).toContain(block);
-			expect(buildTurboSystem("")).toContain(block);
-		});
-	}
+	// Турбо пишет своё творческое направление; с обогащением для Krea и Ideogram
+	// у него остаётся общим только блок «Верность запросу».
+	test("CANON_FIDELITY входит в обе инструкции дословно", () => {
+		expect(CANON_FIDELITY.length).toBeGreaterThan(100);
+		expect(STYLE_SYSTEM).toContain(CANON_FIDELITY);
+		expect(buildTurboSystem("")).toContain(CANON_FIDELITY);
+	});
 });
 
 describe("инструкция агента Турбо", () => {
@@ -41,7 +27,8 @@ describe("инструкция агента Турбо", () => {
 			"## readFile",
 			"## generateImage",
 			"# ЖЕЛЕЗНЫЕ ПРАВИЛА",
-			"# ПАСПОРТ СТИЛЯ 42",
+			"# ХАРАКТЕР 42",
+			"## Штамп",
 			"# САМОПРОВЕРКА",
 		]) {
 			expect(system).toContain(heading);
@@ -56,6 +43,29 @@ describe("инструкция агента Турбо", () => {
 	test("запретов не ради качества в инструкции нет", () => {
 		expect(system).not.toContain("реальные государственные флаги");
 		expect(system).not.toContain("заменяет любые реальные лица");
+	});
+
+	test("стиль описан направлением: квот на предметы и обязательных каталогов нет", () => {
+		for (const quota of [
+			"не меньше шести предметов",
+			"≥6 предметов роскоши",
+			"≥3 сюрприза",
+			"меньше десяти различимых",
+			"на квадратный метр кадра",
+			"ALWAYS используй переданные якоря",
+		]) {
+			expect(system).not.toContain(quota);
+		}
+	});
+
+	test("рабочий цикл начинается с идеи, случайных якорей в инструкции нет", () => {
+		expect(system).toContain("2. Придумай кадр.");
+		expect(system).toContain("три разные идеи");
+		expect(system).toContain("## Как находить идею");
+		expect(system).toContain("## Как достраивать мир");
+		expect(system).toContain("не меньше семи");
+		expect(system).toContain("Проверка на узнаваемость");
+		expect(system).not.toContain("ANCHORS");
 	});
 
 	test("дерево — единственная изменчивая часть: версия считается по пустому дереву", () => {

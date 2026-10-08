@@ -20,6 +20,7 @@ const RESULT: TurboResult = {
 	png: new Uint8Array([1, 2, 3]),
 	prompt: "The person from Image 1 on a throne",
 	inputImages: ["пятерка/a.png"],
+	toolCalls: [],
 	size: "1024x1536",
 	inputTokens: 100,
 	outputTokens: 50,
