@@ -1,4 +1,8 @@
-import type { LibraryStorage } from "../../turbo/library";
+import { mock } from "bun:test";
+import { MockLanguageModelV4 } from "ai/test";
+import { Library, type LibraryStorage } from "../../turbo/library";
+import type { EditFn } from "../../turbo/ops";
+import type { TurboRuntime } from "../../turbo/workflow-runtime";
 
 /** Настоящий PNG 1×1: его умеет декодировать Bun.Image (превью) */
 export const TINY_PNG = new Uint8Array(
@@ -58,5 +62,24 @@ export function text(value: string) {
 		finishReason: { unified: "stop" as const, raw: undefined },
 		usage,
 		warnings: [],
+	};
+}
+
+/** Окружение шагов для тестов: всё в памяти, вызовы записываются */
+export function makeRuntime(overrides: Partial<TurboRuntime> = {}) {
+	return {
+		library: new Library(libraryStorage()),
+		agentModel: () => new MockLanguageModelV4({ doGenerate: [text("пусто")] }),
+		edit: mock<EditFn>(async () => ({
+			png: RESULT_PNG,
+			size: "1024x1536",
+			quality: "medium",
+		})),
+		storeImage: mock(async (_key: string, _png: Uint8Array) => {}),
+		completeGeneration: mock(async (_params: unknown) => true),
+		failGeneration: mock(async (_params: unknown) => true),
+		recordCodexError: mock(async (_message: string) => {}),
+		now: () => 1_700_000_000_000,
+		...overrides,
 	};
 }
