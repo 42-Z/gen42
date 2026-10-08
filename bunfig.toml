@@ -1,3 +1,4 @@
+preload = ["./workflow-plugin.ts"]
 
 [serve.static]
 plugins = ["bun-plugin-tailwind"]
