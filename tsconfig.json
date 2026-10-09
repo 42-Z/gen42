@@ -28,5 +28,13 @@
 		"noPropertyAccessFromIndexSignature": false
 	},
 
-	"exclude": ["dist", "node_modules", "api/**/*"]
+	"exclude": [
+		"dist",
+		"node_modules",
+		"api/**/*",
+		".well-known",
+		".workflow-data",
+		".swc",
+		".vercel"
+	]
 }

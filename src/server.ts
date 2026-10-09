@@ -26,8 +26,38 @@ async function serveStatic(url: URL): Promise<Response | null> {
 	return null;
 }
 
+/** Набор маршрутов зависит от окружения; необязательный ключ типы `routes` Bun не принимают */
+type WorkflowRoutes = Record<
+	string,
+	{ POST: (request: Request) => Promise<Response> }
+>;
+
+/**
+ * Локально обработчик очереди Workflow живёт в этом же сервере (Local World
+ * доставляет сообщения на его порт). На Vercel это отдельная закрытая функция,
+ * поэтому в продакшене маршрут не монтируется.
+ */
+async function workflowDevRoutes(): Promise<WorkflowRoutes> {
+	if (process.env.NODE_ENV === "production") return {};
+	// путь в переменной: tsc не разбирает сгенерированный бандл на мегабайты
+	const flowModule = "../.well-known/workflow/v1/flow.mjs";
+	try {
+		const flow = (await import(flowModule)) as {
+			POST: (request: Request) => Promise<Response>;
+		};
+		return { "/.well-known/workflow/v1/flow": { POST: flow.POST } };
+	} catch (error) {
+		console.warn(
+			"Обработчик Workflow не найден, выполните `bun run workflow:build`:",
+			error,
+		);
+		return {};
+	}
+}
+
 const server = serve({
 	routes: {
+		...(await workflowDevRoutes()),
 		"/api/auth/*": async (req) => authRoutes["/api/auth/*"](req),
 
 		"/api/generate": generateRoutes["/api/generate"],

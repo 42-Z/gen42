@@ -51,8 +51,8 @@ const PENDING_KEY = "gen42-pending";
 /** Последняя показанная картинка: она не должна пропадать при обновлении */
 const RESULT_KEY = "gen42-result";
 const POLL_INTERVAL_MS = 2500;
-/** Серверная генерация живёт не дольше 5 минут; дольше не ждём */
-const POLL_TIMEOUT_MS = 8 * 60_000;
+/** Воркфлоу Турбо идёт до ~8 минут (агент 180 с, рисование 270 с, очередь); дольше не ждём */
+const POLL_TIMEOUT_MS = 11 * 60_000;
 
 /** id генерации придумывает клиент — иначе после обновления её не найти */
 function newGenerationId(): string {
@@ -374,6 +374,14 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 				// сервер ответил — генерация завершена, возобновлять нечего
 				forgetPending();
 				throw new Error(data?.error || fallback);
+			}
+
+			// Турбо принимается в работу и отвечает сразу: результат приходит опросом
+			if (res.status === 202) {
+				const startedId = data.id ?? id;
+				if (startedId !== id) rememberPending(startedId);
+				waitForGeneration({ id: startedId, prompt });
+				return;
 			}
 
 			rememberResult(data.id ?? id);

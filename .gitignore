@@ -47,3 +47,8 @@ docs/evals/images/
 
 # библиотека входных изображений «Турбо» — заливается в хранилище скриптом sync-library
 /library/
+
+# Workflow SDK: сборка бандлов, локальные данные Local World, кэш SWC
+.well-known/workflow/
+.workflow-data/
+.swc/

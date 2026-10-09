@@ -105,7 +105,9 @@ export async function editImage(
 	let json: ImageResponseBody;
 	try {
 		json = (await response.json()) as ImageResponseBody;
-	} catch {
+	} catch (error) {
+		// срок рисования вышел, пока читалось тело: это отмена, а не плохой ответ
+		if (params.signal?.aborted) throw error;
 		throw new CodexImageError("Codex Images вернул не JSON", response.status);
 	}
 	const b64 = json.data?.[0]?.b64_json;

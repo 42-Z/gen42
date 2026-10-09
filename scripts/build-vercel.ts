@@ -1,0 +1,128 @@
+import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { workflowTransform } from "../workflow-transform";
+
+/**
+ * Сборка для Vercel в формате Build Output API v3 (vercel.com/docs/build-output-api/v3).
+ * Запускается после `workflow build --target vercel-build-output-api` и `build.ts`
+ * (см. скрипт `build:vercel`), когда в `.vercel/output` уже лежат функции Workflow,
+ * а во фронтенде `dist/`.
+ *
+ * Зачем собственная сборка вместо пресета Bun: сборщик пресета сам компилирует
+ * серверный код и не применяет плагин Workflow из bunfig.toml, поэтому `start()` не
+ * получает идентификатор воркфлоу («invalid workflow function»). Здесь сервер
+ * собирается `Bun.build` с тем же плагином, что и в разработке.
+ *
+ * Результат:
+ * - `functions/index.func` — сайт: бандл сервера плюс `dist/` рядом;
+ * - `functions/.well-known/workflow/v1/flow.func` — закрытый потребитель очереди
+ *   Workflow (триггер `experimentalTriggers` уже записал `workflow build`);
+ * - `config.json` — маршруты; крон из vercel.json (`crons`) Vercel добавляет сам.
+ */
+
+const OUTPUT = ".vercel/output";
+const SITE = `${OUTPUT}/functions/index.func`;
+const WORKFLOW = `${OUTPUT}/functions/.well-known/workflow/v1`;
+// Hobby: максимум для функции
+const MAX_DURATION = 300;
+// Шаги Workflow используют Bun.S3Client и Bun.Image, поэтому функции Workflow
+// тоже на Bun; архитектура та же, на которой работает сайт
+const RUNTIME = "bun1.4.x";
+const ARCHITECTURE = "x86_64";
+// Файловая система функции только для чтения. Bun 1.4 при импорте несуществующего
+// модуля запускает автоустановку пакетов, пытается создать `node_modules/.cache` и
+// падает необрабатываемой ошибкой «bun is unable to write files: EROFS» на первом
+// же запросе. Без автоустановки это обычное исключение с именем модуля.
+const BUNFIG = '[install]\nauto = "disable"\n';
+// Рантайм Workflow выполняет шаги внутри уже идущего вызова функции и по умолчанию
+// (для функции на 300 с) продолжает так до 2 минут (docs: configuration/runtime-tuning,
+// «Inline execution»); лимит платформы при этом считается от старта вызова, а не шага.
+// Рисование, стартовавшее на 80-й секунде вызова, платформа убила бы раньше его таймера.
+// С 10 секундами после любого более долгого шага продолжение уходит в очередь, и
+// следующий шаг, включая рисование, стартует в свежем вызове со смещением в секунды.
+// Не меньше нескольких секунд: первая итерация цикла не должна сама уходить в очередь.
+const WORKFLOW_ENVIRONMENT = { WORKFLOW_V2_TIMEOUT_MS: "10000" };
+
+await mkdir(`${SITE}/dist`, { recursive: true });
+const server = await Bun.build({
+	entrypoints: ["src/server.ts"],
+	outdir: SITE,
+	naming: "server.js",
+	target: "bun",
+	plugins: [workflowTransform],
+	define: { "process.env.NODE_ENV": JSON.stringify("production") },
+});
+if (!server.success) {
+	for (const log of server.logs) console.error(log);
+	process.exit(1);
+}
+await cp("dist", `${SITE}/dist`, { recursive: true });
+await writeFile(`${SITE}/bunfig.toml`, BUNFIG);
+await writeFile(
+	`${SITE}/.vc-config.json`,
+	JSON.stringify(
+		{
+			runtime: RUNTIME,
+			handler: "server.js",
+			launcherType: "Nodejs",
+			architecture: ARCHITECTURE,
+			shouldAddHelpers: false,
+			shouldAddSourcemapSupport: false,
+			maxDuration: MAX_DURATION,
+		},
+		null,
+		2,
+	),
+);
+
+for (const dir of [
+	`${WORKFLOW}/flow.func`,
+	`${WORKFLOW}/webhook/[token].func`,
+]) {
+	await writeFile(`${dir}/bunfig.toml`, BUNFIG);
+	const file = `${dir}/.vc-config.json`;
+	const config = JSON.parse(await readFile(file, "utf8")) as Record<
+		string,
+		unknown
+	>;
+	await writeFile(
+		file,
+		JSON.stringify(
+			{
+				...config,
+				runtime: RUNTIME,
+				architecture: ARCHITECTURE,
+				environment: {
+					...(config.environment as Record<string, string> | undefined),
+					...WORKFLOW_ENVIRONMENT,
+				},
+			},
+			null,
+			2,
+		),
+	);
+}
+
+// Маршрут вебхука Workflow пишет `workflow build`; остальное отдаёт сервер сайта
+const { routes: workflowRoutes } = JSON.parse(
+	await readFile(`${OUTPUT}/config.json`, "utf8"),
+) as { routes: unknown[] };
+await writeFile(
+	`${OUTPUT}/config.json`,
+	JSON.stringify(
+		{
+			version: 3,
+			routes: [
+				...workflowRoutes,
+				{ handle: "filesystem" },
+				{
+					src: "/(.*)",
+					dest: "/",
+					transforms: [{ type: "request.path", op: "set", args: "/$1" }],
+				},
+			],
+		},
+		null,
+		2,
+	),
+);
+console.log(`Build Output API готов: ${OUTPUT}`);

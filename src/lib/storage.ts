@@ -1,6 +1,6 @@
-import { S3Client } from "bun";
-
-const s3Client = new S3Client({
+// Глобальный `Bun.S3Client`, а не `import … from "bun"`: сборщик Workflow бандлит код
+// шагов через esbuild и не умеет разрешать импорт "bun" в финальном бандле
+const s3Client = new Bun.S3Client({
 	accessKeyId: process.env.S3_ACCESS_KEY_ID!,
 	secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
 	endpoint: process.env.S3_ENDPOINT!,

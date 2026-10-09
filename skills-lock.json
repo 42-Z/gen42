@@ -157,6 +157,12 @@
 			"skillPath": "skills/web-design-guidelines/SKILL.md",
 			"computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
 		},
+		"workflow": {
+			"source": "vercel/workflow",
+			"sourceType": "github",
+			"skillPath": "skills/workflow/SKILL.md",
+			"computedHash": "f74fc7d0b9584f03fdfc138a977d5eb632ca4f1310a8e590ef80cf5e67ccee20"
+		},
 		"writing-plans": {
 			"source": "obra/superpowers",
 			"sourceType": "github",

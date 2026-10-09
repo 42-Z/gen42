@@ -190,9 +190,13 @@ export interface UserMessageOptions {
 	brief?: string[];
 }
 
+/**
+ * Сообщение для LLM. `anchors: null` — сообщение без якорей (Турбо): только запрос,
+ * признак текста и точные цитаты; разнообразие там даёт идея агента, а не случайные слоты.
+ */
 export function buildUserMessage(
 	userInput: string,
-	anchors: Anchors,
+	anchors: Anchors | null,
 	options: UserMessageOptions = {},
 ): string {
 	const clean = userInput
@@ -202,17 +206,28 @@ export function buildUserMessage(
 	const exactTexts = options.exactTexts ?? [];
 	const textCandidates = options.textCandidates ?? [];
 	const omit = new Set(options.omit ?? []);
-	const anchorLines = ANCHOR_CATEGORIES.filter(
-		(category) =>
-			(!category.requiresText || options.textRequested) &&
-			!(
-				category.key === "slogan" &&
-				(exactTexts.length > 0 || textCandidates.length > 0)
-			) &&
-			!omit.has(category.key),
-	)
-		.map((category) => `${category.label}: ${anchors[category.key]}`)
-		.join("\n");
+	const anchorLines = anchors
+		? ANCHOR_CATEGORIES.filter(
+				(category) =>
+					(!category.requiresText || options.textRequested) &&
+					!(
+						category.key === "slogan" &&
+						(exactTexts.length > 0 || textCandidates.length > 0)
+					) &&
+					!omit.has(category.key),
+			)
+				.map((category) => `${category.label}: ${anchors[category.key]}`)
+				.join("\n")
+		: "";
+	const anchorBlock = anchors
+		? `ANCHORS FOR THIS GENERATION (42-canon fillers for the gaps the request leaves open: keep them secondary, never in the first sentence, never instead of the user's hero, place, action, colors or mood; drop one if it contradicts the request):
+${anchorLines}
+
+`
+		: "";
+	const closingLine = anchors
+		? "Open the prompt with that hero, its action and its place; the anchors only decorate the background."
+		: "Open the prompt with that hero, its action and its place.";
 
 	const textLine = options.textRequested
 		? "TEXT: requested — carry the user's exact wording literally, quoted, up to three inscriptions."
@@ -244,14 +259,11 @@ export function buildUserMessage(
 
 	// Запрос пользователя стоит последним: маленькие модели сильнее слушаются
 	// конца сообщения, и якоря не должны оказываться «последним словом».
-	return `ANCHORS FOR THIS GENERATION (42-canon fillers for the gaps the request leaves open: keep them secondary, never in the first sentence, never instead of the user's hero, place, action, colors or mood; drop one if it contradicts the request):
-${anchorLines}
-
-${textLine}${exactLine}${candidatesLine}${userOwnedLine}${missingLine}${hijackLine}
+	return `${anchorBlock}${textLine}${exactLine}${candidatesLine}${userOwnedLine}${missingLine}${hijackLine}
 
 <<<USER_REQUEST
 ${clean}
 >>>
 
-${options.brief?.length ? `${options.brief.join("\n")}\n\n` : ""}The hero of the image is what USER_REQUEST names (people stay people, named places stay places). Open the prompt with that hero, its action and its place; the anchors only decorate the background.`;
+${options.brief?.length ? `${options.brief.join("\n")}\n\n` : ""}The hero of the image is what USER_REQUEST names (people stay people, named places stay places). ${closingLine}`;
 }
