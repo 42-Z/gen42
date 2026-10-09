@@ -6,19 +6,29 @@
  *   bun scripts/eval-turbo.ts --generate [подстроки…] # ещё и рисовать, с замером времени
  *
  * Вход Codex берётся из базы (.env.development): сначала войдите через админку.
+ * Агент тот же, что в воркфлоу (createTurboAgent); идёт в одном процессе, без Workflow.
  */
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
+import { toGeneratorQuotes } from "../src/lib/prompts/style-hints";
 import { buildTurboSystem } from "../src/lib/prompts/turbo.system";
 import { listObjects, readObject } from "../src/lib/storage";
-import { runTurbo, systemVersionOf } from "../src/lib/turbo/agent";
+import { buildAgentMessage, systemVersionOf } from "../src/lib/turbo/agent";
 import {
-	codexFetch,
-	codexLanguageModel,
-	createCodexAuth,
-} from "../src/lib/turbo/codex-auth";
+	createTurboAgent,
+	runTurboAgent,
+} from "../src/lib/turbo/agent-definition";
+import { codexFetch, createCodexAuth } from "../src/lib/turbo/codex-auth";
 import { editImage } from "../src/lib/turbo/codex-images";
-import { TURBO_AGENT_MODEL } from "../src/lib/turbo/constants";
+import {
+	TURBO_AGENT_MODEL,
+	TURBO_DRAW_TIMEOUT_MS,
+} from "../src/lib/turbo/constants";
 import { Library } from "../src/lib/turbo/library";
+import {
+	checkImageArguments,
+	drawImage,
+	readForAgent,
+} from "../src/lib/turbo/ops";
 
 const PROMPTS = [
 	"пятёрка на троне",
@@ -45,15 +55,6 @@ const generate = process.argv.includes("--generate");
 
 let imageMs = 0;
 
-/** editImage с замером фазы рисования: видно, сколько времени у генератора, а сколько у агента */
-async function timedEditImage(params: Parameters<typeof editImage>[0]) {
-	const startedAt = Date.now();
-	try {
-		return await editImage(params);
-	} finally {
-		imageMs = Date.now() - startedAt;
-	}
-}
 const only = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
 const selected =
 	only.length > 0
@@ -67,8 +68,7 @@ await mkdir("docs/evals", { recursive: true });
 await mkdir(imagesDir, { recursive: true });
 
 const library = new Library({ list: listObjects, read: readObject });
-const auth = createCodexAuth();
-const authenticatedFetch = codexFetch(auth);
+const authenticatedFetch = codexFetch(createCodexAuth());
 const version = systemVersionOf(buildTurboSystem(""));
 console.log(
 	`Инструкция ${version}, модель ${TURBO_AGENT_MODEL}, ${generate ? "с рисованием" : "без рисования"}\n`,
@@ -79,40 +79,71 @@ for (const [index, prompt] of selected.entries()) {
 	const started = Date.now();
 	imageMs = 0;
 	try {
-		const result = await runTurbo(prompt, {
-			model: codexLanguageModel(auth, TURBO_AGENT_MODEL),
-			library,
-			buildSystem: buildTurboSystem,
-			edit: async ({ prompt: finalPrompt, images, signal }) =>
-				generate
-					? timedEditImage({
-							fetch: authenticatedFetch,
-							prompt: finalPrompt,
-							images,
-							...(signal ? { signal } : {}),
-						})
-					: { png: new Uint8Array(), size: null, quality: null },
+		// агент тот же, что в воркфлоу; исполнители здесь обычные функции
+		const agent = createTurboAgent({
+			system: buildTurboSystem(await library.describeTree()),
+			executors: {
+				listFolder: async ({ path }) => library.listFolder(path),
+				readFile: async ({ path }) => readForAgent(library, path),
+				checkImage: async (input) => checkImageArguments(library, input),
+			},
 		});
+		const run = await runTurboAgent(agent, buildAgentMessage(prompt));
+		const accepted = run.accepted;
+		if (!accepted) {
+			throw new Error("Агент завершил работу, не вызвав generateImage");
+		}
+
+		let png: Uint8Array = new Uint8Array();
+		let finalPrompt = toGeneratorQuotes(accepted.prompt);
+		let size: string | null = null;
+		let inputImages = accepted.images;
+		if (generate) {
+			const drawStarted = Date.now();
+			try {
+				const drawn = await drawImage(
+					{
+						library,
+						edit: ({ prompt: editPrompt, images, signal }) =>
+							editImage({
+								fetch: authenticatedFetch,
+								prompt: editPrompt,
+								images,
+								...(signal ? { signal } : {}),
+							}),
+					},
+					{
+						prompt: accepted.prompt,
+						images: accepted.images,
+						signal: AbortSignal.timeout(TURBO_DRAW_TIMEOUT_MS),
+					},
+				);
+				png = drawn.png;
+				finalPrompt = drawn.prompt;
+				size = drawn.size;
+				inputImages = drawn.inputImages;
+			} finally {
+				imageMs = Date.now() - drawStarted;
+			}
+		}
+
 		const seconds = Math.round((Date.now() - started) / 1000);
 		durations.push(seconds);
-		if (generate && result.png.length > 0) {
-			await writeFile(
-				`${imagesDir}/turbo-${stamp}-${index + 1}.png`,
-				result.png,
-			);
+		if (generate && png.length > 0) {
+			await writeFile(`${imagesDir}/turbo-${stamp}-${index + 1}.png`, png);
 		}
 		console.log(
-			`# ${prompt}  (${seconds} с${generate ? `, из них рисование ${Math.round(imageMs / 1000)} с` : ""}, токенов ${(result.inputTokens ?? 0) + (result.outputTokens ?? 0)})`,
+			`# ${prompt}  (${seconds} с${generate ? `, из них рисование ${Math.round(imageMs / 1000)} с` : ""}, токенов ${run.tokens ?? 0})`,
 		);
-		console.log(`  изображения: ${result.inputImages.join(", ") || "нет"}`);
-		const opened = result.toolCalls
+		console.log(`  изображения: ${inputImages.join(", ") || "нет"}`);
+		const opened = run.toolCalls
 			.filter((call) => call.toolName === "readFile")
 			.map((call) => (call.input as { path: string }).path);
 		console.log(`  прочитано агентом: ${opened.join(", ") || "ничего"}`);
-		console.log(`  промпт: ${result.prompt}\n`);
+		console.log(`  промпт: ${finalPrompt}\n`);
 		await appendFile(
 			jsonl,
-			`${JSON.stringify({ prompt, version, seconds, imageSeconds: Math.round(imageMs / 1000), inputImages: result.inputImages, toolCalls: result.toolCalls, finalPrompt: result.prompt, size: result.size })}\n`,
+			`${JSON.stringify({ prompt, version, seconds, imageSeconds: Math.round(imageMs / 1000), inputImages, toolCalls: run.toolCalls, finalPrompt, size })}\n`,
 		);
 	} catch (error) {
 		const message =

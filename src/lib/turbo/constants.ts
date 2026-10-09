@@ -2,8 +2,6 @@
 export const TURBO_AGENT_MODEL = "gpt-6-luna";
 /** Верхняя граница ходов агента; обычный прогон — 2–4 раунда */
 export const TURBO_MAX_STEPS = 12;
-/** Прежний общий бюджет запуска; удаляется вместе с `runTurbo` в Задаче 9 */
-export const TURBO_TIMEOUT_MS = 270_000;
 /** Бюджет агента: абсолютный дедлайн на вызовы модели внутри воркфлоу (обычно 40–110 с) */
 export const TURBO_AGENT_TIMEOUT_MS = 180_000;
 /**

@@ -34,8 +34,8 @@ import {
 import { checkRateLimit } from "../lib/rate-limit";
 import { getImageUrl, uploadImage } from "../lib/storage";
 import { isTurboAvailable } from "../lib/turbo/codex-auth";
-import { turboDeps } from "../lib/turbo/runtime";
-import { generateTurbo } from "../lib/turbo/service";
+import { startTurbo } from "../lib/turbo/start";
+import { startTurboDeps } from "../lib/turbo/start-deps";
 
 const MAX_ATTEMPTS = 5;
 
@@ -101,13 +101,13 @@ export const generateRoutes = {
 			}
 
 			if (engine === "turbo") {
-				const outcome = await generateTurbo(
+				const outcome = await startTurbo(
 					{
 						userId: session.user.id,
 						prompt,
 						...(typeof body.id === "string" ? { id: body.id } : {}),
 					},
-					turboDeps,
+					startTurboDeps,
 				);
 				return Response.json(outcome.body, { status: outcome.status });
 			}
