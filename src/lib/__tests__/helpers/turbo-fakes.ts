@@ -65,8 +65,7 @@ export function text(value: string) {
 	};
 }
 
-/** Окружение шагов для тестов: всё в памяти, вызовы записываются */
-export function makeRuntime(overrides: Partial<TurboRuntime> = {}) {
+function defaultRuntime() {
 	return {
 		library: new Library(libraryStorage()),
 		agentModel: () => new MockLanguageModelV4({ doGenerate: [text("пусто")] }),
@@ -80,6 +79,19 @@ export function makeRuntime(overrides: Partial<TurboRuntime> = {}) {
 		failGeneration: mock(async (_params: unknown) => true),
 		recordCodexError: mock(async (_message: string) => {}),
 		now: () => 1_700_000_000_000,
-		...overrides,
 	};
+}
+
+type DefaultRuntime = ReturnType<typeof defaultRuntime>;
+
+/**
+ * Окружение шагов для тестов: всё в памяти, вызовы записываются. Подменённые поля
+ * имеют тип подмены, остальные остаются моками (`runtime.edit.mock.calls`).
+ */
+export function makeRuntime(): DefaultRuntime;
+export function makeRuntime<T extends Partial<TurboRuntime>>(
+	overrides: T,
+): Omit<DefaultRuntime, keyof T> & T;
+export function makeRuntime(overrides: Partial<TurboRuntime> = {}): unknown {
+	return { ...defaultRuntime(), ...overrides };
 }
