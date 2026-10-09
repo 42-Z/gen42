@@ -1,4 +1,3 @@
-import { transform } from "@swc/core";
 import type { BunPlugin } from "bun";
 
 /**
@@ -12,7 +11,10 @@ import type { BunPlugin } from "bun";
  * - параметры SWC те же, что у сборщика Workflow (`apply-swc-transform.js`):
  *   `target: "es2022"`, разбор по расширению файла. Без цели ES2022 SWC понижает
  *   классы до функций и переименовывает их, из-за чего регистрация класса
- *   `CodexAgentModel` ссылается на несуществующее имя.
+ *   `CodexAgentModel` ссылается на несуществующее имя;
+ * - `@swc/core` подключается лениво, только для файлов с директивами: плагин стоит
+ *   в `preload`, а скрипты без зависимостей (миграции прода в GitHub Actions идут
+ *   без `bun install`) не должны требовать установленных пакетов.
  */
 export const workflowTransform: BunPlugin = {
 	name: "workflow-transform",
@@ -25,6 +27,7 @@ export const workflowTransform: BunPlugin = {
 					return { contents: source };
 				}
 
+				const { transform } = await import("@swc/core");
 				const typescript = /\.tsx?$/.test(args.path);
 				const jsx = args.path.endsWith("x");
 				const result = await transform(source, {
