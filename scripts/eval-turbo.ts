@@ -134,7 +134,11 @@ for (const [index, prompt] of selected.entries()) {
 		const seconds = Math.round((Date.now() - started) / 1000);
 		durations.push(seconds);
 		if (generate && png.length > 0) {
-			await writeFile(`${imagesDir}/turbo-${stamp}-${index + 1}.png`, png);
+			// pid в имени: параллельные запуски в одну секунду не затирают картинки друг друга
+			await writeFile(
+				`${imagesDir}/turbo-${stamp}-${process.pid}-${index + 1}.png`,
+				png,
+			);
 		}
 		console.log(
 			`# ${prompt}  (${seconds} с${generate ? `, из них рисование ${Math.round(imageMs / 1000)} с` : ""}, токенов ${run.tokens ?? 0})`,
