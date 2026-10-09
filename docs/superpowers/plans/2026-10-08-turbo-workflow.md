@@ -395,7 +395,7 @@ Run: `git add api/workflow-flow.ts src/api/workflow-ping.ts vercel.json src/serv
 
 Run: `git commit -m "Размещение обработчика Workflow на Vercel: функция api/workflow-flow и временный маршрут проверки" -m "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"`
 
-- [ ] **Step 7: Проверка на preview (после разрешения)** (частично, 2026-10-09: сборка принята, три функции, Ready; сайт падал на `EROFS`, исправлено `bunfig.toml` с `auto = "disable"` в каждой функции; дальше живой прогон ждёт переменных приложения для preview этой ветки, см. спеку, таблицу «Источники и статусы»)
+- [x] **Step 7: Проверка на preview (после разрешения)** (2026-10-09: сборка принята, три функции, Ready; сайт падал на `EROFS`, исправлено `bunfig.toml` с `auto = "disable"` в каждой функции; после переменных ветки прогон Турбо на preview прошёл целиком, см. спеку, таблицу «Источники и статусы»; заглушки `workflow-ping` в этом исполнении не было, проверка шла живым прогоном)
 
 Run (одним из способов по разрешению): `git push -u origin feat/turbo-creative-direction` либо `vercel deploy --yes`.
 Expected: URL preview-деплоя; сборка зелёная (`vercel inspect <url>` или панель).
@@ -3494,7 +3494,7 @@ Expected: Local World при запуске возобновляет незав�
 
 > **Итог (2026-10-09):** пункт б выполнен (Local World прогон не возобновил, повторного рисования не было, строка закрылась лениво через 12 минут с возвратом кредитов). Пункт а на живой системе не выполнялся: «Выйти» разлогинило бы вход Codex владельца; ветка покрыта тестами, поэтому шаг остаётся неотмеченным.
 
-- [ ] **Step 5: Проверка на preview (после разрешения владельца)** (ждёт переменных приложения для preview ветки: `BETTER_AUTH_SECRET`, `DATABASE_URL`, `S3_*`)
+- [x] **Step 5: Проверка на preview (после разрешения владельца)** (2026-10-09: для ветки добавлены переменные Preview из dev; через API, а не через браузер: вход тестового пользователя, запрос «кот», прогон `completed`, картинка получена, в логах ошибок нет)
 
 Спросить разрешение на пуш ветки или `vercel deploy`. После «да»: повторить Step 2 на preview-URL (войти, режим «Турбо», запрос «кот»).
 Expected: картинка появилась; `npx workflow inspect runs --backend vercel --project gen42 --team <slug> --env preview` показывает `completed`; в логах (`vercel logs <deployment-url>`) нет ошибок `Cannot find package 'X'` (если есть, добавить пакет в `includeFiles` в `vercel.json` по правилу `AGENTS.md`, а не ставить костыли в код) и нет ошибок загрузки бандла `flow.mjs`.
@@ -3507,7 +3507,7 @@ Expected: картинка появилась; `npx workflow inspect runs --back
 
 Правило `AGENTS.md`: перед PR ревью диффа. Использовать скилл `requesting-code-review` с диапазоном от последнего коммита ветки `main` (`git merge-base HEAD origin/main`) до `HEAD`. Находки blocker и major закрыть до PR, minor принять осознанно или закрыть. Не запускать линтер и тесты внутри ревью (правило пользователя); сверка с документацией обязательна.
 
-- [ ] **Step 8: Коммит и передача**
+- [x] **Step 8: Коммит и передача**
 
 Run: `git add docs/superpowers/specs/2026-10-08-turbo-workflow-design.md`
 
