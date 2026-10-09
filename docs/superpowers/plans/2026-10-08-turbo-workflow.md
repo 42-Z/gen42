@@ -60,7 +60,7 @@
 **Interfaces:**
 - Produces: `bun run workflow:build` создаёт `.well-known/workflow/v1/flow.mjs`; в dev-сервере живёт `POST /.well-known/workflow/v1/flow`; `turboWorkflow(input: { id: string; userId: string; prompt: string })` из `workflows/turbo/index.ts`.
 
-- [ ] **Step 1: Поднять `ai` до версии, которую требует `@ai-sdk/workflow`**
+- [x] **Step 1: Поднять `ai` до версии, которую требует `@ai-sdk/workflow`**
 
 `@ai-sdk/workflow@2.0.65` зависит от `ai` ровно `7.0.133` (в проекте `7.0.105`): две копии `ai` дали бы несовместимые типы.
 
@@ -70,7 +70,7 @@ Expected: `installed ai@7.0.133`.
 Run: `git diff --shortstat bun.lock`
 Expected: небольшой дифф; в начале `bun.lock` по-прежнему `"lockfileVersion": 2`.
 
-- [ ] **Step 2: Добавить пакеты Workflow**
+- [x] **Step 2: Добавить пакеты Workflow**
 
 Run: `/home/crbsnana/.local/share/reflex/bun/bin/bun add --exact workflow@5.1.0 @ai-sdk/workflow@2.0.65 @workflow/serde@4.1.0 @ai-sdk/provider@4.0.25 @swc/core@1.15.3`
 Expected: все пять пакетов `installed`. В `package.json` в `dependencies` без `^`.
@@ -78,7 +78,7 @@ Expected: все пять пакетов `installed`. В `package.json` в `depe
 Run: `git diff --shortstat bun.lock`
 Expected: только добавления пакетов; `lockfileVersion` 2.
 
-- [ ] **Step 3: Убедиться, что обновление `ai` ничего не сломало**
+- [x] **Step 3: Убедиться, что обновление `ai` ничего не сломало**
 
 Run: `bun run typecheck`
 Expected: без ошибок.
@@ -86,7 +86,7 @@ Expected: без ошибок.
 Run: `bun test`
 Expected: все тесты проходят (на момент начала работы: 248).
 
-- [ ] **Step 4: Плагин преобразования кода приложения**
+- [x] **Step 4: Плагин преобразования кода приложения**
 
 Создать `workflow-plugin.ts`:
 
@@ -131,7 +131,7 @@ plugin({
 });
 ```
 
-- [ ] **Step 5: Подключить плагин, игнорирование и сборку**
+- [x] **Step 5: Подключить плагин, игнорирование и сборку**
 
 В `bunfig.toml` первой строкой (до таблиц TOML) добавить `preload`. Файл целиком:
 
@@ -176,7 +176,7 @@ env = "BUN_PUBLIC_*"
 
 (`PORT` нужен Local World: он по нему доставляет сообщения очереди в обработчик `flow`, см. `/worlds/local`.)
 
-- [ ] **Step 6: Временная заглушка воркфлоу**
+- [x] **Step 6: Временная заглушка воркфлоу**
 
 Создать `workflows/turbo/index.ts`:
 
@@ -194,7 +194,7 @@ export async function turboWorkflow(input: TurboWorkflowInput) {
 }
 ```
 
-- [ ] **Step 7: Собрать бандлы**
+- [x] **Step 7: Собрать бандлы**
 
 Run: `bun run workflow:build`
 Expected: `✓ Compiled workflows ... (… steps, 1 workflow)` и `Build completed successfully!`.
@@ -202,7 +202,7 @@ Expected: `✓ Compiled workflows ... (… steps, 1 workflow)` и `Build complet
 Run: `ls .well-known/workflow/v1`
 Expected: `flow.mjs`, `__step_registrations.mjs`, `webhook.mjs`, `manifest.json`.
 
-- [ ] **Step 8: Подключить `flow` к dev-серверу**
+- [x] **Step 8: Подключить `flow` к dev-серверу**
 
 В `src/server.ts` перед `const server = serve({` добавить:
 
@@ -240,7 +240,7 @@ const server = serve({
 		"/api/auth/*": async (req) => authRoutes["/api/auth/*"](req),
 ```
 
-- [ ] **Step 9: Проверить dev-сервер**
+- [x] **Step 9: Проверить dev-сервер**
 
 Run (в фоне): `bun dev`
 Expected в выводе: `Server running at ...`, без предупреждения про отсутствующий обработчик.
@@ -250,7 +250,7 @@ Expected: `{"healthy":true,"endpoint":"/.well-known/workflow/v1/flow",...}`.
 
 Остановить сервер: `ss -ltnp | grep 3000` для pid, затем `kill <pid>`.
 
-- [ ] **Step 10: Проверки и коммит**
+- [x] **Step 10: Проверки и коммит**
 
 Run: `bun run typecheck`
 Expected: без ошибок.
@@ -271,6 +271,8 @@ Run: `git commit -m "Каркас Workflow: пакеты, плагин Bun, сб
 
 Это ворота плана. Цель: выяснить, какой способ размещения закрытой функции-потребителя очереди работает рядом с `src/server.ts` и пресетом `framework: bun`, и закрепить его. Статус на начало задачи по правилу: «не проверено».
 
+> **Итог выполнения (2026-10-09):** локальная часть сделана (Step 1–5, 8, 9), Step 6–7 (пуш и preview) ждут разрешения владельца. Результат расходится с планом: варианты B и C не прошли или не годятся (B не собирается рядом с пресетом Bun, а пресет не применяет плагин Workflow к коду приложения), выбрана полная собственная сборка в формате Build Output API (`scripts/build-vercel.ts`, `vercel.json` с `framework: null`); триггер очереди в `vercel.json` пишется без поля `consumer`. Подробности и источники: таблица статусов спеки.
+
 **Files:**
 - Create: `api/workflow-flow.ts`, `src/api/workflow-ping.ts`
 - Modify: `vercel.json`, `src/server.ts`, спека `docs/superpowers/specs/2026-10-08-turbo-workflow-design.md`
@@ -281,7 +283,7 @@ Run: `git commit -m "Каркас Workflow: пакеты, плагин Bun, сб
 
 Документы для сверки: `https://workflow-sdk.dev/docs/how-it-works/framework-integrations` (раздел «Vercel queue configuration»), `https://vercel.com/docs/queues/concepts` (раздел «Consumer function security»), `https://vercel.com/docs/functions/runtimes/bun` (разделы «Deploy with the Bun framework preset», «Deploy a Bun server from /api»), `https://vercel.com/docs/services/config-reference`.
 
-- [ ] **Step 1: Зафиксировать базовый вывод пресета без изменений**
+- [x] **Step 1: Зафиксировать базовый вывод пресета без изменений**
 
 Run: `vercel build`
 Expected: сборка заканчивается, появляется `.vercel/output`.
@@ -294,7 +296,7 @@ Expected: функция сайта (одна, на `src/server.ts`).
 
 Run: `cp -r .vercel/output /tmp/claude-1000/-home-crbsnana--------------coding-jb-gen42/4bbd414d-7802-51dd-809c-e5437390df2b/scratchpad/vercel-output-baseline`
 
-- [ ] **Step 2: Вариант A (Build Output API, описан в документации Workflow): локальный осмотр**
+- [x] **Step 2: Вариант A (Build Output API, описан в документации Workflow): локальный осмотр**
 
 Run: `bunx workflow build --target vercel-build-output-api`
 Expected: в `.vercel/output/functions/.well-known/workflow/v1/flow.func/` лежит `.vc-config.json` с `experimentalTriggers`.
@@ -302,7 +304,7 @@ Expected: в `.vercel/output/functions/.well-known/workflow/v1/flow.func/` ле�
 Run: `cat .vercel/output/config.json`
 Expected и решающее правило: если после запуска в `config.json` остался только маршрут вебхука, а маршруты пресета пропали (сборщик пишет `config.json` целиком, это видно в `@workflow/builders/dist/vercel-build-output-api.js`), вариант A совместим с пресетом только через ручное слияние; записать статус «A: требует ручной сборки вывода, не выбран» и вернуть вывод пресета командой `rm -rf .vercel/output` и `cp -r <scratchpad>/vercel-output-baseline .vercel/output`. Если пресетные маршруты сохранились, записать «A: подтверждено локально» и перейти к Step 5 с этим вариантом.
 
-- [ ] **Step 3: Вариант B (`api/`-функция): создать файлы**
+- [x] **Step 3: Вариант B (`api/`-функция): создать файлы**
 
 Создать `api/workflow-flow.ts` (по примеру «Deploy a Bun server from /api»: `Bun.serve` вызывается один раз при старте модуля):
 
@@ -337,7 +339,7 @@ Bun.serve({
 }
 ```
 
-- [ ] **Step 4: Вариант B: локальный осмотр**
+- [x] **Step 4: Вариант B: локальный осмотр**
 
 Run: `bun run workflow:build`
 Expected: бандлы собраны.
@@ -353,7 +355,7 @@ Expected: есть `experimentalTriggers` с топиком `__wkf_workflow_*`, 
 
 Решающее правило: если функция не появилась, рантайм не Bun или триггер потерян, записать «B: опровергнуто локально» с выводом `vercel build` и перейти к варианту C (Step 8); иначе продолжить.
 
-- [ ] **Step 5: Временный маршрут проверки на preview**
+- [x] **Step 5: Временный маршрут проверки на preview**
 
 Создать `src/api/workflow-ping.ts` (работает только на preview, иначе 404; удаляется в Задаче 9):
 
@@ -411,11 +413,11 @@ Expected (успех): JSON `{"runId":"wrun_...","result":{"ok":true,"id":"ping"
 Run: `npx workflow inspect runs --backend vercel --project gen42 --team <slug команды из vercel teams ls> --env preview`
 Expected: прогон `ping` в статусе `completed`.
 
-- [ ] **Step 8: Вариант C (Vercel Services), только если A и B не подошли**
+- [x] **Step 8: Вариант C (Vercel Services), только если A и B не подошли**
 
 Сверить конфигурацию с `https://vercel.com/docs/services/config-reference` и разделом «Queues with services» на `https://vercel.com/docs/queues/concepts`: перенести настройки сайта (`framework`, `buildCommand`, `outputDirectory`, `functions`) в сервис `site`, добавить сервис `workflow` с функцией-потребителем и триггером, верхнеуровневыми `rewrites` открыть только `site`; уточнить, где живут `crons` и `bunVersion`. Повторить Step 4–7 для этого вида. Если ни один из вариантов не заработал, остановиться и сообщить владельцу выводы по каждому с источниками: запасной путь — двухэтапный запуск без Workflow (спека, раздел 5).
 
-- [ ] **Step 9: Закрепить результат в спеке**
+- [x] **Step 9: Закрепить результат в спеке**
 
 В `docs/superpowers/specs/2026-10-08-turbo-workflow-design.md` в таблицу «Источники и статусы» добавить строки по каждому проверенному варианту со статусом и источником (дата, URL preview, id прогона), в разделе «Проверить при реализации» отметить закрытые пункты (размещение, `bunfig` на проде, триггер очереди) и открытые (зависимости `flow.mjs` на проде проверяются в Задаче 11).
 
@@ -438,7 +440,7 @@ Run: `git commit -m "Спека Workflow: результаты проверки 
   - `size.ts`: `parseImageSize(size: string | null): { width: number; height: number }`.
   - `failure.ts`: `interface TurboFailure { code: TurboErrorCode; message: string; prompt: string | null; inputImages: string[] }`, `toFailure(error: unknown, context?: { prompt?: string | null; inputImages?: string[] }): TurboFailure`, `prefixedMessage(code: TurboErrorCode, text: string): string`, `rethrowModelError(error: unknown): never`, `isAuthFailure(error: unknown): boolean`.
 
-- [ ] **Step 1: Failing-тест на `parseImageSize`**
+- [x] **Step 1: Failing-тест на `parseImageSize`**
 
 Создать `src/lib/__tests__/turbo-size.test.ts`:
 
@@ -455,12 +457,12 @@ describe("parseImageSize", () => {
 });
 ```
 
-- [ ] **Step 2: Тест падает**
+- [x] **Step 2: Тест падает**
 
 Run: `bun test src/lib/__tests__/turbo-size.test.ts`
 Expected: FAIL, модуль `../turbo/size` не найден.
 
-- [ ] **Step 3: Реализовать `size.ts`**
+- [x] **Step 3: Реализовать `size.ts`**
 
 Создать `src/lib/turbo/size.ts`:
 
@@ -478,12 +480,12 @@ export function parseImageSize(size: string | null): {
 }
 ```
 
-- [ ] **Step 4: Тест проходит**
+- [x] **Step 4: Тест проходит**
 
 Run: `bun test src/lib/__tests__/turbo-size.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Константы**
+- [x] **Step 5: Константы**
 
 Заменить содержимое `src/lib/turbo/constants.ts`:
 
@@ -508,7 +510,7 @@ export const TURBO_PREVIEW_QUALITY = 80;
 export const TURBO_MAX_REJECTED_CHECKS = 3;
 ```
 
-- [ ] **Step 6: Failing-тест на классификацию**
+- [x] **Step 6: Failing-тест на классификацию**
 
 Создать `src/lib/__tests__/turbo-failure.test.ts`:
 
@@ -623,12 +625,12 @@ describe("rethrowModelError", () => {
 });
 ```
 
-- [ ] **Step 7: Тест падает**
+- [x] **Step 7: Тест падает**
 
 Run: `bun test src/lib/__tests__/turbo-failure.test.ts`
 Expected: FAIL, модуль `../turbo/failure` не найден.
 
-- [ ] **Step 8: Реализовать `failure.ts`**
+- [x] **Step 8: Реализовать `failure.ts`**
 
 Создать `src/lib/turbo/failure.ts`:
 
@@ -756,12 +758,12 @@ export function rethrowModelError(error: unknown): never {
 }
 ```
 
-- [ ] **Step 9: Тесты проходят**
+- [x] **Step 9: Тесты проходят**
 
 Run: `bun test src/lib/__tests__/turbo-failure.test.ts src/lib/__tests__/turbo-size.test.ts`
 Expected: PASS (все).
 
-- [ ] **Step 10: Проверки и коммит**
+- [x] **Step 10: Проверки и коммит**
 
 Run: `bun run typecheck`
 Expected: без ошибок.
@@ -792,7 +794,7 @@ Run: `git commit -m "Турбо: бюджеты времени, разбор р�
   - `ops.ts`: `type EditFn`, `readForAgent(library, path)`, `checkImageArguments(library, input)`, `drawImage(deps: { library: Library; edit: EditFn }, input: { prompt: string; images: string[]; signal?: AbortSignal }): Promise<{ png: Uint8Array; size: string | null; prompt: string; inputImages: string[] }>` (бросает `TurboError`).
   - `helpers/turbo-fakes.ts`: `TINY_PNG`, `RESULT_PNG`, `usage`, `libraryStorage()`, `toolCalls(...)`, `text(value)`, позднее (Задача 5) `makeRuntime`.
 
-- [ ] **Step 1: Помощник для тестов**
+- [x] **Step 1: Помощник для тестов**
 
 Создать `src/lib/__tests__/helpers/turbo-fakes.ts`:
 
@@ -861,7 +863,7 @@ export function text(value: string) {
 }
 ```
 
-- [ ] **Step 2: Failing-тест на превью**
+- [x] **Step 2: Failing-тест на превью**
 
 Создать `src/lib/__tests__/turbo-preview.test.ts`:
 
@@ -886,7 +888,7 @@ describe("makePreview", () => {
 Run: `bun test src/lib/__tests__/turbo-preview.test.ts`
 Expected: FAIL, модуль `../turbo/preview` не найден.
 
-- [ ] **Step 3: Реализовать `preview.ts`**
+- [x] **Step 3: Реализовать `preview.ts`**
 
 Создать `src/lib/turbo/preview.ts`:
 
@@ -915,7 +917,7 @@ export async function makePreview(
 Run: `bun test src/lib/__tests__/turbo-preview.test.ts`
 Expected: PASS.
 
-- [ ] **Step 4: Определения инструментов**
+- [x] **Step 4: Определения инструментов**
 
 Создать `src/lib/turbo/tool-defs.ts`:
 
@@ -1003,7 +1005,7 @@ export function createTurboTools(executors: TurboToolExecutors) {
 }
 ```
 
-- [ ] **Step 5: Failing-тест на операции**
+- [x] **Step 5: Failing-тест на операции**
 
 Создать `src/lib/__tests__/turbo-ops.test.ts`:
 
@@ -1156,7 +1158,7 @@ describe("drawImage", () => {
 Run: `bun test src/lib/__tests__/turbo-ops.test.ts`
 Expected: FAIL, модуль `../turbo/ops` не найден.
 
-- [ ] **Step 6: Реализовать `ops.ts`**
+- [x] **Step 6: Реализовать `ops.ts`**
 
 Создать `src/lib/turbo/ops.ts`:
 
@@ -1266,12 +1268,12 @@ export async function drawImage(
 }
 ```
 
-- [ ] **Step 7: Тесты проходят**
+- [x] **Step 7: Тесты проходят**
 
 Run: `bun test src/lib/__tests__/turbo-ops.test.ts src/lib/__tests__/turbo-preview.test.ts`
 Expected: PASS (все).
 
-- [ ] **Step 8: Проверки и коммит**
+- [x] **Step 8: Проверки и коммит**
 
 Run: `bun run typecheck`
 Expected: без ошибок.
@@ -1304,7 +1306,7 @@ Run: `git commit -m "Турбо: превью для агента, операц�
 
 Документ для сверки: `https://workflow-sdk.dev/docs/foundations/serialization` (разделы «Custom class serialization», «Instance methods as steps»): серде-методы статические, внутри тела класса, с вычисляемыми именами; методы с Node-зависимостями получают `"use step"`.
 
-- [ ] **Step 1: Окружение шагов**
+- [x] **Step 1: Окружение шагов**
 
 Создать `src/lib/turbo/workflow-runtime.ts`:
 
@@ -1383,7 +1385,7 @@ export function setTurboRuntime(runtime: TurboRuntime | null): void {
 Run: `bun run typecheck`
 Expected: без ошибок.
 
-- [ ] **Step 2: Помощник `makeRuntime`**
+- [x] **Step 2: Помощник `makeRuntime`**
 
 В `src/lib/__tests__/helpers/turbo-fakes.ts` добавить в начало импорты и в конец функцию:
 
@@ -1420,7 +1422,7 @@ export function makeRuntime(overrides: Partial<TurboRuntime> = {}) {
 
 Тип возвращаемого значения оставить выводимым (чтобы в тестах работали `runtime.edit.mock.calls`); при передаче в `setTurboRuntime(runtime)` оно структурно совместимо с `TurboRuntime`.
 
-- [ ] **Step 3: Failing-тест на модель**
+- [x] **Step 3: Failing-тест на модель**
 
 Создать `src/lib/__tests__/turbo-codex-agent-model.test.ts`:
 
@@ -1513,7 +1515,7 @@ describe("CodexAgentModel: вызов", () => {
 Run: `bun test src/lib/__tests__/turbo-codex-agent-model.test.ts`
 Expected: FAIL, модуль `../turbo/codex-agent-model` не найден.
 
-- [ ] **Step 4: Реализовать модель**
+- [x] **Step 4: Реализовать модель**
 
 Создать `src/lib/turbo/codex-agent-model.ts`:
 
@@ -1568,17 +1570,17 @@ export class CodexAgentModel implements LanguageModelV4 {
 }
 ```
 
-- [ ] **Step 5: Тесты проходят**
+- [x] **Step 5: Тесты проходят**
 
 Run: `bun test src/lib/__tests__/turbo-codex-agent-model.test.ts`
 Expected: PASS (4 теста).
 
-- [ ] **Step 6: Проверить соответствие протоколу сериализации**
+- [x] **Step 6: Проверить соответствие протоколу сериализации**
 
 Run: `bunx workflow validate`
 Expected: нет замечаний к `CodexAgentModel` (для классов без Node-импортов в песочнице). Если команда сообщает о Node-импортах в бандле воркфлоу, остановиться, привести вывод и решить с владельцем, не обходя замечание динамическим импортом вне шага (документация: «Do NOT use dynamic imports to work around sandbox restrictions»).
 
-- [ ] **Step 7: Проверки и коммит**
+- [x] **Step 7: Проверки и коммит**
 
 Run: `bun run typecheck`
 Expected: без ошибок.
@@ -1607,7 +1609,7 @@ Run: `git commit -m "Турбо: окружение шагов и модель C
 
 Документы для сверки: `https://ai-sdk.dev/v7/docs/agents/workflow-agent`, `https://ai-sdk.dev/docs/agents/loop-control` (раздел «Create Custom Conditions»). Проверено опытом: `WorkflowAgent.generate()` работает вне воркфлоу с `MockLanguageModelV4`; `result.steps[].toolCalls[].input`, `toolResults[].output`, `result.totalUsage`.
 
-- [ ] **Step 1: Failing-тест**
+- [x] **Step 1: Failing-тест**
 
 Создать `src/lib/__tests__/turbo-agent-definition.test.ts`:
 
@@ -1762,7 +1764,7 @@ describe("pickAccepted", () => {
 Run: `bun test src/lib/__tests__/turbo-agent-definition.test.ts`
 Expected: FAIL, модуль `../turbo/agent-definition` не найден.
 
-- [ ] **Step 2: Реализовать определение агента**
+- [x] **Step 2: Реализовать определение агента**
 
 Создать `src/lib/turbo/agent-definition.ts`:
 
@@ -1894,12 +1896,12 @@ export async function runTurboAgent(
 }
 ```
 
-- [ ] **Step 3: Тесты проходят**
+- [x] **Step 3: Тесты проходят**
 
 Run: `bun test src/lib/__tests__/turbo-agent-definition.test.ts`
 Expected: PASS (7 тестов). Если типы `StopCondition` или `generate({ timeout })` не сходятся, свериться с `node_modules/@ai-sdk/workflow/src/workflow-agent.ts` (`WorkflowAgentGenerateOptions`) и поправить код, не ослабляя `strict`.
 
-- [ ] **Step 4: Проверки и коммит**
+- [x] **Step 4: Проверки и коммит**
 
 Run: `bun run typecheck`
 Expected: без ошибок.
@@ -1935,7 +1937,7 @@ Run: `git commit -m "Турбо: единое определение агент�
 
 Документы для сверки: `https://workflow-sdk.dev/docs/foundations/workflows-and-steps` (шаги: полный доступ к рантайму, повторы по умолчанию 3), `https://workflow-sdk.dev/docs/foundations/errors-and-retries` (`fn.maxRetries = 0`). Проверено опытом: в `bun test` корневой `preload` не применяется, поэтому шаги вызываются как обычные функции.
 
-- [ ] **Step 1: Failing-тест**
+- [x] **Step 1: Failing-тест**
 
 Создать `src/lib/__tests__/turbo-steps.test.ts`:
 
@@ -2161,7 +2163,7 @@ describe("failStep", () => {
 Run: `bun test src/lib/__tests__/turbo-steps.test.ts`
 Expected: FAIL, модуль `workflows/turbo/steps` не найден.
 
-- [ ] **Step 2: Реализовать шаги**
+- [x] **Step 2: Реализовать шаги**
 
 Создать `workflows/turbo/steps.ts`:
 
@@ -2360,12 +2362,12 @@ export async function failStep(input: {
 }
 ```
 
-- [ ] **Step 3: Тесты проходят**
+- [x] **Step 3: Тесты проходят**
 
 Run: `bun test src/lib/__tests__/turbo-steps.test.ts`
 Expected: PASS.
 
-- [ ] **Step 4: Собрать бандлы и убедиться, что песочница воркфлоу чиста**
+- [x] **Step 4: Собрать бандлы и убедиться, что песочница воркфлоу чиста**
 
 Run: `bun run workflow:build`
 Expected: сборка без ошибок; в выводе число шагов выросло (добавились шаги из `steps.ts`, пока воркфлоу-заглушка их не вызывает, но шаги регистрируются).
@@ -2373,7 +2375,7 @@ Expected: сборка без ошибок; в выводе число шаго�
 Run: `bunx workflow validate`
 Expected: нет замечаний.
 
-- [ ] **Step 5: Проверки и коммит**
+- [x] **Step 5: Проверки и коммит**
 
 Run: `bun run typecheck`
 Expected: без ошибок.
@@ -2402,7 +2404,7 @@ Run: `git commit -m "Турбо: шаги воркфлоу как тонкие �
 
 Документы для сверки: `https://workflow-sdk.dev/docs/foundations/workflows-and-steps` (воркфлоу детерминирован, шаги вызываются через `await`), `https://workflow-sdk.dev/docs/foundations/errors-and-retries` (раздел «Rolling back failed steps»: компенсация шагом, повторный бросок после неё). Проверено опытом: в `bun test` воркфлоу исполняется как обычная async-функция, шаги как обычные вызовы, поэтому ветки ошибок проверяются юнит-тестами; сериализацию они не проверяют (её закрывает живой прогон в Задаче 11).
 
-- [ ] **Step 1: Failing-тест**
+- [x] **Step 1: Failing-тест**
 
 Создать `src/lib/__tests__/turbo-workflow.test.ts`:
 
@@ -2618,7 +2620,7 @@ describe("turboWorkflow: сбои возвращают кредиты", () => {
 Run: `bun test src/lib/__tests__/turbo-workflow.test.ts`
 Expected: FAIL (заглушка воркфлоу не вызывает агента).
 
-- [ ] **Step 2: Реализовать воркфлоу**
+- [x] **Step 2: Реализовать воркфлоу**
 
 Заменить содержимое `workflows/turbo/index.ts`:
 
@@ -2717,12 +2719,12 @@ export async function turboWorkflow(
 }
 ```
 
-- [ ] **Step 3: Тесты проходят**
+- [x] **Step 3: Тесты проходят**
 
 Run: `bun test src/lib/__tests__/turbo-workflow.test.ts`
 Expected: PASS (8 тестов). Если какой-то тест падает из-за формы ошибки от SDK (например, имя `AI_ToolChoiceViolationError` или текст дедлайна), привести фактическое значение в сообщении об ошибке теста и поправить `toFailure` (Задача 3) вместе с её тестом, а не ослаблять проверку.
 
-- [ ] **Step 4: Бандл и песочница**
+- [x] **Step 4: Бандл и песочница**
 
 Run: `bun run workflow:build`
 Expected: `Compiled workflows ... 1 workflow` без предупреждений о Node-модулях в бандле воркфлоу.
@@ -2735,7 +2737,7 @@ Expected: нет замечаний.
 Run: `bun -e 'const s = await Bun.file(".well-known/workflow/v1/flow.mjs").text(); const i = s.lastIndexOf("WORKFLOW_USE_STEP"); console.log(["postgres","node:net","Bun.s3","uploadImage"].map((m) => m + ": " + s.slice(i - 20000).includes(m)).join("\n"))'`
 Expected: у каждого маркера `false` (в окне вокруг кода воркфлоу нет базы и хранилища). Если `true`, найти импорт, который тянет модуль в `workflows/turbo/index.ts`, `agent-definition.ts`, `codex-agent-model.ts` или `tool-defs.ts`, и вынести обращение внутрь шага.
 
-- [ ] **Step 5: Проверки и коммит**
+- [x] **Step 5: Проверки и коммит**
 
 Run: `bun run typecheck`
 Expected: без ошибок.
@@ -2764,7 +2766,7 @@ Run: `git commit -m "Турбо: воркфлоу из подготовки, ц�
 - Consumes: `TURBO_MODEL` (`src/lib/models.ts`), `InsufficientCreditsError` (`src/lib/credits.ts`), `TURBO_PUBLIC_ERROR` (`errors.ts`), `startGeneration`, `chargeGeneration`, `failGeneration` (`generations.ts`), `turboWorkflow` (Задача 8).
 - Produces: `interface StartTurboDeps { startRecord(record: { id?: string; userId: string; prompt: string }): Promise<string>; chargeCredits(params: { id: string; userId: string; cost: number }): Promise<void>; startWorkflow(input: { id: string; userId: string; prompt: string }): Promise<void>; failRecord(params: { id: string; error: unknown; durationMs: number }): Promise<void>; now(): number }`, `type StartTurboOutcome`, `startTurbo(input: { userId: string; prompt: string; id?: string }, deps: StartTurboDeps): Promise<StartTurboOutcome>`, `startTurboDeps`.
 
-- [ ] **Step 1: Failing-тест на `startTurbo`**
+- [x] **Step 1: Failing-тест на `startTurbo`**
 
 Создать `src/lib/__tests__/turbo-start.test.ts`:
 
@@ -2905,7 +2907,7 @@ describe("startTurbo", () => {
 Run: `bun test src/lib/__tests__/turbo-start.test.ts`
 Expected: FAIL, модуль `../turbo/start` не найден.
 
-- [ ] **Step 2: Реализовать `start.ts`**
+- [x] **Step 2: Реализовать `start.ts`**
 
 Создать `src/lib/turbo/start.ts`:
 
@@ -2999,7 +3001,7 @@ export async function startTurbo(
 Run: `bun test src/lib/__tests__/turbo-start.test.ts`
 Expected: PASS (6 тестов).
 
-- [ ] **Step 3: Боевые зависимости**
+- [x] **Step 3: Боевые зависимости**
 
 Создать `src/lib/turbo/start-deps.ts`:
 
@@ -3048,7 +3050,7 @@ export const startTurboDeps: StartTurboDeps = {
 };
 ```
 
-- [ ] **Step 4: Маршрут**
+- [x] **Step 4: Маршрут**
 
 В `src/api/generate.ts` заменить две строки импорта:
 
@@ -3080,7 +3082,7 @@ import { startTurboDeps } from "../lib/turbo/start-deps";
 			}
 ```
 
-- [ ] **Step 5: Интерфейс**
+- [x] **Step 5: Интерфейс**
 
 Загрузить скилл `shadcn` (правило проекта для любых правок интерфейсных файлов), менять только логику.
 
@@ -3108,7 +3110,7 @@ const POLL_TIMEOUT_MS = 11 * 60_000;
 			}
 ```
 
-- [ ] **Step 6: Порог зависших**
+- [x] **Step 6: Порог зависших**
 
 В `src/lib/generations.ts` заменить комментарий и константу:
 
@@ -3122,7 +3124,7 @@ const POLL_TIMEOUT_MS = 11 * 60_000;
 export const GENERATION_STALE_MS = 720_000;
 ```
 
-- [ ] **Step 7: Перевести `scripts/eval-turbo.ts` на общее определение агента**
+- [x] **Step 7: Перевести `scripts/eval-turbo.ts` на общее определение агента**
 
 Скрипт использует `runTurbo`, который удаляется на следующем шаге, поэтому переписать его до удаления.
 
@@ -3253,7 +3255,7 @@ Expected: без ошибок.
 Run: `bun scripts/eval-turbo.ts "кот"` (нужен вход Codex в dev-базе; лимит подписки не тратится, картинка не рисуется)
 Expected: для запроса печатается строка `# кот (… с, токенов …)`, список изображений, прочитанное и промпт; в `docs/evals/` появляется `turbo-<метка>.jsonl`. Файл прогона в коммит не добавлять.
 
-- [ ] **Step 8: Удалить старое и привести `agent.ts` в порядок**
+- [x] **Step 8: Удалить старое и привести `agent.ts` в порядок**
 
 Run: `git rm src/lib/turbo/tools.ts src/lib/turbo/service.ts src/lib/turbo/runtime.ts src/lib/__tests__/turbo-service.test.ts src/api/workflow-ping.ts`
 
@@ -3316,7 +3318,7 @@ describe("buildAgentMessage", () => {
 
 Из `src/lib/turbo/constants.ts` удалить `TURBO_TIMEOUT_MS` и его комментарий: после Step 7 его больше никто не использует.
 
-- [ ] **Step 9: Проверки**
+- [x] **Step 9: Проверки**
 
 Run: `bun test`
 Expected: все тесты проходят (старые сценарии переехали, их файлы удалены или переписаны).
@@ -3330,7 +3332,7 @@ Expected: без ошибок.
 Run: `bunx biome format --write src workflows scripts`
 Expected: файлы отформатированы.
 
-- [ ] **Step 10: Коммит**
+- [x] **Step 10: Коммит**
 
 Run: `git add -A src workflows scripts`
 
@@ -3347,7 +3349,7 @@ Run: `git commit -m "Турбо: запуск через воркфлоу, от�
 - Consumes: итоговое поведение Задач 1–9.
 - Produces: `AGENTS.md`, `README.md` и спека описывают Турбо на Workflow без устаревших утверждений.
 
-- [ ] **Step 1: Обновить `AGENTS.md`**
+- [x] **Step 1: Обновить `AGENTS.md`**
 
 Заменить строку `bun dev              # dev-сервер с hot reload` в блоке команд на две:
 
@@ -3387,7 +3389,7 @@ bun run workflow:build  # сборка бандлов Workflow в .well-known/wo
 
 (Вариант размещения обработчика (функция `api/workflow-flow.ts`, Services или Build Output API) вписать по итогам Задачи 2; в строках выше стоит вариант B, поправить, если выбран другой.)
 
-- [ ] **Step 2: Обновить `README.md`**
+- [x] **Step 2: Обновить `README.md`**
 
 Строку со структурой `lib/turbo/       # режим «Турбо»: библиотека, вход Codex, картинки, агент, сервис` заменить на:
 
@@ -3398,14 +3400,14 @@ workflows/         # воркфлоу Турбо (Vercel Workflow): оркест
 
 В строку про режим «Турбо» (описание функции) дописать: «Запуск идёт воркфлоу Vercel Workflow, страница ждёт результат опросом».
 
-- [ ] **Step 3: Обновить спеку**
+- [x] **Step 3: Обновить спеку**
 
 В `docs/superpowers/specs/2026-10-08-turbo-workflow-design.md`:
 - В разделе «6. Тесты» заменить пункт «Сквозная проверка: `scripts/smoke-turbo-workflow.ts` …» на: «Воркфлоу вызывается в `bun test` напрямую как обычная функция (корневой `preload` в тестах не применяется, проверено опытом), окружение подменяется `setTurboRuntime`: ветки успеха и всех сбоев покрыты юнит-тестами. Сериализация и границы шагов в таких тестах не участвуют: их проверяет живой прогон на dev-ветке и на preview».
 - В разделе «Что меняется в файлах» убрать `scripts/smoke-turbo-workflow.ts`, добавить `ops.ts`, `tool-defs.ts`, `workflow-runtime.ts`, `failure.ts`, `size.ts`, `preview.ts`, `start.ts`, `start-deps.ts`.
 - В таблице статусов оценку «запись в журнал при сжатых картинках единицы МБ на прогон» заменить на фактические размеры превью WebP (3,2 МБ → 248 КБ, обычно 7–31 КБ) и пометить: расчёт сменён замером, итог по журналу измерить в Задаче 11.
 
-- [ ] **Step 4: Проверки и коммит**
+- [x] **Step 4: Проверки и коммит**
 
 Run: `bun run typecheck`
 Expected: без ошибок.
@@ -3451,7 +3453,7 @@ Expected: `Compiled workflows ...` и сборка фронтенда в `dist/`
 Run: `vercel build --prod`
 Expected: сборка заканчивается; в `.vercel/output/functions` есть функция сайта и функция обработчика (по выбранному в Задаче 2 варианту). Это локальная проверка бандла, как предписывает `AGENTS.md` для изменений серверной части.
 
-- [ ] **Step 2: Живой прогон на dev (Local World)**
+- [x] **Step 2: Живой прогон на dev (Local World)**
 
 Условия: `.env.development` с dev-базой и dev-хранилищем, в админке выполнен вход Codex. Если входа нет, попросить владельца выполнить «Войти» в админке dev-сервера (токены и ключи не придумывать).
 
@@ -3470,7 +3472,7 @@ Expected: прогон `turboWorkflow` со статусом `completed`; в `np
 Run: `bun -e 'import { sql } from "./src/lib/db"; console.log(await sql`SELECT id, status, cost, engine, enhanced_prompt IS NOT NULL AS has_prompt, input_images, llm_model, duration_ms FROM generations ORDER BY created_at DESC LIMIT 1`); process.exit(0)'`
 Expected: `status = completed`, `cost = 10`, `engine = turbo`, `llm_model = gpt-6-luna`, непустой `input_images` для запроса с героями.
 
-- [ ] **Step 3: Проверки из раздела «не проверено» спеки**
+- [x] **Step 3: Проверки из раздела «не проверено» спеки**
 
 Взять `runId` из предыдущего шага и открыть вход модельного шага:
 
