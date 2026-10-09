@@ -186,9 +186,26 @@ describe("инструкция агента Турбо", () => {
 		expect(sheet).not.toMatch(/\b(cat|tabby|fisherman|tram)\b/i);
 	});
 
-	test("длина промпта: 320–520 слов, карточки героев требуют места", () => {
-		expect(system).toContain("320–520 слов");
+	test("длина промпта: 360–560 слов, карточки героев и описанный фон требуют места", () => {
+		expect(system).toContain("360–560 слов");
 		expect(system).not.toContain("260–450");
+		expect(system).not.toContain("320–520");
+	});
+
+	test("ничего по умолчанию: у каждого существительного материал, цвет и странность", () => {
+		const section = system.slice(
+			system.indexOf("## Ничего по умолчанию"),
+			system.indexOf("## Несочетаемость"),
+		);
+		for (const part of [
+			"У каждого существительного три вещи.",
+			"Фон тоже.",
+			"Проверка по существительным.",
+			"a castle built from stacked wedding cakes",
+		]) {
+			expect(section).toContain(part);
+		}
+		expect(system).toContain("3c. Ничего по умолчанию");
 	});
 
 	test("мопс по-английски pug", () => {
