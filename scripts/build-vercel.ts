@@ -28,6 +28,11 @@ const MAX_DURATION = 300;
 // тоже на Bun; архитектура та же, на которой работает сайт
 const RUNTIME = "bun1.4.x";
 const ARCHITECTURE = "x86_64";
+// Файловая система функции только для чтения. Bun 1.4 при импорте несуществующего
+// модуля запускает автоустановку пакетов, пытается создать `node_modules/.cache` и
+// падает необрабатываемой ошибкой «bun is unable to write files: EROFS» на первом
+// же запросе. Без автоустановки это обычное исключение с именем модуля.
+const BUNFIG = '[install]\nauto = "disable"\n';
 
 await mkdir(`${SITE}/dist`, { recursive: true });
 const server = await Bun.build({
@@ -43,6 +48,7 @@ if (!server.success) {
 	process.exit(1);
 }
 await cp("dist", `${SITE}/dist`, { recursive: true });
+await writeFile(`${SITE}/bunfig.toml`, BUNFIG);
 await writeFile(
 	`${SITE}/.vc-config.json`,
 	JSON.stringify(
@@ -64,6 +70,7 @@ for (const dir of [
 	`${WORKFLOW}/flow.func`,
 	`${WORKFLOW}/webhook/[token].func`,
 ]) {
+	await writeFile(`${dir}/bunfig.toml`, BUNFIG);
 	const file = `${dir}/.vc-config.json`;
 	const config = JSON.parse(await readFile(file, "utf8")) as Record<
 		string,
