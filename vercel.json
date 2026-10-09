@@ -1,19 +1,12 @@
 {
 	"$schema": "https://openapi.vercel.sh/vercel.json",
+	"framework": null,
 	"bunVersion": "1.4.x",
-	"framework": "bun",
-	"buildCommand": "bun run build",
-	"outputDirectory": "dist",
+	"buildCommand": "bun run build:vercel",
 	"crons": [
 		{
 			"path": "/api/cron/daily-credits",
 			"schedule": "0 21 * * *"
 		}
-	],
-	"functions": {
-		"src/server.ts": {
-			"maxDuration": 300,
-			"includeFiles": "node_modules/{@better-auth/telemetry,better-auth/node_modules/@better-auth/utils,@noble/ciphers,@noble/hashes}/**"
-		}
-	}
+	]
 }

@@ -8,6 +8,7 @@
 		"dev": "workflow build && PORT=3000 bun --hot src/server.ts",
 		"start": "NODE_ENV=production bun src/server.ts",
 		"build": "workflow build && bun run build.ts",
+		"build:vercel": "rm -rf .vercel/output && workflow build --target vercel-build-output-api && bun run build.ts && bun scripts/build-vercel.ts",
 		"db:migrate": "bun run src/lib/migrate.ts",
 		"db:migrate:dev": "NODE_ENV=development bun run src/lib/migrate.ts",
 		"typecheck": "tsc --noEmit",
