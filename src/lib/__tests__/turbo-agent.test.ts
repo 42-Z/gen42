@@ -15,4 +15,17 @@ describe("buildAgentMessage", () => {
 		expect(message).toContain("пятёрка на троне");
 		expect(message).not.toContain("ANCHORS");
 	});
+
+	test("число 42 не навязывается: «два-три раза» из общей строки в сообщении нет", () => {
+		const message = buildAgentMessage("пятёрка на троне");
+		expect(message).toContain("TEXT: none");
+		expect(message).toContain("once or twice at most");
+		expect(message).not.toContain("two or three times");
+	});
+
+	test("текстовый запрос получает строку про точный текст", () => {
+		const message = buildAgentMessage("плакат с надписью «СЛАВА 42»");
+		expect(message).toContain("TEXT: requested");
+		expect(message).not.toContain("once or twice at most");
+	});
 });

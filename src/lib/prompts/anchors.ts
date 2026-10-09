@@ -188,6 +188,8 @@ export interface UserMessageOptions {
 	hijackedBy?: string[];
 	omit?: readonly (keyof Anchors)[];
 	brief?: string[];
+	/** Строка про текст для запроса без текста; по умолчанию с числом 42 два-три раза */
+	noTextLine?: string;
 }
 
 /**
@@ -231,7 +233,8 @@ ${anchorLines}
 
 	const textLine = options.textRequested
 		? "TEXT: requested — carry the user's exact wording literally, quoted, up to three inscriptions."
-		: "TEXT: none — no words or letters anywhere in the frame; only the giant numeric 42 emblem is allowed (two or three times, never more than four).";
+		: (options.noTextLine ??
+			"TEXT: none — no words or letters anywhere in the frame; only the giant numeric 42 emblem is allowed (two or three times, never more than four).");
 
 	const exactLine = exactTexts.length
 		? `\nEXACT TEXT (must appear verbatim in the frame, no translation, no edits): ${exactTexts.map((text) => `«${text}»`).join(", ")}.`
