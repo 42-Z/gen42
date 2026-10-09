@@ -6,9 +6,12 @@ export const TURBO_MAX_STEPS = 12;
 export const TURBO_AGENT_TIMEOUT_MS = 180_000;
 /**
  * Бюджет рисования: запрос к Codex обрывается сам раньше, чем платформа убьёт
- * функцию на лимите 300 с (остаётся время на загрузку картинки в хранилище)
+ * функцию на лимите 300 с. Шаг делит лимит с предыдущей работой того же вызова
+ * `flow`, поэтому у функции задан `WORKFLOW_V2_TIMEOUT_MS` (scripts/build-vercel.ts):
+ * рисование стартует в свежем вызове со смещением в несколько секунд, а запас до
+ * 300 с остаётся на разбор ответа и запись событий
  */
-export const TURBO_DRAW_TIMEOUT_MS = 280_000;
+export const TURBO_DRAW_TIMEOUT_MS = 270_000;
 /** Копия изображения для агента: длинная сторона в пикселях и качество WebP */
 export const TURBO_PREVIEW_SIZE = 1024;
 export const TURBO_PREVIEW_QUALITY = 80;

@@ -105,4 +105,26 @@ describe("editImage", () => {
 		}).catch((e) => e);
 		expect(aborted).not.toBeInstanceOf(CodexImageError);
 	});
+
+	test("срок вышел во время чтения тела ответа — отмена, а не «не JSON»", async () => {
+		const controller = new AbortController();
+		const body = new ReadableStream({
+			start(stream) {
+				controller.signal.addEventListener("abort", () =>
+					stream.error(controller.signal.reason),
+				);
+			},
+		});
+		const slow = (async () =>
+			new Response(body, { status: 200 })) as unknown as typeof fetch;
+		const pending = editImage({
+			fetch: slow,
+			prompt: "x",
+			images: [],
+			signal: controller.signal,
+		}).catch((e) => e);
+		controller.abort();
+		const error = await pending;
+		expect(error).not.toBeInstanceOf(CodexImageError);
+	});
 });

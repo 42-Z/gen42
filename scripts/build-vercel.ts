@@ -33,6 +33,14 @@ const ARCHITECTURE = "x86_64";
 // падает необрабатываемой ошибкой «bun is unable to write files: EROFS» на первом
 // же запросе. Без автоустановки это обычное исключение с именем модуля.
 const BUNFIG = '[install]\nauto = "disable"\n';
+// Рантайм Workflow выполняет шаги внутри уже идущего вызова функции и по умолчанию
+// (для функции на 300 с) продолжает так до 2 минут (docs: configuration/runtime-tuning,
+// «Inline execution»); лимит платформы при этом считается от старта вызова, а не шага.
+// Рисование, стартовавшее на 80-й секунде вызова, платформа убила бы раньше его таймера.
+// С 10 секундами после любого более долгого шага продолжение уходит в очередь, и
+// следующий шаг, включая рисование, стартует в свежем вызове со смещением в секунды.
+// Не меньше нескольких секунд: первая итерация цикла не должна сама уходить в очередь.
+const WORKFLOW_ENVIRONMENT = { WORKFLOW_V2_TIMEOUT_MS: "10000" };
 
 await mkdir(`${SITE}/dist`, { recursive: true });
 const server = await Bun.build({
@@ -79,7 +87,15 @@ for (const dir of [
 	await writeFile(
 		file,
 		JSON.stringify(
-			{ ...config, runtime: RUNTIME, architecture: ARCHITECTURE },
+			{
+				...config,
+				runtime: RUNTIME,
+				architecture: ARCHITECTURE,
+				environment: {
+					...(config.environment as Record<string, string> | undefined),
+					...WORKFLOW_ENVIRONMENT,
+				},
+			},
 			null,
 			2,
 		),
