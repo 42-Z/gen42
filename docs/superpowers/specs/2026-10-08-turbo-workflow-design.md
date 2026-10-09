@@ -57,7 +57,7 @@
 ### 6. Тесты
 
 - Юнит-тесты на `bun test`: шаги напрямую через подмену зависимостей (`draw`: отказ, 401, таймаут, кавычки; `complete`; `fail`: возврат ровно один раз, пометка входа); `startTurbo` (возврат при сбое `start()`, 402); обёртка модели (сериализация только `modelId`, восстановление создаёт провайдера); проверка аргументов `generateImage`; классификатор ошибок. Сценарии из нынешних `turbo-agent.test.ts` и `turbo-service.test.ts` переезжают, не пропадают.
-- Сквозная проверка: `scripts/smoke-turbo-workflow.ts` на Local World с подставной моделью и поддельным Codex (успех, возврат при сбое, обрыв посреди рисования).
+- Воркфлоу вызывается в `bun test` напрямую как обычная функция (корневой `preload` в тестах не применяется, проверено опытом), окружение подменяется `setTurboRuntime`: ветки успеха и всех сбоев покрыты юнит-тестами. Сериализация и границы шагов в таких тестах не участвуют: их проверяет живой прогон на dev-ветке и на preview.
 - `eval-turbo.ts` остаётся: работает через общее `createTurboAgent` вне воркфлоу; `--generate` рисует и печатает «агент / рисование».
 - Vitest не добавляется (`@workflow/vitest` рассчитан на Vitest, у проекта `bun:test`).
 
@@ -71,7 +71,7 @@
 | Обработчик `flow` на Vercel это единственный потребитель очереди с `maxDuration: max` | подтверждено документацией | workflow-sdk.dev/docs/how-it-works/framework-integrations |
 | Для нестандартного сервера Workflow описывает Build Output API (пример NestJS; цель `workflow build --target vercel-build-output-api`) | подтверждено документацией | workflow-sdk.dev/docs/getting-started/nestjs, `@workflow/builders` |
 | Hobby: Workflow 50 000 событий и 1 ГБ записи в месяц, хранение прогона 1 день; Queues (бета) 1 000 000 операций; шаг ограничен лимитом функции | подтверждено документацией | vercel.com/docs/workflows/pricing, vercel.com/docs/queues/pricing |
-| Оценка: прогон Турбо ≈ 15 шагов ≈ 45 событий, то есть ~1 000 прогонов в месяц на Hobby по событиям; запись в журнал при сжатых картинках единицы МБ на прогон | расчёт, замерить на первом прогоне | вывод из числа шагов раздела 2 |
+| Оценка: прогон Турбо ≈ 15 шагов ≈ 45 событий, то есть ~1 000 прогонов в месяц на Hobby по событиям; размер превью WebP для агента 3,2 МБ → 248 КБ, обычно 7–31 КБ (расчёт «единицы МБ на прогон» заменён замером; итог по журналу измерить в Задаче 11) | замер превью, итог по журналу замерить на живом прогоне | вывод из числа шагов раздела 2 |
 | Размещение A (Build Output API), проверка «после пресета»: `workflow build --target vercel-build-output-api` пишет `config.json` целиком (остаётся маршрут вебхука, маршруты пресета Bun пропадают), функция `flow` получает `runtime: nodejs22.x`, а код шагов использует Bun API; поверх вывода пресета не складывается | подтверждено локально | `vercel build` (CLI 63.1.0) и `node_modules/@workflow/builders/dist/vercel-build-output-api.js`, 2026-10-08 |
 | Размещение A в виде полной собственной сборки (`framework: null`, `buildCommand: bun run build:vercel`): `vercel build` принимает `.vercel/output`, который написала команда сборки; `crons` из `vercel.json` CLI добавляет сам (при записи в `config.json` вручную они дублировались); функции сайта и `flow` получают `runtime: bun1.4.x`, `architecture: x86_64`; сайт отвечает локально (`/`, `/api/models` из базы, статика) | **выбрано**, подтверждено локально, на Vercel не проверено | `scripts/build-vercel.ts`, `vercel build` (CLI 63.1.0), vercel.com/docs/build-output-api/v3, 2026-10-09 |
 | Размещение B (`api/workflow-flow.ts` и запись в `functions`): при `framework: bun` сборка делает только функцию `src/server.ts` (`builds.json`: `@vercel/static` и `@vercel/backends`), функция из `api/` не появляется; `api/server.ts` из документации относится к модели без пресета | опровергнуто локально | `vercel build` (CLI 63.1.0), vercel.com/docs/functions/runtimes/bun, 2026-10-08 |
@@ -92,6 +92,6 @@
 
 ## Что меняется в файлах
 
-Новые: `workflows/turbo/index.ts`, `workflows/turbo/steps.ts`, `src/lib/turbo/agent-definition.ts` (`createTurboAgent`), `src/lib/turbo/codex-agent-model.ts`, `workflow-plugin.ts`, обработчик `flow` (путь по итогу проверки размещения), `scripts/smoke-turbo-workflow.ts`.
+Новые: `workflows/turbo/index.ts`, `workflows/turbo/steps.ts`, `src/lib/turbo/agent-definition.ts` (`createTurboAgent`), `src/lib/turbo/codex-agent-model.ts`, `ops.ts`, `tool-defs.ts`, `workflow-runtime.ts`, `failure.ts`, `size.ts`, `preview.ts`, `start.ts`, `start-deps.ts`, `workflow-transform.ts` и `workflow-plugin.ts` (плагин Bun), `scripts/build-vercel.ts` (сборка Build Output API).
 
 Меняются: `src/api/generate.ts`, `src/components/Generate.tsx` (ветка 202), `src/lib/turbo/service.ts` (становится `startTurbo`), `src/lib/turbo/tools.ts` (общие определения, `generateImage` только проверяет), `src/lib/turbo/agent.ts` (остаются `classifyAgentError`, `buildAgentMessage`, `systemVersionOf`; цикл `ToolLoopAgent` уходит), `src/lib/turbo/runtime.ts`, `src/lib/generations.ts` (`GENERATION_STALE_MS`), `vercel.json`, `bunfig.toml`, `package.json`, `.gitignore`, `scripts/eval-turbo.ts`, `AGENTS.md`, `README.md`.
