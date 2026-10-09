@@ -385,7 +385,7 @@ export const workflowPingRoutes = {
 Run: `bun run typecheck`
 Expected: без ошибок.
 
-- [ ] **Step 6: Разрешение владельца**
+- [x] **Step 6: Разрешение владельца** (получено 2026-10-09: пуш ветки; `vercel deploy` классификатор прав заблокировал, preview идёт через Git)
 
 Preview-деплой это внешнее действие. Спросить владельца: «Для проверки размещения нужен пуш ветки `feat/turbo-creative-direction` (preview-деплой через GitHub) или `vercel deploy` без `--prod`. Разрешаете?» Без «да» дальше не идти; временно зафиксировать локальные выводы Step 1–4 в спеке и остановиться.
 
@@ -395,7 +395,7 @@ Run: `git add api/workflow-flow.ts src/api/workflow-ping.ts vercel.json src/serv
 
 Run: `git commit -m "Размещение обработчика Workflow на Vercel: функция api/workflow-flow и временный маршрут проверки" -m "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"`
 
-- [ ] **Step 7: Проверка на preview (после разрешения)**
+- [ ] **Step 7: Проверка на preview (после разрешения)** (частично, 2026-10-09: сборка принята, три функции, Ready; сайт падал на `EROFS`, исправлено `bunfig.toml` с `auto = "disable"` в каждой функции; дальше живой прогон ждёт переменных приложения для preview этой ветки, см. спеку, таблицу «Источники и статусы»)
 
 Run (одним из способов по разрешению): `git push -u origin feat/turbo-creative-direction` либо `vercel deploy --yes`.
 Expected: URL preview-деплоя; сборка зелёная (`vercel inspect <url>` или панель).
@@ -3494,7 +3494,7 @@ Expected: Local World при запуске возобновляет незав�
 
 > **Итог (2026-10-09):** пункт б выполнен (Local World прогон не возобновил, повторного рисования не было, строка закрылась лениво через 12 минут с возвратом кредитов). Пункт а на живой системе не выполнялся: «Выйти» разлогинило бы вход Codex владельца; ветка покрыта тестами, поэтому шаг остаётся неотмеченным.
 
-- [ ] **Step 5: Проверка на preview (после разрешения владельца)**
+- [ ] **Step 5: Проверка на preview (после разрешения владельца)** (ждёт переменных приложения для preview ветки: `BETTER_AUTH_SECRET`, `DATABASE_URL`, `S3_*`)
 
 Спросить разрешение на пуш ветки или `vercel deploy`. После «да»: повторить Step 2 на preview-URL (войти, режим «Турбо», запрос «кот»).
 Expected: картинка появилась; `npx workflow inspect runs --backend vercel --project gen42 --team <slug> --env preview` показывает `completed`; в логах (`vercel logs <deployment-url>`) нет ошибок `Cannot find package 'X'` (если есть, добавить пакет в `includeFiles` в `vercel.json` по правилу `AGENTS.md`, а не ставить костыли в код) и нет ошибок загрузки бандла `flow.mjs`.

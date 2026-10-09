@@ -180,4 +180,4 @@ bun run format       # форматер (biome)
 
 - Секреты (`.env` с токенами HF) не коммитить — они в `.gitignore`. Токены HF хранятся только в БД
 - Не логировать ключи и не отдавать их через API целиком без необходимости; в админке ключи маскировать
-- App-секреты синхронизированы в Vercel (production + preview) и GitHub Actions secrets; при ротации обновлять оба места
+- App-секреты синхронизированы в Vercel (production + preview) и GitHub Actions secrets; при ротации обновлять оба места. Переменные окружения Preview привязаны к веткам: у новой ветки (например, `feat/turbo-creative-direction`) preview пустой, если не добавить переменные для неё, и сайт на нём падает на создании Better Auth (`BETTER_AUTH_SECRET`). Для preview брать значения dev (`.env.development`: ветка `dev` базы и её бакет), прод-значения туда не класть
