@@ -76,6 +76,9 @@ describe("pluralTexts", () => {
 		expect(pluralTexts(5)).toBe("5 текстов");
 		expect(pluralTexts(11)).toBe("11 текстов");
 		expect(pluralTexts(21)).toBe("21 текст");
+		expect(pluralTexts(0)).toBe("0 текстов");
+		expect(pluralTexts(12)).toBe("12 текстов");
+		expect(pluralTexts(22)).toBe("22 текста");
 	});
 });
 

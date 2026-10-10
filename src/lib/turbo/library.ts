@@ -59,7 +59,7 @@ function extensionOf(name: string): string {
 	return dot < 0 ? "" : name.slice(dot + 1).toLowerCase();
 }
 
-function kindOf(name: string): FileKind | null {
+export function kindOf(name: string): FileKind | null {
 	const ext = extensionOf(name);
 	if (ext in IMAGE_MEDIA_TYPES) return "image";
 	if (ext === "txt") return "text";
