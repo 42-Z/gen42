@@ -99,34 +99,71 @@ describe("инструкция агента Турбо", () => {
 		expect(system).toContain("Приёмы, которыми сообщество ловит шутку");
 		expect(system).toContain("Штамп.");
 		expect(system).toContain(
-			"только если её просит запрос или в ней сама шутка",
+			"Язык племени (мех, цепь, очки, джерси, крупный номер, хайп) штампом не считается",
 		);
 	});
 
-	test("устройство картинки сообщества описано через замысел, а не через шаблон частей", () => {
-		const anatomy = system.slice(
+	test("визуальный язык племени описан по эталонам, а не как шаблон частей", () => {
+		const language = system.slice(
 			system.indexOf("# Что такое 42"),
 			system.indexOf("# Словарь 42"),
 		);
 		for (const part of [
-			"Замысел порождает мир.",
+			"Знакомое место, безумие в нём.",
 			"Герой владыка.",
-			"Каждый в кадре отдельная идея.",
-			"Каждая вещь фирменная.",
-			"Роскошь, мода, техника и интернет.",
-			"Размах и жанр.",
-			"Это описание устройства, а не набор вещей для копирования",
+			"Братуха-лоск.",
+			"42 крупно и по-спортивному.",
+			"Хайп в лицах и телах.",
+			"Блеск и зрелище.",
+			"Размножение.",
+			"Упаковка и реальные вещи.",
+			"Свои шутки племени.",
+			"это описание того, как выглядит 42, а не набор вещей для копирования",
 		]) {
-			expect(anatomy).toContain(part);
+			expect(language.toLowerCase()).toContain(part.toLowerCase());
 		}
-		// старый шаблон «шесть частей, три-четыре в кадре» не возвращается
+		// на эталонах один образ размножен, а не «каждый отдельная идея»
+		expect(language).not.toContain("Каждый в кадре отдельная идея");
 		expect(system).not.toContain("из шести частей");
 		expect(system).not.toContain("три-четыре из них");
 	});
 
-	test("мир строится по вопросу «что деталь делает для шутки», мир идеи и персонажи", () => {
+	test("проработка: счёт вещей по ролям и мешап из разных источников", () => {
+		const work = system.slice(
+			system.indexOf("## Проработка"),
+			system.indexOf("## Реакция человека"),
+		);
+		expect(work).toContain("Счёт вещей жёсткий");
+		expect(work).toContain("не меньше двенадцати отдельных вещей");
+		expect(work).toContain("не меньше восьми");
+		expect(work).toContain("не меньше четырёх");
+		expect(work).toContain("**Мешап из разных вселенных.**");
+		expect(work).toContain("минимум трёх разных узнаваемых источников");
+		expect(system).toContain("Источники для мешапа.");
+		expect(system).toContain("Тот же счёт с мешапом:");
+	});
+
+	test("язык племени обязателен у своих, но в версии под образ", () => {
+		const language = system.slice(
+			system.indexOf("Братуха-лоск."),
+			system.indexOf("42 крупно и по-спортивному."),
+		);
+		for (const word of [
+			"меховая шуба",
+			"золотая цепь с кулоном 42",
+			"тёмные очки",
+			"кепка-снепбэк",
+			"джерси",
+			"Так одеты и звери",
+			"другие по цвету, материалу и крою",
+		]) {
+			expect(language).toContain(word);
+		}
+	});
+
+	test("мир строится по вопросу «что деталь делает для шутки», место и племя, персонажи", () => {
 		expect(system).toContain("что она делает для этой шутки");
-		expect(system).toContain("Теперь мир идеи.");
+		expect(system).toContain("Теперь место и племя.");
 		expect(system).toContain("Персонажи.");
 		expect(system).toContain("не весь зоопарк сразу");
 		expect(system).not.toContain("два-три вида существ");
@@ -152,7 +189,8 @@ describe("инструкция агента Турбо", () => {
 		}
 		expect(dictionary).toContain("Меню здесь нет");
 		expect(dictionary).toContain("каждое слово с причиной");
-		expect(dictionary).toContain("склад, а не идея");
+		expect(dictionary).toContain("это язык племени");
+		expect(dictionary).toContain("Складом становятся сюжетные вещи");
 	});
 
 	test("нет квот, фиксированных палитр и списков материалов: только творческая задача", () => {
@@ -192,6 +230,31 @@ describe("инструкция агента Турбо", () => {
 		}
 	});
 
+	test("примеры показывают язык племени: очки, цепи, крупный номер, открытый рот", () => {
+		const examples = system.slice(
+			system.indexOf("# Примеры"),
+			system.indexOf("# Самопроверка"),
+		);
+		const outputs = examples
+			.split("OUTPUT:")
+			.slice(1)
+			.map((part) => part.split("\n\n")[0] ?? "");
+		const withShades = outputs.filter((output) =>
+			/shades|sunglasses|aviators/i.test(output),
+		);
+		const withChain = outputs.filter((output) => /gold chain/i.test(output));
+		expect(withShades.length).toBeGreaterThanOrEqual(4);
+		expect(withChain.length).toBeGreaterThanOrEqual(3);
+		expect(examples).toMatch(/42 (as wide as|across the chest|on the back)/);
+		// латунь и бархат не должны стать умолчанием в примерах
+		for (const word of ["brass", "velvet", "porcelain", "terrazzo"]) {
+			const count = outputs.filter((output) =>
+				output.toLowerCase().includes(word),
+			).length;
+			expect(count).toBeLessThanOrEqual(1);
+		}
+	});
+
 	test("планка безумия: невозможное зрелище крупно, просьба об обычном её не снижает", () => {
 		expect(system).toContain("Планка безумия");
 		expect(system).toContain("невозможное зрелище крупно");
@@ -214,9 +277,9 @@ describe("инструкция агента Турбо", () => {
 			"Материал не тот.",
 			"Каждая вещь фирменная.",
 			"Цвет из мира идеи.",
-			"Герои позируют.",
+			"Хайп в лицах и телах.",
 			"Образ собран до мелочей.",
-			"Одежда из характера и мира.",
+			"Одежда из характера и языка племени.",
 			"Ездовая махина и предмет сюжета тоже образ.",
 			"Нормисы не заполняют кадр.",
 			"Армия и рой.",
