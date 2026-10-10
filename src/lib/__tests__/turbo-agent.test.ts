@@ -15,4 +15,22 @@ describe("buildAgentMessage", () => {
 		expect(message).toContain("пятёрка на троне");
 		expect(message).not.toContain("ANCHORS");
 	});
+
+	test("знак сообщества не слова: ставится на вещах мира, а не «два-три раза» по плану", () => {
+		const message = buildAgentMessage("пятёрка на троне");
+		expect(message).toContain("TEXT: not specified");
+		// слова бывают, когда сцена их требует, и придумывает их агент
+		expect(message).toContain("invent them yourself");
+		expect(message).toContain("in the language of the request");
+		expect(message).toContain("are not words");
+		expect(message).toContain("one per object");
+		expect(message).not.toContain("two or three times");
+		expect(message).not.toContain("once or twice at most");
+	});
+
+	test("текстовый запрос получает строку про точный текст", () => {
+		const message = buildAgentMessage("плакат с надписью «СЛАВА 42»");
+		expect(message).toContain("TEXT: requested");
+		expect(message).not.toContain("one per object");
+	});
 });

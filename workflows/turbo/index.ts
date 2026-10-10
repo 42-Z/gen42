@@ -5,6 +5,7 @@ import {
 } from "../../src/lib/turbo/agent-definition";
 import { TurboError } from "../../src/lib/turbo/errors";
 import { toFailure } from "../../src/lib/turbo/failure";
+import type { TurboReasoning } from "../../src/lib/turbo/reasoning";
 import {
 	checkImageStep,
 	completeStep,
@@ -19,6 +20,8 @@ export interface TurboWorkflowInput {
 	id: string;
 	userId: string;
 	prompt: string;
+	/** Нет у прогонов, запущенных до выбора уровня: агент берёт `high` */
+	reasoning?: TurboReasoning;
 }
 
 /**
@@ -38,6 +41,7 @@ export async function turboWorkflow(
 		const prepared = await prepareStep({ prompt: input.prompt });
 		const agent = createTurboAgent({
 			system: prepared.system,
+			reasoning: input.reasoning,
 			executors: {
 				listFolder: listFolderStep,
 				readFile: readFileStep,

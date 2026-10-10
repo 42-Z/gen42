@@ -11,7 +11,11 @@ import { checkImageArguments, readForAgent } from "../turbo/ops";
 import type { TurboToolExecutors } from "../turbo/tool-defs";
 import { libraryStorage, text, toolCalls } from "./helpers/turbo-fakes";
 
-function setup(steps: ConstructorParameters<typeof MockLanguageModelV4>[0]) {
+function setup(
+	steps: ConstructorParameters<typeof MockLanguageModelV4>[0],
+	random?: () => number,
+	reasoning?: "medium" | "high" | "xhigh" | "max",
+) {
 	const library = new Library(libraryStorage());
 	const executors = {
 		listFolder: mock(({ path }: { path: string }) => library.listFolder(path)),
@@ -21,11 +25,41 @@ function setup(steps: ConstructorParameters<typeof MockLanguageModelV4>[0]) {
 		),
 	} satisfies TurboToolExecutors;
 	const model = new MockLanguageModelV4(steps);
-	const agent = createTurboAgent({ model, system: "SYSTEM", executors });
+	const agent = createTurboAgent({
+		model,
+		system: "SYSTEM",
+		executors,
+		...(random ? { random } : {}),
+		...(reasoning ? { reasoning } : {}),
+	});
 	return { model, executors, agent };
 }
 
 const good = { prompt: "A pug, Image 1", images: ["пятерка/a.png"] };
+
+describe("уровень рассуждения агента", () => {
+	const finish = {
+		doGenerate: [toolCalls({ id: "1", name: "generateImage", input: good })],
+	};
+
+	test("без выбора модель получает high", async () => {
+		const { model, agent } = setup(finish);
+
+		await runTurboAgent(agent, "запрос");
+
+		expect(model.doGenerateCalls[0]?.reasoning).toBe("high");
+	});
+
+	test("выбранный уровень доходит до вызова модели", async () => {
+		for (const level of ["medium", "high", "xhigh", "max"] as const) {
+			const { model, agent } = setup(finish, undefined, level);
+
+			await runTurboAgent(agent, "запрос");
+
+			expect(model.doGenerateCalls[0]?.reasoning).toBe(level);
+		}
+	});
+});
 
 describe("runTurboAgent", () => {
 	test("успех: параллельные listFolder и readFile, затем generateImage", async () => {
@@ -55,6 +89,40 @@ describe("runTurboAgent", () => {
 			"generateImage",
 		]);
 		expect(run.tokens).toBe(30);
+	});
+
+	test("random: параллельные розыгрыши в одном раунде, выпавшее видно в randomPicks", async () => {
+		const { model, agent } = setup(
+			{
+				doGenerate: [
+					toolCalls(
+						{
+							id: "1",
+							name: "random",
+							input: { options: ["мамонт", "дирижабль", "регата"] },
+						},
+						{
+							id: "2",
+							name: "random",
+							input: { options: ["рассвет", "ночь"] },
+						},
+						{ id: "3", name: "random", input: { options: ["одно"] } },
+					),
+					toolCalls({ id: "4", name: "generateImage", input: good }),
+				],
+			},
+			() => 0.6,
+		);
+
+		const run = await runTurboAgent(agent, "сосед сверху");
+
+		expect(run.accepted).toEqual(good);
+		expect(model.doGenerateCalls).toHaveLength(2);
+		// вызов с одним вариантом получил ошибку и в выпавшее не попал
+		expect(run.randomPicks).toEqual([
+			{ options: ["мамонт", "дирижабль", "регата"], value: "дирижабль" },
+			{ options: ["рассвет", "ночь"], value: "ночь" },
+		]);
 	});
 
 	test("ошибка аргументов — агент исправляется и получает принятие", async () => {

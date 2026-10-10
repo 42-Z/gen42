@@ -1,5 +1,6 @@
 import {
 	IconBolt,
+	IconBrain,
 	IconCheck,
 	IconChevronLeft,
 	IconChevronRight,
@@ -19,6 +20,7 @@ import {
 	InputGroupTextarea,
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { imageExtension } from "@/lib/image-format";
 import {
@@ -26,6 +28,13 @@ import {
 	type SpaceEngine,
 	TURBO_MODEL,
 } from "@/lib/models";
+import { TURBO_CLIENT_WAIT_MS } from "@/lib/turbo/constants";
+import {
+	parseTurboReasoning,
+	TURBO_DEFAULT_REASONING,
+	TURBO_REASONING_LEVELS,
+	type TurboReasoning,
+} from "@/lib/turbo/reasoning";
 import { cn } from "@/lib/utils";
 import {
 	EmptyCanvasArt,
@@ -46,13 +55,22 @@ const HISTORY_LIMIT = 8;
 type Mode = "image" | "turbo";
 const MODE_STORAGE_KEY = "gen42-mode";
 
+/** Выбранный уровень рассуждения Турбо: запоминается между визитами */
+const REASONING_STORAGE_KEY = "gen42-reasoning";
+const REASONING_LABELS: Record<TurboReasoning, string> = {
+	medium: "Среднее",
+	high: "Высокое",
+	xhigh: "Очень высокое",
+	max: "Максимальное",
+};
+
 /** Идущая генерация: по этому ключу она возобновляется после обновления страницы */
 const PENDING_KEY = "gen42-pending";
 /** Последняя показанная картинка: она не должна пропадать при обновлении */
 const RESULT_KEY = "gen42-result";
 const POLL_INTERVAL_MS = 2500;
-/** Воркфлоу Турбо идёт до ~8 минут (агент 180 с, рисование 270 с, очередь); дольше не ждём */
-const POLL_TIMEOUT_MS = 11 * 60_000;
+/** Дольше воркфлоу Турбо (до ~13–14 минут) и короче закрытия зависших на сервере: см. `TURBO_CLIENT_WAIT_MS` */
+const POLL_TIMEOUT_MS = TURBO_CLIENT_WAIT_MS;
 
 /** id генерации придумывает клиент — иначе после обновления её не найти */
 function newGenerationId(): string {
@@ -106,6 +124,18 @@ function readStoredMode(): Mode {
 	}
 }
 
+function readStoredReasoning(): TurboReasoning {
+	try {
+		return (
+			parseTurboReasoning(
+				localStorage.getItem(REASONING_STORAGE_KEY) ?? undefined,
+			) ?? TURBO_DEFAULT_REASONING
+		);
+	} catch {
+		return TURBO_DEFAULT_REASONING;
+	}
+}
+
 export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const [prompt, setPrompt] = useState("");
 	const [loading, setLoading] = useState(false);
@@ -118,6 +148,8 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const [models, setModels] = useState<PublicImageModel[]>([]);
 	const [engine, setEngine] = useState<SpaceEngine>("krea");
 	const [mode, setMode] = useState<Mode>(readStoredMode);
+	const [reasoning, setReasoning] =
+		useState<TurboReasoning>(readStoredReasoning);
 	const pollTimer = useRef<number | null>(null);
 	// асинхронные продолжения не должны жить дольше экрана: он снимается при
 	// переходе в админку
@@ -139,6 +171,17 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 			localStorage.setItem(MODE_STORAGE_KEY, value);
 		} catch {
 			/* режим просто не запомнится */
+		}
+	}
+
+	function changeReasoning(values: number[]) {
+		const next = TURBO_REASONING_LEVELS[values[0] ?? 0];
+		if (!next) return;
+		setReasoning(next);
+		try {
+			localStorage.setItem(REASONING_STORAGE_KEY, next);
+		} catch {
+			/* уровень просто не запомнится */
 		}
 	}
 
@@ -350,7 +393,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(
 					activeMode === "turbo"
-						? { prompt, engine: "turbo", id }
+						? { prompt, engine: "turbo", id, reasoning }
 						: {
 								prompt,
 								engine,
@@ -526,6 +569,42 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 						</InputGroupAddon>
 					</InputGroup>
 				</div>
+
+				{activeMode === "turbo" && (
+					<div className="animate-pop-in mt-6 flex flex-col gap-3">
+						<div className="flex items-center justify-between gap-4">
+							<div className="flex items-center gap-2">
+								<IconBrain className="size-5 text-primary" />
+								<span className="font-display text-lg font-bold text-foreground">
+									Рассуждение
+								</span>
+							</div>
+							<span
+								className="text-sm font-semibold text-foreground"
+								aria-hidden="true"
+							>
+								{REASONING_LABELS[reasoning]}
+							</span>
+						</div>
+						<Slider
+							min={0}
+							max={TURBO_REASONING_LEVELS.length - 1}
+							step={1}
+							value={[TURBO_REASONING_LEVELS.indexOf(reasoning)]}
+							onValueChange={changeReasoning}
+							disabled={loading}
+							aria-label="Уровень рассуждения"
+							aria-valuetext={REASONING_LABELS[reasoning]}
+						/>
+						<div
+							className="flex items-center justify-between text-xs text-muted-foreground"
+							aria-hidden="true"
+						>
+							<span>Быстрее</span>
+							<span>Дольше, но продуманнее</span>
+						</div>
+					</div>
+				)}
 
 				{error && (
 					<div
