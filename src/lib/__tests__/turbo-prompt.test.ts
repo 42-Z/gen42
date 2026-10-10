@@ -181,6 +181,17 @@ describe("инструкция агента Турбо", () => {
 			system.indexOf("## Пример 6."),
 		);
 		expect(example5).toContain("midday");
+		// палитры примеров разные: красно-синие в примерах давали красно-синий каждый кадр
+		const palettes = [...system.matchAll(/([a-z ,-]+) palette/g)].map(
+			(match) => match[1] ?? "",
+		);
+		expect(palettes.length).toBeGreaterThanOrEqual(6);
+		const reds = palettes.filter((p) =>
+			/\bred\b|crimson|scarlet|burgundy/.test(p),
+		);
+		const blues = palettes.filter((p) => /\bblue\b|navy|cobalt/.test(p));
+		expect(reds.length).toBeLessThanOrEqual(2);
+		expect(blues.length).toBeLessThanOrEqual(2);
 	});
 
 	test("качество, а не количество: крупные объекты, без россыпи мелочи", () => {
