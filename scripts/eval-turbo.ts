@@ -88,6 +88,11 @@ if (!agentReasoning) {
 const agentTimeoutMs = Number(
 	process.env.TURBO_EVAL_AGENT_TIMEOUT_MS ?? TURBO_AGENT_TIMEOUT_MS,
 );
+if (!Number.isFinite(agentTimeoutMs) || agentTimeoutMs <= 0) {
+	throw new Error(
+		"TURBO_EVAL_AGENT_TIMEOUT_MS: ожидается положительное число миллисекунд",
+	);
+}
 
 let imageMs = 0;
 

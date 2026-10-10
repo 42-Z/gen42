@@ -3,6 +3,17 @@ import { STYLE_SYSTEM } from "../prompts";
 import { CANON_FIDELITY } from "../prompts/canon";
 import { buildTurboSystem } from "../prompts/turbo.system";
 
+/**
+ * Позиция фразы в тексте. Отсутствующая фраза роняет тест: иначе `slice(-1, k)`
+ * вернул бы пустую строку, и все проверки «не содержит» в таком срезе проходили бы
+ * вхолостую после переименования заголовка.
+ */
+function indexIn(text: string, phrase: string): number {
+	const index = text.indexOf(phrase);
+	if (index < 0) throw new Error(`В тексте нет фразы «${phrase}»`);
+	return index;
+}
+
 describe("общие блоки канона", () => {
 	// Инструкция Турбо пишет «Верность запросу» сама, блок канона нужен только
 	// обогащению для Krea и Ideogram.
@@ -38,7 +49,7 @@ describe("инструкция агента Турбо", () => {
 			"# Самопроверка",
 			"# Дерево библиотеки",
 		];
-		const positions = headings.map((heading) => system.indexOf(heading));
+		const positions = headings.map((heading) => indexIn(system, heading));
 		expect(positions.every((position) => position >= 0)).toBe(true);
 		expect(positions).toEqual([...positions].sort((a, b) => a - b));
 	});
@@ -47,8 +58,8 @@ describe("инструкция агента Турбо", () => {
 		expect(system).toContain("Инструментов четыре");
 		expect(system).toContain("random принимает список вариантов");
 		const chance = system.slice(
-			system.indexOf("## Решает случай"),
-			system.indexOf("# Рабочий цикл"),
+			indexIn(system, "## Решает случай"),
+			indexIn(system, "# Рабочий цикл"),
 		);
 		for (const part of [
 			"Сначала сама идея: пять-восемь кардинально разных идей одним вызовом",
@@ -60,14 +71,14 @@ describe("инструкция агента Турбо", () => {
 		}
 		// прогон A показывает и розыгрыш идеи, и десять с лишним решений кадра
 		const runA = system.slice(
-			system.indexOf("## Прогон A."),
-			system.indexOf("## Прогон B."),
+			indexIn(system, "## Прогон A."),
+			indexIn(system, "## Прогон B."),
 		);
 		expect(runA.match(/random\(\{ options:/g)?.length ?? 0).toBeGreaterThan(10);
 		// у прогона без библиотеки тоже есть розыгрыш идеи
 		const runC = system.slice(
-			system.indexOf("## Прогон C."),
-			system.indexOf("# Самопроверка"),
+			indexIn(system, "## Прогон C."),
+			indexIn(system, "# Самопроверка"),
 		);
 		expect(runC).toContain("random({ options: [");
 	});
@@ -78,10 +89,13 @@ describe("инструкция агента Турбо", () => {
 			"readFile читает",
 			"generateImage принимает",
 			"retryable: true",
-			"retryable: false",
+			"после третьего отказа цикл останавливается сам",
 		]) {
 			expect(system).toContain(part);
 		}
+		// инструмент возвращает только retryable: true (CheckImageOutput), ветки
+		// «retryable: false» в инструкции быть не должно
+		expect(system).not.toContain("retryable: false");
 	});
 
 	test("дерево библиотеки стоит в самом конце и подставляется в блок <library>", () => {
@@ -135,8 +149,8 @@ describe("инструкция агента Турбо", () => {
 
 	test("визуальный язык племени описан по эталонам, а не как шаблон частей", () => {
 		const language = system.slice(
-			system.indexOf("# Что такое 42"),
-			system.indexOf("# Словарь 42"),
+			indexIn(system, "# Что такое 42"),
+			indexIn(system, "# Словарь 42"),
 		);
 		for (const part of [
 			"Узнаваемое место, безумие в нём.",
@@ -160,8 +174,8 @@ describe("инструкция агента Турбо", () => {
 
 	test("проработка: вещей много и каждая «узнаваемое плюс поворот» в две-шесть слов, мешап из разных источников", () => {
 		const work = system.slice(
-			system.indexOf("## Проработка"),
-			system.indexOf("## Реакция человека"),
+			indexIn(system, "## Проработка"),
+			indexIn(system, "## Реакция человека"),
 		);
 		expect(work).toContain("количество и глубина не спорят");
 		expect(work).toContain("не меньше двенадцати вещей");
@@ -188,8 +202,8 @@ describe("инструкция агента Турбо", () => {
 
 	test("лоск племени обязателен у своих, но это не форма: основ десятки", () => {
 		const language = system.slice(
-			system.indexOf("Братуха-лоск."),
-			system.indexOf("42 крупно и по-спортивному."),
+			indexIn(system, "Братуха-лоск."),
+			indexIn(system, "42 крупно и по-спортивному."),
 		);
 		for (const word of [
 			"У лоска десятки основ",
@@ -217,8 +231,8 @@ describe("инструкция агента Турбо", () => {
 		expect(system).toContain("Примерно половина из них дневные");
 		expect(system).toContain("Герой владыка по позе, а не по костюму.");
 		const example5 = system.slice(
-			system.indexOf("## Пример 5."),
-			system.indexOf("## Пример 6."),
+			indexIn(system, "## Пример 5."),
+			indexIn(system, "## Пример 6."),
 		);
 		expect(example5).toContain("midday");
 		// палитры примеров разные: красно-синие в примерах давали красно-синий каждый кадр
@@ -250,8 +264,8 @@ describe("инструкция агента Турбо", () => {
 		expect(system).not.toContain("(глянец, лёд, асфальт, трава)");
 		// в образце розыгрыша нет «ледяных» палитр
 		const runA = system.slice(
-			system.indexOf("## Прогон A."),
-			system.indexOf("## Прогон B."),
+			indexIn(system, "## Прогон A."),
+			indexIn(system, "## Прогон B."),
 		);
 		expect(runA).not.toContain("ледяной голубой");
 		expect(runA).not.toContain("снежно-белый");
@@ -267,8 +281,8 @@ describe("инструкция агента Турбо", () => {
 		expect(system).toContain("15. Носитель выпал в random и выдержан");
 		// образец розыгрыша носителя: нарисованных не меньше половины
 		const runA = system.slice(
-			system.indexOf("## Прогон A."),
-			system.indexOf("## Прогон B."),
+			indexIn(system, "## Прогон A."),
+			indexIn(system, "## Прогон B."),
 		);
 		const mediumLine = runA
 			.split("\n")
@@ -278,8 +292,8 @@ describe("инструкция агента Турбо", () => {
 		expect(mediumLine).toContain("цифровой живописи");
 		// пример 7 нарисован словарём носителя, без фотографических микро-материалов
 		const example7 = system.slice(
-			system.indexOf("## Пример 7."),
-			system.indexOf("## Прогон A."),
+			indexIn(system, "## Пример 7."),
+			indexIn(system, "## Прогон A."),
 		);
 		expect(example7).toContain("halftone");
 		expect(example7).toContain("redrawn as a comic-book fighter");
@@ -318,8 +332,8 @@ describe("инструкция агента Турбо", () => {
 		);
 		expect(system).toContain("RGB");
 		const suspicious = system.slice(
-			system.indexOf("## Решает случай"),
-			system.indexOf("# Рабочий цикл"),
+			indexIn(system, "## Решает случай"),
+			indexIn(system, "# Рабочий цикл"),
 		);
 		expect(suspicious).not.toContain("сюжетные вещи словаря (мопс, самокат");
 		expect(suspicious).toContain("в эту группу не входит");
@@ -545,8 +559,8 @@ describe("инструкция агента Турбо", () => {
 
 	test("словарь большой, но слова берутся по причине, а не по числу", () => {
 		const dictionary = system.slice(
-			system.indexOf("# Словарь 42"),
-			system.indexOf("# Как придумывать кадр"),
+			indexIn(system, "# Словарь 42"),
+			indexIn(system, "# Как придумывать кадр"),
 		);
 		// знаки из разных групп, которые владелец назвал атрибутами 42
 		for (const word of [
@@ -584,8 +598,8 @@ describe("инструкция агента Турбо", () => {
 
 	test("примеры не делят одну коробку бытовых материалов и закатных цветов", () => {
 		const examples = system.slice(
-			system.indexOf("# Примеры"),
-			system.indexOf("# Самопроверка"),
+			indexIn(system, "# Примеры"),
+			indexIn(system, "# Самопроверка"),
 		);
 		// из таких слов агент шил одежду во всех кадрах и красил небо одинаково
 		for (const word of [
@@ -606,8 +620,8 @@ describe("инструкция агента Турбо", () => {
 
 	test("примеры показывают язык племени: очки, цепи, крупный номер, открытый рот", () => {
 		const examples = system.slice(
-			system.indexOf("# Примеры"),
-			system.indexOf("# Самопроверка"),
+			indexIn(system, "# Примеры"),
+			indexIn(system, "# Самопроверка"),
 		);
 		const outputs = examples
 			.split("OUTPUT:")
@@ -638,8 +652,8 @@ describe("инструкция агента Турбо", () => {
 
 	test("критерии готового кадра: насыщенность, проработка, реакция зрителя, повтор", () => {
 		const criteria = system.slice(
-			system.indexOf("# Критерии готового кадра"),
-			system.indexOf("# Рабочий цикл"),
+			indexIn(system, "# Критерии готового кадра"),
+			indexIn(system, "# Рабочий цикл"),
 		);
 		for (const part of [
 			"## Несочетаемость",
@@ -681,8 +695,8 @@ describe("инструкция агента Турбо", () => {
 	test("пример карточки персонажа не повторяет сюжеты запросов набора проверки", () => {
 		// агент копирует примеры инструкции: пример «хорошо» не про кота и не про рыбака
 		const sheet = system.slice(
-			system.indexOf("**Образ собран до мелочей.**"),
-			system.indexOf("**Уличный тест.**"),
+			indexIn(system, "**Образ собран до мелочей.**"),
+			indexIn(system, "**Уличный тест.**"),
 		);
 		expect(sheet).toContain("Плохо:");
 		expect(sheet).toContain("Хорошо:");
@@ -691,8 +705,8 @@ describe("инструкция агента Турбо", () => {
 
 	test("безумие собирается наращиванием, а не набором", () => {
 		const section = system.slice(
-			system.indexOf("# Как собирается безумие"),
-			system.indexOf("# Критерии готового кадра"),
+			indexIn(system, "# Как собирается безумие"),
+			indexIn(system, "# Критерии готового кадра"),
 		);
 		for (const part of [
 			"**Наращивание.**",
@@ -708,8 +722,8 @@ describe("инструкция агента Турбо", () => {
 		}
 		// пример плотности не копирует предметы разобранной картинки
 		const example = system.slice(
-			system.indexOf("## Пример 6."),
-			system.indexOf("## Прогон A."),
+			indexIn(system, "## Пример 6."),
+			indexIn(system, "## Прогон A."),
 		);
 		for (const word of ["turtle", "cactus", "cacti", "emoji", "G-class"]) {
 			expect(example).not.toContain(word);
@@ -728,8 +742,8 @@ describe("инструкция агента Турбо", () => {
 
 	test("ничего по умолчанию: у каждого существительного материал, цвет и странность", () => {
 		const section = system.slice(
-			system.indexOf("## Ничего по умолчанию"),
-			system.indexOf("## Несочетаемость"),
+			indexIn(system, "## Ничего по умолчанию"),
+			indexIn(system, "## Несочетаемость"),
 		);
 		for (const part of [
 			"У каждого существительного три вещи.",
@@ -750,8 +764,8 @@ describe("инструкция агента Турбо", () => {
 
 	test("примеры не повторяют один и тот же зоопарк", () => {
 		const examples = system.slice(
-			system.indexOf("# Примеры"),
-			system.indexOf("# Самопроверка"),
+			indexIn(system, "# Примеры"),
+			indexIn(system, "# Самопроверка"),
 		);
 		// каждый из пяти пёстрых героев прошлой версии встречается не во всех примерах
 		for (const animal of ["pug", "rooster", "hippopotamus", "opossum"]) {

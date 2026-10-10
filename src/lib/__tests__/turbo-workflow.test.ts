@@ -79,6 +79,33 @@ describe("turboWorkflow: успех", () => {
 		expect(model.doGenerateCalls).toHaveLength(2);
 		expect(runtime.edit).toHaveBeenCalledTimes(1);
 	});
+
+	test("выбранный уровень рассуждения доходит до вызова модели", async () => {
+		// иначе пользователь ставил бы max, платил 10 кредитов, а агент шёл бы на high
+		for (const level of ["medium", "xhigh", "max"] as const) {
+			const model = new MockLanguageModelV4({
+				doGenerate: [
+					toolCalls({ id: "1", name: "generateImage", input: good }),
+				],
+			});
+			setTurboRuntime(makeRuntime({ agentModel: () => model }));
+
+			await turboWorkflow({ ...INPUT, reasoning: level });
+
+			expect(model.doGenerateCalls[0]?.reasoning).toBe(level);
+		}
+	});
+
+	test("прогон без уровня (запущен до выбора) идёт на high", async () => {
+		const model = new MockLanguageModelV4({
+			doGenerate: [toolCalls({ id: "1", name: "generateImage", input: good })],
+		});
+		setTurboRuntime(makeRuntime({ agentModel: () => model }));
+
+		await turboWorkflow(INPUT);
+
+		expect(model.doGenerateCalls[0]?.reasoning).toBe("high");
+	});
 });
 
 describe("turboWorkflow: сбои возвращают кредиты", () => {

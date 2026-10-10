@@ -28,6 +28,7 @@ import {
 	type SpaceEngine,
 	TURBO_MODEL,
 } from "@/lib/models";
+import { TURBO_CLIENT_WAIT_MS } from "@/lib/turbo/constants";
 import {
 	parseTurboReasoning,
 	TURBO_DEFAULT_REASONING,
@@ -68,11 +69,8 @@ const PENDING_KEY = "gen42-pending";
 /** Последняя показанная картинка: она не должна пропадать при обновлении */
 const RESULT_KEY = "gen42-result";
 const POLL_INTERVAL_MS = 2500;
-/**
- * Воркфлоу Турбо идёт до ~13–14 минут (агент до 500 с, рисование 270 с, очередь);
- * дольше не ждём. Меньше срока закрытия зависших на сервере (16 минут).
- */
-const POLL_TIMEOUT_MS = 15 * 60_000;
+/** Дольше воркфлоу Турбо (до ~13–14 минут) и короче закрытия зависших на сервере: см. `TURBO_CLIENT_WAIT_MS` */
+const POLL_TIMEOUT_MS = TURBO_CLIENT_WAIT_MS;
 
 /** id генерации придумывает клиент — иначе после обновления её не найти */
 function newGenerationId(): string {

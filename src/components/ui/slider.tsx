@@ -9,6 +9,10 @@ function Slider({
 	value,
 	min = 0,
 	max = 100,
+	// у корня Radix нет роли slider: имя и текстовое значение читает скринридер у
+	// ползунка, поэтому они уходят на него, а не в `props` корня
+	"aria-label": ariaLabel,
+	"aria-valuetext": ariaValueText,
 	...props
 }: React.ComponentProps<typeof SliderPrimitive.Root>) {
 	const _values = React.useMemo(
@@ -51,10 +55,10 @@ function Slider({
 				<SliderPrimitive.Thumb
 					data-slot="slider-thumb"
 					key={index}
-					// у ползунка Radix нет имени и текстового значения: берём их у корня,
-					// иначе скринридер читает только число
-					aria-label={props["aria-label"]}
-					aria-valuetext={props["aria-valuetext"]}
+					// без значения атрибут не передаётся: явный undefined затёр бы подписи
+					// «Minimum»/«Maximum», которые Radix строит сам у диапазона
+					{...(ariaLabel ? { "aria-label": ariaLabel } : {})}
+					{...(ariaValueText ? { "aria-valuetext": ariaValueText } : {})}
 					className="block size-4 shrink-0 rounded-full border border-primary bg-white shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
 				/>
 			))}
