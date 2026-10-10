@@ -782,6 +782,26 @@ describe("инструкция агента Турбо", () => {
 		expect(system).toContain("Мопс по-английски всегда pug");
 	});
 
+	test("снимок Пятёрки выводится из идеи, а не глазным вкусом: нарядный не дефолт, нейтральная база полноценна, knee-up настроенческий", () => {
+		expect(system).toContain("образ выводится из идеи");
+		expect(system).toContain("не ответ по умолчанию");
+		expect(system).toContain("одевается промптом с нуля");
+		expect(system).toContain("нарочито прост");
+		expect(system).toContain("simple knee-up");
+		// глазной выбор всегда утекает к самому громкому: «выбери глазами» убрано
+		expect(system).not.toContain("выбери того, кто лучше сыграет");
+		expect(system).not.toContain(
+			"берутся, только когда запрос просит героя обычным",
+		);
+		expect(system).not.toContain("«чистая основа для переодевания» не годится");
+		// слэевский костюм давил выбор числом упоминаний: примеры разнесены по образам
+		const slay = (system.match(/костюме со Slay|костюм со Слэя/g) ?? []).length;
+		const wedding = (system.match(/свадебн/g) ?? []).length;
+		const headphones = (system.match(/наушник/g) ?? []).length;
+		expect(slay).toBeLessThanOrEqual(wedding);
+		expect(slay).toBeLessThanOrEqual(headphones);
+	});
+
 	test("примеры не повторяют один и тот же зоопарк", () => {
 		const examples = system.slice(
 			indexIn(system, "# Примеры"),
