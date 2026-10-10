@@ -21,6 +21,7 @@ describe("buildAgentMessage", () => {
 		expect(message).toContain("TEXT: not specified");
 		// слова бывают, когда сцена их требует, и придумывает их агент
 		expect(message).toContain("invent them yourself");
+		expect(message).toContain("in the language of the request");
 		expect(message).toContain("are not words");
 		expect(message).toContain("one per object");
 		expect(message).not.toContain("two or three times");
