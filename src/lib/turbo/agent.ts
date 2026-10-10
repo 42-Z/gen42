@@ -11,12 +11,12 @@ export function systemVersionOf(template: string): string {
 }
 
 /**
- * Запрос без текста: слов в кадре нет, а число 42 агент ставит сам и только там,
- * где ему место. Общая строка обогащения («два-три раза») заставляла расставлять
- * число по плану в каждом кадре.
+ * Запрос без текста: слов в кадре нет, а знак сообщества (число 42, корона,
+ * лавровый венок) агент ставит сам, на вещах, которым он к лицу. Общая строка
+ * обогащения («два-три раза») задавала число по плану, а не по замыслу.
  */
 const NO_TEXT_LINE =
-	"TEXT: none — no words or letters anywhere in the frame. Use the number 42 only as a natural sign on a vehicle, a patch, a jersey or a house number: once or twice at most, and skip it when the scene has no natural place for it.";
+	"TEXT: none — no words or letters anywhere in the frame. The number 42 and the community emblems are not words: put them on the things that belong to the 42 world, large and one per object, each in its own place and form.";
 
 /**
  * Сообщение пользователя для агента: запрос, признак текста и точные цитаты.
