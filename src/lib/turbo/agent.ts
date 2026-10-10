@@ -16,7 +16,7 @@ export function systemVersionOf(template: string): string {
  * обогащения («два-три раза») задавала число по плану, а не по замыслу.
  */
 const NO_TEXT_LINE =
-	"TEXT: none — no words or letters anywhere in the frame. The number 42 and the community emblems are not words: put them on the things that belong to the 42 world, large and one per object, each in its own place and form.";
+	"TEXT: none — no words or letters anywhere in the frame, except the printed marks of real branded goods (a bottle, a speaker, a noodle pack), which are part of the object. The number 42 and the community emblems are not words: put them on the things that belong to the 42 world, large and one per object, each in its own place and form.";
 
 /**
  * Сообщение пользователя для агента: запрос, признак текста и точные цитаты.
