@@ -4,7 +4,7 @@
  * Идемпотентно: объект с тем же размером пропускается. Агент о хранилище не знает.
  *
  *   bun scripts/sync-library.ts [--dry-run]                    # dev (.env.development)
- *   NODE_ENV=production bun scripts/sync-library.ts --yes-prod # prod, только с разрешения владельца
+ *   NODE_ENV=production bun scripts/sync-library.ts --yes-prod # prod (флаг страхует от случайного запуска)
  */
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -22,7 +22,7 @@ const isProd = process.env.NODE_ENV === "production";
 
 if (isProd && !args.includes("--yes-prod")) {
 	console.error(
-		"NODE_ENV=production: это продовое хранилище. Добавьте --yes-prod, когда владелец разрешил заливку.",
+		"NODE_ENV=production: это продовое хранилище. Добавьте --yes-prod, чтобы подтвердить заливку.",
 	);
 	process.exit(1);
 }
