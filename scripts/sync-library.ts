@@ -1,17 +1,20 @@
 /**
- * Заливает библиотеку входных изображений Турбо в хранилище (префикс library/).
- * Источник — папка library/ в корне репозитория: за его пределы скрипт не смотрит.
- * Идемпотентно: объект с тем же размером пропускается. Агент о хранилище не знает.
+ * Заливает библиотеку Турбо (изображения и текстовые файлы) в хранилище
+ * (префикс library/). Источник — папка library/ в корне репозитория: за его
+ * пределы скрипт не смотрит. Идемпотентно: объект с тем же размером пропускается,
+ * а у текстовых файлов при равном размере сверяются и байты (правка «е» на «ё»
+ * не меняет размер). Агент о хранилище не знает.
  *
  *   bun scripts/sync-library.ts [--dry-run]                    # dev (.env.development)
- *   NODE_ENV=production bun scripts/sync-library.ts --yes-prod # prod, только с разрешения владельца
+ *   NODE_ENV=production bun scripts/sync-library.ts --yes-prod # prod (флаг страхует от случайного запуска; пробному --dry-run он не нужен)
  */
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { listObjects, uploadImage } from "../src/lib/storage";
+import { listObjects, readObject, uploadImage } from "../src/lib/storage";
 import {
 	DESCRIPTIONS_FILE,
 	imageMediaType,
+	kindOf,
 	LIBRARY_PREFIX,
 } from "../src/lib/turbo/library";
 
@@ -20,9 +23,9 @@ const dryRun = args.includes("--dry-run");
 const source = join(import.meta.dir, "..", "library");
 const isProd = process.env.NODE_ENV === "production";
 
-if (isProd && !args.includes("--yes-prod")) {
+if (isProd && !dryRun && !args.includes("--yes-prod")) {
 	console.error(
-		"NODE_ENV=production: это продовое хранилище. Добавьте --yes-prod, когда владелец разрешил заливку.",
+		"NODE_ENV=production: это продовое хранилище. Добавьте --yes-prod, чтобы подтвердить заливку.",
 	);
 	process.exit(1);
 }
@@ -43,7 +46,7 @@ for (const entry of await readdir(source, { withFileTypes: true })) {
 	if (!entry.isDirectory()) continue;
 	const folder = entry.name.normalize("NFC");
 	const names = (await readdir(join(source, entry.name))).filter(
-		(name) => imageMediaType(name) || name === DESCRIPTIONS_FILE,
+		(name) => kindOf(name) !== null,
 	);
 
 	if (names.length === 0) {
@@ -73,8 +76,17 @@ let uploaded = 0;
 let skipped = 0;
 for (const [key, { bytes, type }] of wanted) {
 	if (remote.get(key) === bytes.byteLength) {
-		skipped += 1;
-		continue;
+		// у картинок размер надёжен, у текстов правка может не менять длину
+		const isImage = type.startsWith("image/");
+		const remoteBytes = isImage ? null : await readObject(key);
+		const same =
+			isImage ||
+			(remoteBytes !== null &&
+				Buffer.compare(Buffer.from(remoteBytes), bytes) === 0);
+		if (same) {
+			skipped += 1;
+			continue;
+		}
 	}
 	console.log(
 		`${dryRun ? "[пробно] " : ""}загрузка ${key} (${(bytes.byteLength / 1024).toFixed(0)} КБ)`,
