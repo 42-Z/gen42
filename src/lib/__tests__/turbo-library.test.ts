@@ -6,6 +6,7 @@ import {
 	MAX_INPUT_IMAGES,
 	parseLibraryPath,
 	pluralImages,
+	pluralTexts,
 } from "../turbo/library";
 
 const PNG = new Uint8Array([137, 80, 78, 71, 1, 2, 3]);
@@ -68,6 +69,16 @@ describe("pluralImages", () => {
 	});
 });
 
+describe("pluralTexts", () => {
+	test("склоняет число текстов", () => {
+		expect(pluralTexts(1)).toBe("1 текст");
+		expect(pluralTexts(2)).toBe("2 текста");
+		expect(pluralTexts(5)).toBe("5 текстов");
+		expect(pluralTexts(11)).toBe("11 текстов");
+		expect(pluralTexts(21)).toBe("21 текст");
+	});
+});
+
 describe("closestNames", () => {
 	test("ставит похожие имена первыми", () => {
 		expect(
@@ -87,6 +98,22 @@ describe("Library", () => {
 				"эмблемы/ — 1 изображение",
 			].join("\n"),
 		);
+	});
+
+	test("дерево: тексты считаются отдельно, а описания.txt текстом не считается", async () => {
+		const line = new TextEncoder().encode("строка");
+		const { storage } = makeStorage({
+			"library/альбом/cover.png": PNG,
+			"library/альбом/описания.txt": new Uint8Array(),
+			"library/альбом/track_1.txt": line,
+			"library/альбом/track_2.txt": line,
+			"library/песни/описания.txt": new Uint8Array(),
+			"library/песни/track_3.txt": line,
+		});
+		const lines = (await new Library(storage).describeTree()).split("\n");
+		expect(lines).toContain("альбом/ — 1 изображение, 2 текста");
+		expect(lines).toContain("песни/ — 1 текст");
+		expect(lines).toContain("скриншоты/ — пусто");
 	});
 
 	test("список кэшируется на минуту", async () => {

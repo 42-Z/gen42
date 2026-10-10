@@ -111,6 +111,15 @@ export function pluralImages(count: number): string {
 	return `${count} изображений`;
 }
 
+export function pluralTexts(count: number): string {
+	const mod100 = count % 100;
+	const mod10 = count % 10;
+	if (mod100 >= 11 && mod100 <= 14) return `${count} текстов`;
+	if (mod10 === 1) return `${count} текст`;
+	if (mod10 >= 2 && mod10 <= 4) return `${count} текста`;
+	return `${count} текстов`;
+}
+
 /** Разбирает «папка/файл»; всё остальное (глубже, выше, с `..`) отклоняется */
 export function parseLibraryPath(
 	path: string,
@@ -166,16 +175,24 @@ export class Library {
 		return folders;
 	}
 
-	/** Дерево для системной инструкции: папки и число изображений, пустые помечены */
+	/**
+	 * Дерево для системной инструкции: папки, число изображений и текстов,
+	 * пустые помечены. Файл описаний есть в каждой папке и текстом не считается.
+	 */
 	async describeTree(): Promise<string> {
 		const folders = await this.folders();
 		return [...folders.keys()]
 			.sort((a, b) => a.localeCompare(b))
 			.map((folder) => {
-				const images = folders
-					.get(folder)!
-					.filter((file) => file.kind === "image").length;
-				return `${folder}/ — ${images === 0 ? "пусто" : pluralImages(images)}`;
+				const files = folders.get(folder)!;
+				const images = files.filter((file) => file.kind === "image").length;
+				const texts = files.filter(
+					(file) => file.kind === "text" && file.name !== DESCRIPTIONS_FILE,
+				).length;
+				const parts: string[] = [];
+				if (images > 0) parts.push(pluralImages(images));
+				if (texts > 0) parts.push(pluralTexts(texts));
+				return `${folder}/ — ${parts.length === 0 ? "пусто" : parts.join(", ")}`;
 			})
 			.join("\n");
 	}

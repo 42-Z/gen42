@@ -98,6 +98,26 @@ describe("инструкция агента Турбо", () => {
 		expect(system).not.toContain("retryable: false");
 	});
 
+	test("библиотека не только про картинки: текст песни читается до идей и в images не идёт", () => {
+		const library = system.slice(
+			indexIn(system, "# Библиотека и входные изображения"),
+			indexIn(system, "# Промпт для генератора"),
+		);
+		for (const part of [
+			"Рядом с изображениями в папке могут лежать текстовые файлы",
+			"в images он не попадает",
+			"текст песни открывается до того, как придумываются идеи",
+			"строки песни в промпт не переписываются",
+		]) {
+			expect(library).toContain(part);
+		}
+		const cycle = system.slice(
+			indexIn(system, "# Рабочий цикл"),
+			indexIn(system, "# Верность запросу"),
+		);
+		expect(cycle).toContain("первым раундом открой текст песни");
+	});
+
 	test("дерево библиотеки стоит в самом конце и подставляется в блок <library>", () => {
 		expect(system).toContain(`<library>\n${tree}\n</library>`);
 		expect(system.trimEnd().endsWith("</library>")).toBe(true);
