@@ -246,6 +246,37 @@ describe("инструкция агента Турбо", () => {
 		expect(runA).not.toContain("снежно-белый");
 	});
 
+	test("носитель: половина вариантов нарисованные, тело промпта его словарём, люди перерисованы", () => {
+		expect(system).toContain("половина вариантов в списке нарисованные");
+		expect(system).toContain(
+			"Двадцать слов фактуры и одно слово «comic» в конце дают фото",
+		);
+		expect(system).toContain("оговорка «exactly as in Image 1» не годится");
+		expect(system).toContain("redrawn as a comic-book fighter");
+		expect(system).toContain("15. Носитель выпал в random и выдержан");
+		// образец розыгрыша носителя: нарисованных не меньше половины
+		const runA = system.slice(
+			system.indexOf("## Прогон A."),
+			system.indexOf("## Прогон B."),
+		);
+		const mediumLine = runA
+			.split("\n")
+			.find((line) => line.includes("фото с церемонии премии"));
+		expect(mediumLine).toContain("комикс");
+		expect(mediumLine).toContain("аниме-постер");
+		expect(mediumLine).toContain("цифровой живописи");
+		// пример 7 нарисован словарём носителя, без фотографических микро-материалов
+		const example7 = system.slice(
+			system.indexOf("## Пример 7."),
+			system.indexOf("## Прогон A."),
+		);
+		expect(example7).toContain("halftone");
+		expect(example7).toContain("redrawn as a comic-book fighter");
+		for (const word of ["scratched", "refract", "photorealistic", "physical"]) {
+			expect(example7).not.toContain(word);
+		}
+	});
+
 	test("чистый кадр: инструкция не просит россыпь частиц и мусор", () => {
 		expect(system).toContain("**Чистый кадр.**");
 		expect(system).toContain("Пол и земля чистая цельная поверхность");
