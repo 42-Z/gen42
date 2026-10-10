@@ -43,7 +43,7 @@ for (const entry of await readdir(source, { withFileTypes: true })) {
 	if (!entry.isDirectory()) continue;
 	const folder = entry.name.normalize("NFC");
 	const names = (await readdir(join(source, entry.name))).filter(
-		(name) => imageMediaType(name) || name === DESCRIPTIONS_FILE,
+		(name) => imageMediaType(name) || name.toLowerCase().endsWith(".txt"),
 	);
 
 	if (names.length === 0) {
