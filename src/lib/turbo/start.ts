@@ -1,6 +1,7 @@
 import { InsufficientCreditsError } from "../credits";
 import { TURBO_MODEL } from "../models";
 import { TURBO_PUBLIC_ERROR } from "./errors";
+import { TURBO_DEFAULT_REASONING, type TurboReasoning } from "./reasoning";
 
 export interface StartTurboDeps {
 	/** Строка `running` до списания: обновление страницы находит процесс по ней */
@@ -19,6 +20,7 @@ export interface StartTurboDeps {
 		id: string;
 		userId: string;
 		prompt: string;
+		reasoning: TurboReasoning;
 	}): Promise<void>;
 	/** Закрывает строку и возвращает кредиты одной транзакцией */
 	failRecord(params: {
@@ -50,10 +52,18 @@ async function safely(label: string, action: () => Promise<void>) {
  * Сбой до старта закрывает строку с возвратом кредитов.
  */
 export async function startTurbo(
-	input: { userId: string; prompt: string; id?: string },
+	input: {
+		userId: string;
+		prompt: string;
+		id?: string;
+		reasoning?: TurboReasoning;
+	},
 	deps: StartTurboDeps,
 ): Promise<StartTurboOutcome> {
 	const { userId, prompt } = input;
+	// уровень записывается во вход воркфлоу явно: прогон не зависит от того, что
+	// станет умолчанием позже
+	const reasoning = input.reasoning ?? TURBO_DEFAULT_REASONING;
 	const cost = TURBO_MODEL.cost;
 	const started = deps.now();
 	let id = "";
@@ -65,7 +75,7 @@ export async function startTurbo(
 			prompt,
 		});
 		await deps.chargeCredits({ id, userId, cost });
-		await deps.startWorkflow({ id, userId, prompt });
+		await deps.startWorkflow({ id, userId, prompt, reasoning });
 		return { status: 202, body: { id, engine: "turbo", cost } };
 	} catch (error) {
 		if (id) {

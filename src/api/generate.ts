@@ -34,6 +34,7 @@ import {
 import { checkRateLimit } from "../lib/rate-limit";
 import { getImageUrl, uploadImage } from "../lib/storage";
 import { isTurboAvailable } from "../lib/turbo/codex-auth";
+import { parseTurboReasoning } from "../lib/turbo/reasoning";
 import { startTurbo } from "../lib/turbo/start";
 import { startTurboDeps } from "../lib/turbo/start-deps";
 
@@ -101,10 +102,19 @@ export const generateRoutes = {
 			}
 
 			if (engine === "turbo") {
+				// неизвестный уровень отклоняется, а не заменяется молча другим
+				const reasoning = parseTurboReasoning(body.reasoning);
+				if (!reasoning) {
+					return Response.json(
+						{ error: "Некорректный уровень рассуждения" },
+						{ status: 400 },
+					);
+				}
 				const outcome = await startTurbo(
 					{
 						userId: session.user.id,
 						prompt,
+						reasoning,
 						...(typeof body.id === "string" ? { id: body.id } : {}),
 					},
 					startTurboDeps,

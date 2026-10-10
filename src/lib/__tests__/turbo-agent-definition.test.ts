@@ -14,6 +14,7 @@ import { libraryStorage, text, toolCalls } from "./helpers/turbo-fakes";
 function setup(
 	steps: ConstructorParameters<typeof MockLanguageModelV4>[0],
 	random?: () => number,
+	reasoning?: "medium" | "high" | "xhigh" | "max",
 ) {
 	const library = new Library(libraryStorage());
 	const executors = {
@@ -29,11 +30,36 @@ function setup(
 		system: "SYSTEM",
 		executors,
 		...(random ? { random } : {}),
+		...(reasoning ? { reasoning } : {}),
 	});
 	return { model, executors, agent };
 }
 
 const good = { prompt: "A pug, Image 1", images: ["пятерка/a.png"] };
+
+describe("уровень рассуждения агента", () => {
+	const finish = {
+		doGenerate: [toolCalls({ id: "1", name: "generateImage", input: good })],
+	};
+
+	test("без выбора модель получает high", async () => {
+		const { model, agent } = setup(finish);
+
+		await runTurboAgent(agent, "запрос");
+
+		expect(model.doGenerateCalls[0]?.reasoning).toBe("high");
+	});
+
+	test("выбранный уровень доходит до вызова модели", async () => {
+		for (const level of ["medium", "high", "xhigh", "max"] as const) {
+			const { model, agent } = setup(finish, undefined, level);
+
+			await runTurboAgent(agent, "запрос");
+
+			expect(model.doGenerateCalls[0]?.reasoning).toBe(level);
+		}
+	});
+});
 
 describe("runTurboAgent", () => {
 	test("успех: параллельные listFolder и readFile, затем generateImage", async () => {

@@ -17,10 +17,12 @@ import {
 	createTurboAgent,
 	runTurboAgent,
 } from "../src/lib/turbo/agent-definition";
+import { CodexAgentModel } from "../src/lib/turbo/codex-agent-model";
 import { codexFetch, createCodexAuth } from "../src/lib/turbo/codex-auth";
 import { editImage } from "../src/lib/turbo/codex-images";
 import {
 	TURBO_AGENT_MODEL,
+	TURBO_AGENT_TIMEOUT_MS,
 	TURBO_DRAW_TIMEOUT_MS,
 } from "../src/lib/turbo/constants";
 import { Library } from "../src/lib/turbo/library";
@@ -29,6 +31,10 @@ import {
 	drawImage,
 	readForAgent,
 } from "../src/lib/turbo/ops";
+import {
+	parseTurboReasoning,
+	TURBO_REASONING_LEVELS,
+} from "../src/lib/turbo/reasoning";
 
 /**
  * Набор запросов. Первые две группы это то, что пишут люди сообщества (запросы из
@@ -69,6 +75,19 @@ const PROMPTS = [
 ];
 
 const generate = process.argv.includes("--generate");
+/** Модель агента для сравнения: `TURBO_EVAL_MODEL=gpt-6.1-sol bun scripts/eval-turbo.ts …`; прод всегда берёт TURBO_AGENT_MODEL */
+const agentModelId = process.env.TURBO_EVAL_MODEL ?? TURBO_AGENT_MODEL;
+/** Уровень рассуждения: `TURBO_EVAL_REASONING=xhigh` (medium, high, xhigh, max); по умолчанию `high` */
+const agentReasoning = parseTurboReasoning(process.env.TURBO_EVAL_REASONING);
+if (!agentReasoning) {
+	throw new Error(
+		`TURBO_EVAL_REASONING: ожидается ${TURBO_REASONING_LEVELS.join(", ")}`,
+	);
+}
+/** Срок агента в мс: `TURBO_EVAL_AGENT_TIMEOUT_MS=600000`; по умолчанию прод-значение */
+const agentTimeoutMs = Number(
+	process.env.TURBO_EVAL_AGENT_TIMEOUT_MS ?? TURBO_AGENT_TIMEOUT_MS,
+);
 
 let imageMs = 0;
 
@@ -88,7 +107,7 @@ const library = new Library({ list: listObjects, read: readObject });
 const authenticatedFetch = codexFetch(createCodexAuth());
 const version = systemVersionOf(buildTurboSystem(""));
 console.log(
-	`Инструкция ${version}, модель ${TURBO_AGENT_MODEL}, ${generate ? "с рисованием" : "без рисования"}\n`,
+	`Инструкция ${version}, модель ${agentModelId}, рассуждение ${agentReasoning}, срок агента ${Math.round(agentTimeoutMs / 1000)} с, ${generate ? "с рисованием" : "без рисования"}\n`,
 );
 
 const durations: number[] = [];
@@ -98,6 +117,8 @@ for (const [index, prompt] of selected.entries()) {
 	try {
 		// агент тот же, что в воркфлоу; исполнители здесь обычные функции
 		const agent = createTurboAgent({
+			model: new CodexAgentModel(agentModelId),
+			reasoning: agentReasoning,
 			system: buildTurboSystem(await library.describeTree()),
 			executors: {
 				listFolder: async ({ path }) => library.listFolder(path),
@@ -105,7 +126,9 @@ for (const [index, prompt] of selected.entries()) {
 				checkImage: async (input) => checkImageArguments(library, input),
 			},
 		});
-		const run = await runTurboAgent(agent, buildAgentMessage(prompt));
+		const run = await runTurboAgent(agent, buildAgentMessage(prompt), {
+			timeoutMs: agentTimeoutMs,
+		});
 		const accepted = run.accepted;
 		if (!accepted) {
 			throw new Error("Агент завершил работу, не вызвав generateImage");
@@ -168,7 +191,7 @@ for (const [index, prompt] of selected.entries()) {
 		console.log(`  промпт: ${finalPrompt}\n`);
 		await appendFile(
 			jsonl,
-			`${JSON.stringify({ prompt, version, seconds, imageSeconds: Math.round(imageMs / 1000), inputImages, toolCalls: run.toolCalls, randomPicks: run.randomPicks, finalPrompt, size })}\n`,
+			`${JSON.stringify({ prompt, version, model: agentModelId, reasoning: agentReasoning, seconds, imageSeconds: Math.round(imageMs / 1000), tokens: run.tokens, inputImages, toolCalls: run.toolCalls, randomPicks: run.randomPicks, finalPrompt, size })}\n`,
 		);
 	} catch (error) {
 		const message =

@@ -52,16 +52,40 @@ describe("startTurbo", () => {
 			userId: "u1",
 			cost: 10,
 		});
+		// уровень без выбора пользователя записан во вход воркфлоу явно
 		expect(deps.startWorkflow).toHaveBeenCalledWith({
 			id: "gen-1",
 			userId: "u1",
 			prompt: "пятёрка на троне",
+			reasoning: "high",
 		});
 		expect(outcome).toEqual({
 			status: 202,
 			body: { id: "gen-1", engine: "turbo", cost: 10 },
 		});
 		expect(deps.failRecord).not.toHaveBeenCalled();
+	});
+
+	test("выбранный уровень рассуждения уходит в воркфлоу, цена не меняется", async () => {
+		const deps = makeDeps();
+
+		const outcome = await startTurbo(
+			{ userId: "u1", prompt: "x", reasoning: "max" },
+			deps,
+		);
+
+		expect(deps.startWorkflow).toHaveBeenCalledWith({
+			id: "gen-1",
+			userId: "u1",
+			prompt: "x",
+			reasoning: "max",
+		});
+		expect(deps.chargeCredits).toHaveBeenCalledWith({
+			id: "gen-1",
+			userId: "u1",
+			cost: 10,
+		});
+		expect(outcome.status).toBe(202);
 	});
 
 	test("мало кредитов: 402, воркфлоу не запускается, строка закрыта", async () => {

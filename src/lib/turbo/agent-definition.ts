@@ -7,6 +7,7 @@ import {
 	TURBO_MAX_REJECTED_CHECKS,
 	TURBO_MAX_STEPS,
 } from "./constants";
+import { TURBO_DEFAULT_REASONING, type TurboReasoning } from "./reasoning";
 import { createTurboTools, type TurboToolExecutors } from "./tool-defs";
 
 /** Что агент принял к рисованию: итоговый промпт и пути изображений */
@@ -85,12 +86,14 @@ export function createTurboAgent(params: {
 	executors: TurboToolExecutors;
 	/** Источник случайности инструмента random; по умолчанию Math.random */
 	random?: () => number;
+	/** Уровень рассуждения: выбирает пользователь; без него (старые запуски) `high` */
+	reasoning?: TurboReasoning | undefined;
 }) {
 	return new WorkflowAgent({
 		model: params.model ?? new CodexAgentModel(TURBO_AGENT_MODEL),
 		instructions: params.system,
 		tools: createTurboTools(params.executors, params.random),
-		reasoning: "high",
+		reasoning: params.reasoning ?? TURBO_DEFAULT_REASONING,
 		// агент либо вызывает инструмент, либо заканчивает; ответа текстом без
 		// generateImage не бывает: нарушение toolChoice приходит ошибкой
 		toolChoice: "required",
