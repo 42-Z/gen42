@@ -16,7 +16,7 @@ export function systemVersionOf(template: string): string {
  * обогащения («два-три раза») задавала число по плану, а не по замыслу.
  */
 const NO_TEXT_LINE =
-	"TEXT: none — no words or letters anywhere in the frame, except the printed marks of real branded goods (a bottle, a speaker, a noodle pack), which are part of the object. The number 42 and the community emblems are not words: put them on the things that belong to the 42 world, large and one per object, each in its own place and form.";
+	"TEXT: not specified — the user wrote no exact words. Words appear in the frame only when the scene itself calls for them (a line someone shouts or grumbles, a banner, a sign, a speech bubble); then invent them yourself, at most three short lines of one to four words, each in the voice of whoever says it and on its own carrier. Otherwise no words or letters anywhere, except the printed marks of real branded goods (a bottle, a speaker, a noodle pack), which are part of the object. The number 42 and the community emblems are not words: put them on the things that belong to the 42 world, large and one per object, each in its own place and form.";
 
 /**
  * Сообщение пользователя для агента: запрос, признак текста и точные цитаты.

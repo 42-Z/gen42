@@ -18,7 +18,9 @@ describe("buildAgentMessage", () => {
 
 	test("знак сообщества не слова: ставится на вещах мира, а не «два-три раза» по плану", () => {
 		const message = buildAgentMessage("пятёрка на троне");
-		expect(message).toContain("TEXT: none");
+		expect(message).toContain("TEXT: not specified");
+		// слова бывают, когда сцена их требует, и придумывает их агент
+		expect(message).toContain("invent them yourself");
 		expect(message).toContain("are not words");
 		expect(message).toContain("one per object");
 		expect(message).not.toContain("two or three times");
