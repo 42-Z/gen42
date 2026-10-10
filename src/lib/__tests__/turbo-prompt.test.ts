@@ -43,7 +43,36 @@ describe("инструкция агента Турбо", () => {
 		expect(positions).toEqual([...positions].sort((a, b) => a - b));
 	});
 
-	test("описывает все три инструмента и контракт generateImage", () => {
+	test("идея и решения кадра разыгрываются через random, а не выбираются вкусом", () => {
+		expect(system).toContain("Инструментов четыре");
+		expect(system).toContain("random принимает список вариантов");
+		const chance = system.slice(
+			system.indexOf("## Решает случай"),
+			system.indexOf("# Рабочий цикл"),
+		);
+		for (const part of [
+			"Сначала сама идея: пять-восемь кардинально разных идей одним вызовом",
+			"десять-двадцать решений кадра, каждое своим вызовом, все одним раундом",
+			"Выпавшее не переигрывается и не подменяется",
+			"Названное пользователем",
+		]) {
+			expect(chance).toContain(part);
+		}
+		// прогон A показывает и розыгрыш идеи, и десять с лишним решений кадра
+		const runA = system.slice(
+			system.indexOf("## Прогон A."),
+			system.indexOf("## Прогон B."),
+		);
+		expect(runA.match(/random\(\{ options:/g)?.length ?? 0).toBeGreaterThan(10);
+		// у прогона без библиотеки тоже есть розыгрыш идеи
+		const runC = system.slice(
+			system.indexOf("## Прогон C."),
+			system.indexOf("# Самопроверка"),
+		);
+		expect(runC).toContain("random({ options: [");
+	});
+
+	test("описывает все инструменты и контракт generateImage", () => {
 		for (const part of [
 			"listFolder показывает",
 			"readFile читает",
@@ -96,7 +125,7 @@ describe("инструкция агента Турбо", () => {
 	test("работа начинается с идеи, а штамп назван и не запрещён", () => {
 		expect(system).toContain("Это творческая задача, а не сборка по списку");
 		expect(system).toContain("Начни с идеи");
-		expect(system).toContain("три идеи");
+		expect(system).toContain("пять-восемь идей, кардинально разных");
 		expect(system).toContain("Приёмы, которыми сообщество ловит шутку");
 		expect(system).toContain("Штамп.");
 		expect(system).toContain(
@@ -316,7 +345,7 @@ describe("инструкция агента Турбо", () => {
 			"## Насыщенность",
 			"## Проработка",
 			"## Реакция человека",
-			"## Первое пришедшее не берётся",
+			"## Решает случай",
 			"У каждого своё несовместимое дело.",
 			"Материал не тот.",
 			"Каждая вещь фирменная.",

@@ -158,10 +158,14 @@ for (const [index, prompt] of selected.entries()) {
 			.filter((call) => call.toolName === "readFile")
 			.map((call) => (call.input as { path: string }).path);
 		console.log(`  прочитано агентом: ${opened.join(", ") || "ничего"}`);
+		console.log(`  случай (${run.randomPicks.length}):`);
+		for (const pick of run.randomPicks) {
+			console.log(`    ${pick.value}  ← из ${pick.options.length}`);
+		}
 		console.log(`  промпт: ${finalPrompt}\n`);
 		await appendFile(
 			jsonl,
-			`${JSON.stringify({ prompt, version, seconds, imageSeconds: Math.round(imageMs / 1000), inputImages, toolCalls: run.toolCalls, finalPrompt, size })}\n`,
+			`${JSON.stringify({ prompt, version, seconds, imageSeconds: Math.round(imageMs / 1000), inputImages, toolCalls: run.toolCalls, randomPicks: run.randomPicks, finalPrompt, size })}\n`,
 		);
 	} catch (error) {
 		const message =

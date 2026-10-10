@@ -83,11 +83,13 @@ export function createTurboAgent(params: {
 	model?: LanguageModel;
 	system: string;
 	executors: TurboToolExecutors;
+	/** Источник случайности инструмента random; по умолчанию Math.random */
+	random?: () => number;
 }) {
 	return new WorkflowAgent({
 		model: params.model ?? new CodexAgentModel(TURBO_AGENT_MODEL),
 		instructions: params.system,
-		tools: createTurboTools(params.executors),
+		tools: createTurboTools(params.executors, params.random),
 		reasoning: "high",
 		// агент либо вызывает инструмент, либо заканчивает; ответа текстом без
 		// generateImage не бывает: нарушение toolChoice приходит ошибкой
@@ -103,6 +105,37 @@ export interface TurboAgentRun {
 	tokens: number | null;
 	/** Вызовы инструментов по шагам: видно, какие папки и изображения открывал агент */
 	toolCalls: { toolName: string; input: unknown }[];
+	/** Что выпало в вызовах random: варианты и выбранный, в порядке вызовов */
+	randomPicks: { options: string[]; value: string }[];
+}
+
+/** Удачные вызовы random с их вариантами */
+export function collectRandomPicks(
+	steps: readonly StepLike[],
+): { options: string[]; value: string }[] {
+	return steps.flatMap((step) =>
+		step.toolResults.flatMap((result) => {
+			const output = result.output as { ok?: boolean; value?: unknown } | null;
+			if (
+				result.toolName !== "random" ||
+				output?.ok !== true ||
+				typeof output.value !== "string"
+			) {
+				return [];
+			}
+			const call = step.toolCalls.find(
+				(candidate) => candidate.toolCallId === result.toolCallId,
+			);
+			const options = (call?.input as { options?: unknown } | undefined)
+				?.options;
+			return [
+				{
+					options: Array.isArray(options) ? options.map(String) : [],
+					value: output.value,
+				},
+			];
+		}),
+	);
 }
 
 export async function runTurboAgent(
@@ -125,5 +158,6 @@ export async function runTurboAgent(
 		toolCalls: result.steps.flatMap((step) =>
 			step.toolCalls.map(({ toolName, input }) => ({ toolName, input })),
 		),
+		randomPicks: collectRandomPicks(result.steps),
 	};
 }
