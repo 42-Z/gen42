@@ -689,9 +689,10 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 								className="group relative block aspect-square overflow-hidden rounded-[22px] border border-border/60 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 							>
 								<img
-									src={img.image_url}
+									src={img.thumb_url ?? img.image_url}
 									alt=""
 									loading="lazy"
+									decoding="async"
 									className="block h-full w-full rounded-[22px] object-cover transition-transform duration-500 group-hover:scale-[1.04]"
 								/>
 							</button>

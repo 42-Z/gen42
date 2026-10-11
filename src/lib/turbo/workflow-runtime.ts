@@ -6,6 +6,7 @@ import {
 	failGeneration,
 } from "../generations";
 import { listObjects, readObject, uploadImage } from "../storage";
+import { storeThumb } from "../thumbnails";
 import { initTracing } from "../tracing";
 import {
 	codexFetch,
@@ -50,6 +51,7 @@ function createDefaultRuntime(): TurboRuntime {
 			}),
 		storeImage: async (key, png) => {
 			await uploadImage(key, Buffer.from(png), "image/png");
+			await storeThumb(key, png);
 		},
 		completeGeneration,
 		failGeneration,
