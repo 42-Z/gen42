@@ -1,46 +1,39 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import {
-	evalExperimentName,
-	initTracing,
-	logEvalRun,
-	traceSpan,
-} from "../tracing";
+import { initTracing, traceSpan } from "../tracing";
 
-beforeAll(() => {
-	// тесты проверяют no-op-ветку: ключа быть не должно
-	delete process.env.BRAINTRUST_API_KEY;
-});
-
-describe("tracing", () => {
-	test("traceSpan выполняет работу и возвращает результат", async () => {
-		const result = await traceSpan("test", {}, async () => 42);
-		expect(result).toBe(42);
+describe("tracing требует ключ", () => {
+	beforeAll(() => {
+		delete process.env.BRAINTRUST_API_KEY;
 	});
 
-	test("ошибка работы проходит наружу", async () => {
+	test("initTracing без ключа завершает работу понятной ошибкой", () => {
+		expect(() => initTracing()).toThrow(/BRAINTRUST_API_KEY/);
+	});
+
+	test("traceSpan без ключа не начинает работу", async () => {
+		await expect(traceSpan("test", {}, async () => 42)).rejects.toThrow(
+			/BRAINTRUST_API_KEY/,
+		);
+	});
+});
+
+describe("tracing с ключом", () => {
+	beforeAll(() => {
+		process.env.BRAINTRUST_API_KEY = "test-key-not-real";
+	});
+
+	test("initTracing идемпотентен", () => {
+		initTracing();
+		initTracing();
+	});
+
+	test("traceSpan выполняет работу и прокидывает её ошибки", async () => {
+		const result = await traceSpan("test", {}, async () => 42);
+		expect(result).toBe(42);
 		await expect(
 			traceSpan("test", {}, async () => {
 				throw new Error("boom");
 			}),
 		).rejects.toThrow("boom");
-	});
-
-	test("initTracing идемпотентен и не падает без ключа", () => {
-		initTracing();
-		initTracing();
-	});
-
-	test("logEvalRun — no-op без ключа", async () => {
-		await logEvalRun({
-			suite: "style42",
-			stamp: "2026-10-11T00-00-00",
-			records: [{ input: "a", output: "b", metadata: { x: 1 } }],
-		});
-	});
-
-	test("имя эксперимента", () => {
-		expect(evalExperimentName("turbo", "2026-10-11T00-00-00")).toBe(
-			"turbo-2026-10-11T00-00-00",
-		);
 	});
 });
