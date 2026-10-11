@@ -44,6 +44,7 @@ import {
 } from "./graphics";
 import { ModelPicker } from "./ModelPicker";
 import { PopWait } from "./PopWait";
+import { SparkBurst } from "./SparkBurst";
 
 interface GenerateProps {
 	balance: number | null;
@@ -632,9 +633,10 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 			)}
 
 			{result && (
-				<div className="animate-pop-in relative mt-10">
+				<div key={result.image_url} className="animate-pop-in relative mt-10">
 					<StickerBurst className="animate-float-slow absolute -right-4 -top-8 h-16 w-16 sm:-right-8" />
-					<div className="group relative overflow-hidden rounded-[22px]">
+					<SparkBurst />
+					<div className="animate-pop-reveal pop-frame group relative overflow-hidden rounded-[22px]">
 						<img
 							src={result.image_url}
 							alt={resultPrompt || prompt || "Сгенерированное изображение"}
@@ -682,11 +684,12 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 						{history.map((img, idx) => (
 							<button
 								key={img.id}
+								style={{ "--i": Math.min(idx, 12) } as React.CSSProperties}
 								type="button"
 								onClick={() => setSelected(idx)}
 								title={img.prompt}
 								aria-label={`Открыть изображение: ${img.prompt}`}
-								className="group relative block aspect-square overflow-hidden rounded-[22px] border border-border/60 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								className="pop-stagger pop-lift group relative block aspect-square overflow-hidden rounded-[22px] border border-border/60 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 							>
 								<img
 									src={img.thumb_url ?? img.image_url}
@@ -717,7 +720,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 							<img
 								src={selectedImg.image_url}
 								alt={selectedImg.prompt}
-								className="max-h-[70dvh] w-auto max-w-full rounded-[22px] border border-border"
+								className="animate-pop-reveal max-h-[70dvh] w-auto max-w-full rounded-[22px] border border-border"
 							/>
 						</div>
 						<div className="flex items-center justify-center gap-2">

@@ -147,7 +147,8 @@ export function App() {
 							/>
 						) : (
 							<div
-								className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm tabular-nums"
+								key={balance}
+								className="pop-bump flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm tabular-nums"
 								role="status"
 								aria-label={`Баланс: ${balance}`}
 							>
