@@ -1,0 +1,111 @@
+[
+	{
+		"id": "style42-1",
+		"input": { "prompt": "кот" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-2",
+		"input": {
+			"prompt": "Человек в костюме с крыльями, у которого правая половина белая, а левая черная, стреляет лазерами из глаз"
+		},
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-3",
+		"input": { "prompt": "мопс" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-4",
+		"input": { "prompt": "закат" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-5",
+		"input": { "prompt": "дождь" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-6",
+		"input": { "prompt": "пицца" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-7",
+		"input": { "prompt": "смысл жизни" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-8",
+		"input": { "prompt": "портрет девушки в стиле ренессанс" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-9",
+		"input": { "prompt": "плакат с надписью «СЛАВА 42»" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-10",
+		"input": { "prompt": "торт с надписью «С ДНЁМ РОЖДЕНИЯ, БОСС»" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-11",
+		"input": { "prompt": "a cyberpunk samurai on a rooftop" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-12",
+		"input": { "prompt": "тигр в джунглях, фотореализм" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-13",
+		"input": { "prompt": "детский рисунок домика и солнца" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-14",
+		"input": { "prompt": "минималистичный белый фон, одна точка" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-15",
+		"input": {
+			"prompt": "свадьба в средневековом замке, гости танцуют, рыцари в доспехах, огромный торт"
+		},
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-16",
+		"input": { "prompt": "советская ракета стартует с космодрома" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-17",
+		"input": { "prompt": "аниме-девочка с катаной" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-18",
+		"input": { "prompt": "президент верхом на медведе" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-19",
+		"input": { "prompt": "42 бегемота играют в шахматы" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-20",
+		"input": { "prompt": "пляж, пальмы, закат, киберпанк" },
+		"metadata": { "kind": "style42" }
+	},
+	{
+		"id": "style42-21",
+		"input": { "prompt": "неоновый кот-программист пишет код ночью" },
+		"metadata": { "kind": "style42" }
+	}
+]
