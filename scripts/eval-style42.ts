@@ -1,5 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { enhancePrompt } from "../src/lib/enhance";
+import {
+	initTracing,
+	logEvalRun,
+	type EvalRunRecord,
+} from "../src/lib/tracing";
 import { STYLE_VERSION } from "../src/lib/prompts";
 import { validateEnhancedPrompt } from "../src/lib/prompts/contract";
 
@@ -27,10 +32,12 @@ const PROMPTS = [
 	"неоновый кот-программист пишет код ночью",
 ];
 
+initTracing();
 const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 const dir = "docs/evals";
 await mkdir(dir, { recursive: true });
 const lines: string[] = [];
+const records: EvalRunRecord[] = [];
 
 const only = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const selected =
@@ -63,6 +70,20 @@ for (const userInput of selected) {
 		error: result.error ?? null,
 	};
 	lines.push(JSON.stringify(record));
+	records.push({
+		input: userInput,
+		output: result.prompt,
+		metadata: {
+			suite: "style42",
+			style_version: record.style_version,
+			fallback: record.fallback,
+			duration_ms: record.duration_ms,
+			input_tokens: record.input_tokens,
+			output_tokens: record.output_tokens,
+			words: record.words,
+			error: record.error,
+		},
+	});
 	console.log(
 		`${result.fallback ? "FALLBACK" : "ok"}  ${String(result.durationMs).padStart(5)}ms  ${record.words} слов  ${userInput}`,
 	);
@@ -71,5 +92,6 @@ for (const userInput of selected) {
 
 const file = `${dir}/${stamp}-style42${only.length > 0 ? "-subset" : ""}.jsonl`;
 await writeFile(file, `${lines.join("\n")}\n`);
+await logEvalRun({ suite: "style42", stamp, records });
 console.log(`\nзаписано: ${file}`);
 process.exit(0);
