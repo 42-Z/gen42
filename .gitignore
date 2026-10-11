@@ -39,6 +39,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 keys.csv
 .commandcode/
 
+# служебное bt CLI (кэш установки скиллов)
+.bt/
+
 # исходники 42-референсов (в git — сжатые копии в docs/references/42)
 docs/42_images/
 
