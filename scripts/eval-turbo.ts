@@ -12,6 +12,11 @@ import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { toGeneratorQuotes } from "../src/lib/prompts/style-hints";
 import { buildTurboSystem } from "../src/lib/prompts/turbo.system";
 import { listObjects, readObject } from "../src/lib/storage";
+import {
+	type EvalRunRecord,
+	initTracing,
+	logEvalRun,
+} from "../src/lib/tracing";
 import { buildAgentMessage, systemVersionOf } from "../src/lib/turbo/agent";
 import {
 	createTurboAgent,
@@ -113,8 +118,10 @@ const selected =
 		? PROMPTS.filter((prompt) => only.some((part) => prompt.includes(part)))
 		: PROMPTS;
 
+initTracing();
 const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 const jsonl = `docs/evals/turbo-${stamp}.jsonl`;
+const records: EvalRunRecord[] = [];
 const imagesDir = "docs/evals/images";
 await mkdir("docs/evals", { recursive: true });
 await mkdir(imagesDir, { recursive: true });
@@ -209,6 +216,21 @@ for (const [index, prompt] of selected.entries()) {
 			jsonl,
 			`${JSON.stringify({ prompt, version, model: agentModelId, reasoning: agentReasoning, seconds, imageSeconds: Math.round(imageMs / 1000), tokens: run.tokens, inputImages, toolCalls: run.toolCalls, randomPicks: run.randomPicks, finalPrompt, size })}\n`,
 		);
+		records.push({
+			input: prompt,
+			output: finalPrompt,
+			metadata: {
+				suite: "turbo",
+				version,
+				model: agentModelId,
+				reasoning: agentReasoning,
+				seconds,
+				tokens: run.tokens,
+				inputImages,
+				randomPicks: run.randomPicks,
+				size,
+			},
+		});
 	} catch (error) {
 		const message =
 			error instanceof Error
@@ -219,6 +241,11 @@ for (const [index, prompt] of selected.entries()) {
 			jsonl,
 			`${JSON.stringify({ prompt, version, error: message })}\n`,
 		);
+		records.push({
+			input: prompt,
+			output: null,
+			metadata: { suite: "turbo", version, error: message },
+		});
 	}
 }
 
@@ -230,5 +257,6 @@ if (durations.length > 0) {
 		`Время запуска, с: мин ${sorted[0]}, медиана ${at(0.5)}, p90 ${at(0.9)}, макс ${sorted.at(-1)} (прогонов ${sorted.length})`,
 	);
 }
+await logEvalRun({ suite: "turbo", stamp, records });
 console.log(`Журнал: ${jsonl}`);
 process.exit(0);

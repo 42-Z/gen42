@@ -6,6 +6,7 @@ import {
 	failGeneration,
 } from "../generations";
 import { listObjects, readObject, uploadImage } from "../storage";
+import { initTracing } from "../tracing";
 import {
 	codexFetch,
 	codexLanguageModel,
@@ -34,6 +35,8 @@ export interface TurboRuntime {
 }
 
 function createDefaultRuntime(): TurboRuntime {
+	// шаги воркфлоу идут отдельными вызовами функций — каждый вход инициализирует трассировку
+	initTracing();
 	return {
 		library: new Library({ list: listObjects, read: readObject }),
 		// новый менеджер входа на вызов: токены читаются из базы, а не из памяти экземпляра

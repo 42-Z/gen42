@@ -1,4 +1,5 @@
 import { toGeneratorQuotes } from "../prompts/style-hints";
+import { traceSpan } from "../tracing";
 import { CodexImageError, type EditImageResult } from "./codex-images";
 import { TurboError } from "./errors";
 import type { Library, ReadFileResult, ResolvedImage } from "./library";
@@ -68,11 +69,16 @@ export async function drawImage(
 	// прямыми кавычками, как и в обычном обогащении
 	const finalPrompt = toGeneratorQuotes(input.prompt);
 	try {
-		const result = await deps.edit({
-			prompt: finalPrompt,
-			images: resolved.images,
-			...(input.signal ? { signal: input.signal } : {}),
-		});
+		const result = await traceSpan(
+			"turbo-draw",
+			{ input: { prompt: finalPrompt, images: inputImages } },
+			async () =>
+				deps.edit({
+					prompt: finalPrompt,
+					images: resolved.images,
+					...(input.signal ? { signal: input.signal } : {}),
+				}),
+		);
 		return {
 			png: result.png,
 			size: result.size,

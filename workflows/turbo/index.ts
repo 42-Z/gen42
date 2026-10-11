@@ -48,6 +48,8 @@ export async function turboWorkflow(
 				checkImage: checkImageStep,
 			},
 		});
+		// span агентского цикла здесь невозможен: flow-бандл Workflow не принимает
+		// node-пакеты (braintrust тянет node:fs/path) — трассировка живёт в шагах и шаге draw
 		const run = await runTurboAgent(agent, prepared.message);
 		accepted = run.accepted;
 		if (!accepted) {

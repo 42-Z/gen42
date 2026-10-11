@@ -33,6 +33,7 @@ import {
 } from "../lib/models";
 import { checkRateLimit } from "../lib/rate-limit";
 import { getImageUrl, uploadImage } from "../lib/storage";
+import { traceSpan } from "../lib/tracing";
 import { isTurboAvailable } from "../lib/turbo/codex-auth";
 import { parseTurboReasoning } from "../lib/turbo/reasoning";
 import { startTurbo } from "../lib/turbo/start";
@@ -193,7 +194,11 @@ export const generateRoutes = {
 					cost,
 				});
 
-				enhanced = await enhancePrompt(prompt);
+				enhanced = await traceSpan(
+					"enhance",
+					{ input: prompt, metadata: { generationId, engine } },
+					() => enhancePrompt(prompt),
+				);
 				if (enhanced.fallback) {
 					console.warn(
 						`Обогащение промпта упало в fallback: ${enhanced.error ?? "unknown"}`,

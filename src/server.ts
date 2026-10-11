@@ -6,6 +6,7 @@ import { authRoutes } from "./api/auth";
 import { codexAdminRoutes } from "./api/codex-admin";
 import { cronRoutes } from "./api/cron";
 import { generateRoutes } from "./api/generate";
+import { initTracing } from "./lib/tracing";
 
 const DIST_DIR = join(process.cwd(), "dist");
 
@@ -55,6 +56,7 @@ async function workflowDevRoutes(): Promise<WorkflowRoutes> {
 	}
 }
 
+initTracing();
 const server = serve({
 	routes: {
 		...(await workflowDevRoutes()),
