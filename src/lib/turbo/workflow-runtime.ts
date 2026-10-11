@@ -6,6 +6,7 @@ import {
 	failGeneration,
 } from "../generations";
 import { listObjects, readObject, uploadImage } from "../storage";
+import { initTracing } from "../tracing";
 import {
 	codexFetch,
 	codexLanguageModel,
@@ -15,7 +16,6 @@ import {
 import { editImage } from "./codex-images";
 import { Library } from "./library";
 import type { EditFn } from "./ops";
-import { initTracing } from "../tracing";
 
 /**
  * Всё, что шагам воркфлоу нужно от внешнего мира. Шаги берут окружение через

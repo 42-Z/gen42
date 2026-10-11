@@ -1,12 +1,12 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { enhancePrompt } from "../src/lib/enhance";
-import {
-	initTracing,
-	logEvalRun,
-	type EvalRunRecord,
-} from "../src/lib/tracing";
 import { STYLE_VERSION } from "../src/lib/prompts";
 import { validateEnhancedPrompt } from "../src/lib/prompts/contract";
+import {
+	type EvalRunRecord,
+	initTracing,
+	logEvalRun,
+} from "../src/lib/tracing";
 
 const PROMPTS = [
 	"кот",

@@ -1,10 +1,10 @@
 import { toGeneratorQuotes } from "../prompts/style-hints";
+import { traceSpan } from "../tracing";
 import { CodexImageError, type EditImageResult } from "./codex-images";
 import { TurboError } from "./errors";
 import type { Library, ReadFileResult, ResolvedImage } from "./library";
 import { makePreview } from "./preview";
 import type { CheckImageOutput } from "./tool-defs";
-import { traceSpan } from "../tracing";
 
 export type EditFn = (params: {
 	prompt: string;

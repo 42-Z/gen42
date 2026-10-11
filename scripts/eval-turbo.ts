@@ -9,14 +9,14 @@
  * Агент тот же, что в воркфлоу (createTurboAgent); идёт в одном процессе, без Workflow.
  */
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
-import {
-	initTracing,
-	logEvalRun,
-	type EvalRunRecord,
-} from "../src/lib/tracing";
 import { toGeneratorQuotes } from "../src/lib/prompts/style-hints";
 import { buildTurboSystem } from "../src/lib/prompts/turbo.system";
 import { listObjects, readObject } from "../src/lib/storage";
+import {
+	type EvalRunRecord,
+	initTracing,
+	logEvalRun,
+} from "../src/lib/tracing";
 import { buildAgentMessage, systemVersionOf } from "../src/lib/turbo/agent";
 import {
 	createTurboAgent,

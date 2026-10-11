@@ -2,7 +2,6 @@ import { auth } from "../lib/auth";
 import { getCredits, InsufficientCreditsError } from "../lib/credits";
 import { sql } from "../lib/db";
 import { enhancePrompt } from "../lib/enhance";
-import { traceSpan } from "../lib/tracing";
 import { publicGenerationError } from "../lib/generation-error";
 import {
 	chargeGeneration,
@@ -34,6 +33,7 @@ import {
 } from "../lib/models";
 import { checkRateLimit } from "../lib/rate-limit";
 import { getImageUrl, uploadImage } from "../lib/storage";
+import { traceSpan } from "../lib/tracing";
 import { isTurboAvailable } from "../lib/turbo/codex-auth";
 import { parseTurboReasoning } from "../lib/turbo/reasoning";
 import { startTurbo } from "../lib/turbo/start";
