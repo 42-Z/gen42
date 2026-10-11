@@ -33,6 +33,7 @@ import {
 } from "../lib/models";
 import { checkRateLimit } from "../lib/rate-limit";
 import { getImageUrl, uploadImage } from "../lib/storage";
+import { getOrCreateThumb, storeThumb } from "../lib/thumbnails";
 import { traceSpan } from "../lib/tracing";
 import { isTurboAvailable } from "../lib/turbo/codex-auth";
 import { parseTurboReasoning } from "../lib/turbo/reasoning";
@@ -280,6 +281,7 @@ export const generateRoutes = {
 				);
 				const imageKey = `generations/${session.user.id}/${Date.now()}.${imageExtension(contentType)}`;
 				await uploadImage(imageKey, imageBuffer, contentType);
+				await storeThumb(imageKey, imageBuffer);
 
 				const closed = await completeGeneration({
 					id: generationId,
@@ -366,10 +368,40 @@ export const generateRoutes = {
 				rows.map(async (row: any) => ({
 					...row,
 					image_url: row.image_key ? await getImageUrl(row.image_key) : null,
+					// стабильный адрес превью: браузер кеширует его, в отличие от каждый раз новой подписи S3
+					thumb_url: row.image_key ? `/api/generations/${row.id}/thumb` : null,
 				})),
 			);
 
 			return Response.json(withUrls);
+		},
+	},
+
+	"/api/generations/:id/thumb": {
+		// уменьшенная копия для сетки галереи; содержимое записи не меняется, поэтому кеш вечный
+		GET: async (req: Request) => {
+			const session = await auth.api.getSession({ headers: req.headers });
+			if (!session) {
+				return Response.json({ error: "Unauthorized" }, { status: 401 });
+			}
+			const { id } = (req as any).params;
+			const record = await getGeneration(session.user.id, id);
+			if (record?.status !== "completed" || !record.imageKey) {
+				return Response.json({ error: "Не найдено" }, { status: 404 });
+			}
+			const thumb = await getOrCreateThumb(record.imageKey).catch((error) => {
+				console.error("Thumbnail error:", error);
+				return null;
+			});
+			if (!thumb) {
+				return Response.json({ error: "Не найдено" }, { status: 404 });
+			}
+			return new Response(new Blob([new Uint8Array(thumb)]), {
+				headers: {
+					"Content-Type": "image/webp",
+					"Cache-Control": "private, max-age=31536000, immutable",
+				},
+			});
 		},
 	},
 

@@ -80,6 +80,12 @@ bun run format       # форматер (biome)
 
   Затем разложить `AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY/AWS_ENDPOINT_URL_S3/AWS_REGION` → `S3_*`. `env pull` выдаёт новую пару ключей; после ротации перезалить их в Vercel и GitHub. Смена кредов вступает в силу только после редеплоя
 
+## Превью изображений (галерея)
+
+- Сетка «Недавние» грузит не оригиналы (PNG до нескольких МБ, пресайн S3 с новой подписью на каждый запрос, то есть без кеша браузера), а превью: WebP до 640 px по длинной стороне (`src/lib/thumbnails.ts`, `Bun.Image`), ключ `thumbs/<ключ оригинала без расширения>.webp` в том же бакете
+- Превью создаётся сразу при сохранении картинки (`storeThumb` в `src/api/generate.ts` и в `storeImage` Турбо, `workflow-runtime.ts`); сбой только логируется. Для старых картинок превью строится лениво при первом запросе (`getOrCreateThumb`) и сохраняется
+- `GET /api/generations` отдаёт `thumb_url` — стабильный адрес `/api/generations/:id/thumb` (проверка владельца по сессии, `Cache-Control: private, max-age=31536000, immutable`: содержимое записи не меняется). Лайтбокс и «Скачать» используют оригинал (`image_url`)
+
 ## Генерация (HuggingFace)
 
 - `src/lib/hf.ts` — общий Gradio-клиент `callSpace()`: `POST {space}/gradio_api/call/v2/{api}` (payload именованными полями, без старого `data: [ {…} ]`, иначе `event: error`), затем опрос `…/call/v2/{api}/{event_id}` с фолбэком на `…/call/{api}/{event_id}` при 404. Ответ: `data[0].url` (картинка), `data[1]` — seed. Движки задаются реестром `IMAGE_MODELS` (`src/lib/models.ts`), `generateImage({ engine, … })` диспатчит по нему
