@@ -2,6 +2,7 @@ import { auth } from "../lib/auth";
 import { getCredits, InsufficientCreditsError } from "../lib/credits";
 import { sql } from "../lib/db";
 import { enhancePrompt } from "../lib/enhance";
+import { traceSpan } from "../lib/tracing";
 import { publicGenerationError } from "../lib/generation-error";
 import {
 	chargeGeneration,
@@ -193,7 +194,11 @@ export const generateRoutes = {
 					cost,
 				});
 
-				enhanced = await enhancePrompt(prompt);
+				enhanced = await traceSpan(
+					"enhance",
+					{ input: prompt, metadata: { generationId, engine } },
+					() => enhancePrompt(prompt),
+				);
 				if (enhanced.fallback) {
 					console.warn(
 						`Обогащение промпта упало в fallback: ${enhanced.error ?? "unknown"}`,

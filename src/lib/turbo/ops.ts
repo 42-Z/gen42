@@ -4,6 +4,7 @@ import { TurboError } from "./errors";
 import type { Library, ReadFileResult, ResolvedImage } from "./library";
 import { makePreview } from "./preview";
 import type { CheckImageOutput } from "./tool-defs";
+import { traceSpan } from "../tracing";
 
 export type EditFn = (params: {
 	prompt: string;
@@ -68,11 +69,16 @@ export async function drawImage(
 	// прямыми кавычками, как и в обычном обогащении
 	const finalPrompt = toGeneratorQuotes(input.prompt);
 	try {
-		const result = await deps.edit({
-			prompt: finalPrompt,
-			images: resolved.images,
-			...(input.signal ? { signal: input.signal } : {}),
-		});
+		const result = await traceSpan(
+			"turbo-draw",
+			{ input: { prompt: finalPrompt, images: inputImages } },
+			async () =>
+				deps.edit({
+					prompt: finalPrompt,
+					images: resolved.images,
+					...(input.signal ? { signal: input.signal } : {}),
+				}),
+		);
 		return {
 			png: result.png,
 			size: result.size,

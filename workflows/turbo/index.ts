@@ -5,6 +5,7 @@ import {
 } from "../../src/lib/turbo/agent-definition";
 import { TurboError } from "../../src/lib/turbo/errors";
 import { toFailure } from "../../src/lib/turbo/failure";
+import { traceSpan } from "../../src/lib/tracing";
 import type { TurboReasoning } from "../../src/lib/turbo/reasoning";
 import {
 	checkImageStep,
@@ -48,7 +49,14 @@ export async function turboWorkflow(
 				checkImage: checkImageStep,
 			},
 		});
-		const run = await runTurboAgent(agent, prepared.message);
+		const run = await traceSpan(
+			"turbo-agent",
+			{
+				input: prepared.message,
+				metadata: { generationId: input.id, reasoning: input.reasoning },
+			},
+			() => runTurboAgent(agent, prepared.message),
+		);
 		accepted = run.accepted;
 		if (!accepted) {
 			throw new TurboError(

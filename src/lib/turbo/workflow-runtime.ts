@@ -15,6 +15,7 @@ import {
 import { editImage } from "./codex-images";
 import { Library } from "./library";
 import type { EditFn } from "./ops";
+import { initTracing } from "../tracing";
 
 /**
  * Всё, что шагам воркфлоу нужно от внешнего мира. Шаги берут окружение через
@@ -34,6 +35,8 @@ export interface TurboRuntime {
 }
 
 function createDefaultRuntime(): TurboRuntime {
+	// шаги воркфлоу идут отдельными вызовами функций — каждый вход инициализирует трассировку
+	initTracing();
 	return {
 		library: new Library({ list: listObjects, read: readObject }),
 		// новый менеджер входа на вызов: токены читаются из базы, а не из памяти экземпляра

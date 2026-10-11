@@ -5,6 +5,7 @@ import {
 	isSpaceEngine,
 	type SpaceEngine,
 } from "./models";
+import { traceSpan } from "./tracing";
 
 interface GenerateParams {
 	/** Движок генерации; по умолчанию Krea 2 */
@@ -266,13 +267,18 @@ export async function generateImage(
 		: DEFAULT_IMAGE_ENGINE;
 	const model = getImageModel(engine);
 
-	const data = await callSpace({
-		apiBase: model.apiBase,
-		apiName: model.apiName,
-		payload: buildPayload(engine, params),
-		apiKey,
-		timeoutMs: model.pollTimeoutMs,
-	});
+	const data = await traceSpan(
+		"hf-generate",
+		{ input: { engine, prompt: params.prompt }, metadata: { engine } },
+		async () =>
+			callSpace({
+				apiBase: model.apiBase,
+				apiName: model.apiName,
+				payload: buildPayload(engine, params),
+				apiKey,
+				timeoutMs: model.pollTimeoutMs,
+			}),
+	);
 
 	return extractResult(data);
 }
