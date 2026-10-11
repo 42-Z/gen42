@@ -1,5 +1,13 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { initTracing, traceSpan } from "../tracing";
+
+const originalKey = process.env.BRAINTRUST_API_KEY;
+
+// тест не должен оставлять ключ после себя: от него зависят другие тесты
+afterAll(() => {
+	if (originalKey === undefined) delete process.env.BRAINTRUST_API_KEY;
+	else process.env.BRAINTRUST_API_KEY = originalKey;
+});
 
 describe("tracing требует ключ", () => {
 	beforeAll(() => {

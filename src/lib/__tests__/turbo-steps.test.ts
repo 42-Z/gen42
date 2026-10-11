@@ -14,6 +14,8 @@ import { setTurboRuntime } from "../turbo/workflow-runtime";
 import { makeRuntime, RESULT_PNG } from "./helpers/turbo-fakes";
 
 beforeEach(() => {
+	// трассировка требует ключ (без него работа невозможна) — в тестах ключ-заглушка
+	process.env.BRAINTRUST_API_KEY = "test-key-not-real";
 	// шаги намеренно логируют сбои; в выводе тестов они не нужны
 	spyOn(console, "error").mockImplementation(() => {});
 });
