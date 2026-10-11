@@ -802,6 +802,17 @@ describe("инструкция агента Турбо", () => {
 		expect(slay).toBeLessThanOrEqual(headphones);
 	});
 
+	test("названный человек идёт портретом, а изучение изображений свободно", () => {
+		expect(system).toContain("Человек, названный в запросе в любом падеже");
+		expect(system).toContain(
+			"Папку личности открывай и описания в ней прочитай",
+		);
+		expect(system).toContain("Изображение открывай свободно");
+		// запреты изучения не возвращаются при следующих правках
+		expect(system).not.toContain("открывай, только когда");
+		expect(system).not.toContain("заметно дороже");
+	});
+
 	test("примеры не повторяют один и тот же зоопарк", () => {
 		const examples = system.slice(
 			indexIn(system, "# Примеры"),
