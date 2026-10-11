@@ -175,6 +175,7 @@ export async function logEvalRun(params: {
 			experiment.log({
 				input: record.input,
 				output: record.output,
+				scores: {},
 				metadata: record.metadata,
 			});
 		}
