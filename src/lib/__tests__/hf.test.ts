@@ -5,6 +5,8 @@ const originalFetch = globalThis.fetch;
 describe("HuggingFace client", () => {
 	beforeEach(() => {
 		globalThis.fetch = originalFetch;
+		// трассировка требует ключ (без него работа невозможна) — в тестах ключ-заглушка
+		process.env.BRAINTRUST_API_KEY = "test-key-not-real";
 	});
 
 	test("429 от HF -> KeyExhaustedError", async () => {

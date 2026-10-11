@@ -46,6 +46,10 @@ keys.csv
 docs/42_images/
 
 # артефакты визуальных прогонов
+captures/
+
+# старые локальные отчёты evals (система evaluation — на Braintrust)
+docs/evals/*.jsonl
 docs/evals/images/
 
 # библиотека входных изображений «Турбо» — заливается в хранилище скриптом sync-library

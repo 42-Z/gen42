@@ -1,4 +1,10 @@
-import { describe, expect, mock, test } from "bun:test";
+import { beforeAll, describe, expect, mock, test } from "bun:test";
+
+// трассировка требует ключ (без него работа невозможна) — в тестах ключ-заглушка
+beforeAll(() => {
+	process.env.BRAINTRUST_API_KEY = "test-key-not-real";
+});
+
 import { CodexImageError } from "../turbo/codex-images";
 import { Library } from "../turbo/library";
 import {

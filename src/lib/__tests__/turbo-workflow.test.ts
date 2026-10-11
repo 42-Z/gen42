@@ -29,6 +29,8 @@ function errorCode(runtime: {
 }
 
 beforeEach(() => {
+	// трассировка требует ключ (без него работа невозможна) — в тестах ключ-заглушка
+	process.env.BRAINTRUST_API_KEY = "test-key-not-real";
 	spyOn(console, "error").mockImplementation(() => {});
 });
 afterEach(() => setTurboRuntime(null));

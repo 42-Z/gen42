@@ -14,7 +14,9 @@
 		"typecheck": "tsc --noEmit",
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",
-		"format": "biome format --write ."
+		"format": "biome format --write .",
+		"eval:style42": "node_modules/.bin/bun evals/style42.eval.ts",
+		"eval:turbo": "node_modules/.bin/bun evals/turbo.eval.ts"
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "4.0.28",
