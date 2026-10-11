@@ -152,6 +152,7 @@ bun run format       # форматер (biome)
 - Локальная проверка сборки: `npx --yes vercel@latest build` (установленный CLI может быть старее схемы триггера `queue/v2beta`; в `vercel.json` триггер очереди писать без поля `consumer`, имя потребителя строит Vercel), затем из `.vercel/output/functions/index.func` запустить `PORT=3056 NODE_ENV=production bun --env-file=<путь к .env.development> server.js` и проверить `/` и `/api/models`
 - **Авто-деплой**: проект подключён к GitHub (`42-Z/gen42`, прод-ветка `main`) — пуш в `main` собирает прод, другие ветки дают preview. Hobby-план не подключает приватные репо организаций, поэтому репозиторий публичный; при возврате приватности авто-деплой переносить на GitHub Actions (`vercel deploy --prod` по токену)
 - Ручной выкат: `vercel deploy --prod --yes`. **Изменения env вступают в силу только после нового деплоя**
+- **Необходимые переменные окружения обязательно добавлять на Vercel** (production и preview) через `vercel env add` и редеплоить: прод их не видит, пока не будет нового деплоя. Локально новые переменные класть в `.env.development`, шаблоны — в `.env.example`
 - Env переменные: не перетирать прод-специфичные значения локальными (например `BETTER_AUTH_URL` = прод-домен). Секреты Vercel помечены sensitive и не вытягиваются обратно (`vercel env pull` отдаёт `[SENSITIVE]`); добавлять/обновлять через `vercel env add NAME <environment> --force`, значение — из stdin. App-секреты дублируются в GitHub Actions secrets (`gh secret set -f <file>`)
 
 ## Проверка
