@@ -1,11 +1,11 @@
+import * as ai from "ai";
 import {
 	braintrustAISDKTelemetry,
 	initLogger,
-	traced,
 	type Span,
 	type StartSpanArgs,
+	traced,
 } from "braintrust";
-import * as ai from "ai";
 
 let initialized = false;
 
