@@ -58,6 +58,10 @@ bun test               # тесты
 
 Стиль задан системным промптом `src/lib/prompts/style42.system.ts` и дублируется серверными инвариантами в `src/lib/prompts/style-hints.ts` (чтобы модель не путала медиум, не теряла субъекта и не выдумывала надписи). Замысел пользователя — герой, место, действие, цвета и текст — важнее канона: якоря 42 только наполняют кадр вокруг него. Для итераций есть `bun run eval:style42` (eval-файл `evals/style42.eval.ts`, эксперимент Braintrust со скорерами) и `bun scripts/eval-images.ts` (визуальный прогон через Krea 2).
 
+## Оформление
+
+Интерфейс построен по системе «Раздув»: один непрерывный фиолетовый лист, каждый элемент — окно в него, любое действие — импульс, который волной доходит до остальных окон и затухает. Описание и правила — `docs/superpowers/specs/2026-10-11-design-system-razdyv-design.md`. Вместо логотипа время от времени появляются анимированные персонажи про 42 в стиле Duolingo (мопс-король, бегемот на самокате, свин с попкорном, Пятёрка и Меллшер; `src/components/sheet/doodles/`, движение — `src/doodles.css`, `src/doodle-pyatyorka.css` и `src/doodle-mellsher.css`). Проверка вида и бюджета производительности: `bun run ui:check` (скриншоты и видео в `captures/ui-check/`).
+
 ## Деплой на Vercel
 
 Сборка для Vercel собственная, в формате Build Output API: `vercel.json` задаёт `buildCommand: bun run build:vercel`, а `scripts/build-vercel.ts` собирает сервер одним файлом (`Bun.build` с плагином Workflow), фронтенд и функции Workflow (обработчик очереди `flow` и вебхук). Пресет `framework: bun` не подходит: его сборщик не применяет плагин Workflow, и `start()` не получает идентификатор воркфлоу. Подробности и результаты проверок: `docs/superpowers/specs/2026-10-08-turbo-workflow-design.md`.
@@ -74,9 +78,11 @@ src/
   lib/             # db, auth, credits, keys, models, hf, llm, enhance, storage, rate-limit, migrate
   lib/turbo/       # режим «Турбо»: библиотека, вход Codex, картинки, определение агента, приём запуска
   lib/prompts/     # системный промпт 42-стиля и инструкция агента Турбо, общий канон, якоря
-  components/      # экраны (Auth, Generate, Admin) и ui/
+  components/      # экраны (Auth, Generate, Admin), ui/ (shadcn) и sheet/ (фон, баланс, рамка ожидания, хуки)
+  sheet.css        # окна листа «Раздув»; токены — sheet.generated.css (bun run sheet:css)
+  doodles.css      # движение дудлов вместо логотипа; у Пятёрки и Меллшера свои файлы doodle-*.css
 workflows/         # воркфлоу Турбо (Vercel Workflow): оркестрация и шаги
 build.ts           # сборка фронтенда в dist/
 workflow-transform.ts  # плагин Bun: преобразование кода для Workflow (dev и сборка для Vercel)
-scripts/           # смоук LLM и Codex, eval-прогоны стиля и Турбо, заливка библиотеки, утилиты
+scripts/           # прогон интерфейса (ui:check), прототип листа (sheet:proto), смоук LLM и Codex, eval-прогоны стиля и Турбо, заливка библиотеки, утилиты
 ```

@@ -1,17 +1,12 @@
 import { IconAlertTriangle, IconArrowRight } from "@tabler/icons-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DecoScatter } from "./DecoScatter";
-import {
-	MeshBackground,
-	PopLogo,
-	PopSpinner,
-	SparkStar,
-	StickerRing,
-	StickerSpiral,
-} from "./graphics";
+import { impulse } from "@/lib/sheet/impulses";
+import { springLinear } from "@/lib/sheet/springs";
+import { BrandMark } from "./sheet/BrandMark";
+import { Sheet } from "./sheet/Sheet";
 
 interface AuthProps {
 	onLogin: (user: any) => void;
@@ -24,6 +19,21 @@ export function Auth({ onLogin }: AuthProps) {
 	const [name, setName] = useState("");
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
+	const formRef = useRef<HTMLDivElement>(null);
+	const submitRef = useRef<HTMLButtonElement>(null);
+	const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+	/** Корректное поле сдвигает лист кнопки отправки вперёд */
+	function fieldOk(e: React.FormEvent<HTMLInputElement>) {
+		if (e.currentTarget.validity.valid && submitRef.current) {
+			impulse({
+				source: submitRef.current,
+				sign: 1,
+				weight: 0.33,
+				mass: "medium",
+			});
+		}
+	}
 
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
@@ -48,29 +58,68 @@ export function Auth({ onLogin }: AuthProps) {
 			}
 
 			const data = await res.json();
+			// успех: поля отвечают сверху вниз, затем форма уходит влево
+			(isLogin ? ["email", "password"] : ["name", "email", "password"]).forEach(
+				(id, i) => {
+					window.setTimeout(() => {
+						const el = document.getElementById(id);
+						if (el)
+							impulse({ source: el, sign: 1, weight: 0.3, mass: "light" });
+					}, i * 60);
+				},
+			);
+			if (!reduced()) {
+				await formRef.current
+					?.animate(
+						[
+							{ transform: "translate(0,0)", opacity: 1 },
+							{ transform: "translate(-24px,0)", opacity: 0 },
+						],
+						{ duration: 260, easing: springLinear("medium"), fill: "forwards" },
+					)
+					.finished.catch(() => undefined);
+			}
 			onLogin(data.user);
 		} catch (err: any) {
 			setError(err.message);
+			if (submitRef.current) {
+				impulse({
+					source: submitRef.current,
+					sign: -1,
+					weight: 0.4,
+					mass: "medium",
+				});
+			}
+			if (!reduced()) {
+				formRef.current?.animate(
+					[
+						{ transform: "translate(0,0)" },
+						{ transform: "translate(-6px,0)" },
+						{ transform: "translate(5px,0)" },
+						{ transform: "translate(-3px,0)" },
+						{ transform: "translate(0,0)" },
+					],
+					{ duration: 420, easing: "ease-out" },
+				);
+			}
 		} finally {
 			setLoading(false);
 		}
 	}
 
 	return (
-		<div className="pop-noise relative min-h-screen w-full overflow-hidden">
-			<MeshBackground />
-			<DecoScatter />
-			<SparkStar className="animate-float-slow pointer-events-none absolute left-[8%] top-[14%] h-10 w-10" />
-			<StickerSpiral className="animate-float-slow pointer-events-none absolute bottom-[12%] left-[12%] h-16 w-16 opacity-80 [animation-delay:1.2s]" />
-			<StickerRing className="animate-float-slow pointer-events-none absolute right-[10%] top-[20%] h-20 w-20 opacity-70 [animation-delay:2s]" />
-
+		<div className="relative isolate min-h-screen w-full overflow-hidden">
+			<Sheet />
 			<div className="mx-auto grid min-h-screen w-full max-w-5xl grid-cols-1 items-center gap-12 px-6 py-16 lg:grid-cols-2 lg:gap-16">
 				<div className="animate-pop-in flex flex-col items-start">
-					<PopLogo className="[&_span]:text-5xl lg:[&_span]:text-6xl" />
+					<BrandMark className="text-5xl lg:text-6xl" />
 				</div>
 
-				<div className="animate-pop-in pop-card w-full p-8 [animation-delay:120ms] sm:p-10">
-					<h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
+				<div
+					ref={formRef}
+					className="animate-pop-in w-full border-t border-border pt-8 [animation-delay:120ms]"
+				>
+					<h1 className="font-display text-2xl text-foreground">
 						{isLogin ? "Вход" : "Регистрация"}
 					</h1>
 
@@ -83,6 +132,7 @@ export function Auth({ onLogin }: AuthProps) {
 									type="text"
 									value={name}
 									onChange={(e) => setName(e.target.value)}
+									onInput={fieldOk}
 									required={!isLogin}
 									autoComplete="name"
 								/>
@@ -96,6 +146,7 @@ export function Auth({ onLogin }: AuthProps) {
 								type="email"
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
+								onInput={fieldOk}
 								required
 								autoComplete="email"
 							/>
@@ -108,6 +159,7 @@ export function Auth({ onLogin }: AuthProps) {
 								type="password"
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
+								onInput={fieldOk}
 								required
 								minLength={8}
 								autoComplete={isLogin ? "current-password" : "new-password"}
@@ -126,24 +178,22 @@ export function Auth({ onLogin }: AuthProps) {
 
 						<Button
 							type="submit"
+							ref={submitRef}
+							data-loading={loading ? "true" : undefined}
 							disabled={loading}
 							size="lg"
 							className="w-full"
 						>
-							{loading ? (
-								<PopSpinner className="h-4 w-4" aria-label="Загрузка" />
-							) : (
-								<>
-									Продолжить
-									<IconArrowRight className="h-4 w-4" />
-								</>
-							)}
+							Продолжить
+							<IconArrowRight className="h-4 w-4" />
 						</Button>
 					</form>
 
 					<div className="mt-8 border-t border-border pt-6">
 						<button
 							type="button"
+							data-impulse="tap"
+							data-weight="0.2"
 							onClick={() => setIsLogin(!isLogin)}
 							className="rounded-full text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 						>

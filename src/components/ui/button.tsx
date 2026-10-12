@@ -1,19 +1,19 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { Slot } from "radix-ui";
 import type * as React from "react";
+import { SheetLayer } from "@/components/sheet/SheetLayer";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-	"inline-flex shrink-0 items-center justify-center gap-2 rounded-full text-sm font-medium whitespace-nowrap transition-all outline-none active:scale-[0.98] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+	"inline-flex shrink-0 items-center justify-center gap-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
 	{
 		variants: {
 			variant: {
-				default:
-					"pop-gradient-bg text-white shadow-[0_12px_36px_-12px_rgb(255_92_168/0.65)] hover:brightness-110 hover:shadow-[0_16px_44px_-12px_rgb(108_92_255/0.7)]",
+				default: "text-white disabled:bg-secondary",
 				destructive:
 					"bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40",
 				outline:
-					"border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+					"border border-input text-muted-foreground hover:text-foreground",
 				secondary:
 					"bg-secondary text-secondary-foreground hover:bg-secondary/80",
 				ghost:
@@ -38,26 +38,48 @@ const buttonVariants = cva(
 	},
 );
 
+/** Какое окно листа несёт вариант: основная кнопка — хребет, контурная — тёмная полоса */
+const WINDOW: Partial<
+	Record<
+		NonNullable<VariantProps<typeof buttonVariants>["variant"]>,
+		"ridge" | "dark"
+	>
+> = {
+	default: "ridge",
+	outline: "dark",
+};
+
 function Button({
 	className,
 	variant = "default",
 	size = "default",
 	asChild = false,
+	weight,
+	children,
 	...props
 }: React.ComponentProps<"button"> &
 	VariantProps<typeof buttonVariants> & {
 		asChild?: boolean;
+		/** Вес импульса по цене действия, 0..1 */
+		weight?: number;
 	}) {
 	const Comp = asChild ? Slot.Root : "button";
+	const sheet = asChild ? undefined : WINDOW[variant ?? "default"];
 
 	return (
 		<Comp
 			data-slot="button"
 			data-variant={variant}
 			data-size={size}
+			data-impulse="tap"
+			data-weight={weight ?? (variant === "default" ? 0.5 : 0.25)}
+			{...(sheet ? { "data-sheet": sheet } : {})}
 			className={cn(buttonVariants({ variant, size, className }))}
 			{...props}
-		/>
+		>
+			{sheet ? <SheetLayer /> : null}
+			{children}
+		</Comp>
 	);
 }
 

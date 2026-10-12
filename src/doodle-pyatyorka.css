@@ -1,0 +1,113 @@
+/* src/doodle-pyatyorka.css
+   Движение дудла «Пятёрка» (рисунок — src/components/sheet/doodles/Pyatyorka.tsx).
+   Общие правила дудлов (цвета, появление, моргание, кивок) — в src/doodles.css.
+   Проценты в @keyframes — доли показа (DOODLE_MS = 3800 мс): появление до 22 %,
+   игра до 82 %, уход до 100 %. Анимируются только transform и opacity.
+   Оси вращения крыльев и рук заданы в единицах рамки рисунка (transform-box:
+   view-box), точно в плечах: крылья и руки не отрываются от корпуса. */
+@layer components {
+	/* крылья раскрываются от плеч и машут, руки расходятся, голова хитро кивает */
+	.dk-pyatyorka .d-wing-l {
+		transform-box: view-box;
+		transform-origin: 56px 50px;
+		animation: pya-wing-l var(--d-ms, 3800ms) both;
+	}
+
+	.dk-pyatyorka .d-wing-r {
+		transform-box: view-box;
+		transform-origin: 114px 50px;
+		animation: pya-wing-r var(--d-ms, 3800ms) both;
+	}
+
+	.dk-pyatyorka .d-arm-l {
+		transform-box: view-box;
+		transform-origin: 56px 51px;
+		animation: pya-arm-l var(--d-ms, 3800ms) both;
+	}
+
+	.dk-pyatyorka .d-arm-r {
+		transform-box: view-box;
+		transform-origin: 114px 51px;
+		animation: pya-arm-r var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes pya-wing-l {
+		0%,
+		18% {
+			transform: rotate(38deg) scale(0.55);
+		}
+		30% {
+			transform: rotate(-14deg) scale(1.06);
+		}
+		38% {
+			transform: rotate(7deg) scale(1);
+		}
+		46% {
+			transform: rotate(-11deg) scale(1.03);
+		}
+		54% {
+			transform: rotate(4deg) scale(1);
+		}
+		62%,
+		100% {
+			transform: rotate(0deg) scale(1);
+		}
+	}
+
+	@keyframes pya-wing-r {
+		0%,
+		18% {
+			transform: rotate(-38deg) scale(0.55);
+		}
+		30% {
+			transform: rotate(14deg) scale(1.06);
+		}
+		38% {
+			transform: rotate(-7deg) scale(1);
+		}
+		46% {
+			transform: rotate(11deg) scale(1.03);
+		}
+		54% {
+			transform: rotate(-4deg) scale(1);
+		}
+		62%,
+		100% {
+			transform: rotate(0deg) scale(1);
+		}
+	}
+
+	@keyframes pya-arm-l {
+		0%,
+		18% {
+			transform: rotate(-14deg);
+		}
+		30% {
+			transform: rotate(10deg);
+		}
+		38% {
+			transform: rotate(-4deg);
+		}
+		46%,
+		100% {
+			transform: rotate(0deg);
+		}
+	}
+
+	@keyframes pya-arm-r {
+		0%,
+		18% {
+			transform: rotate(14deg);
+		}
+		30% {
+			transform: rotate(-10deg);
+		}
+		38% {
+			transform: rotate(4deg);
+		}
+		46%,
+		100% {
+			transform: rotate(0deg);
+		}
+	}
+}

@@ -1,0 +1,89 @@
+<!-- scripts/sheet-proto/index.html -->
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>gen42 — прототип «Раздув»</title>
+	<link rel="stylesheet" href="./proto.css" />
+</head>
+<body>
+	<div class="sheet" data-slot="sheet"><i></i></div>
+
+	<header class="bar">
+		<span class="logo" aria-label="gen42">gen42</span>
+		<div class="bar-right">
+			<span class="pill" id="pill" role="status" aria-label="Баланс">
+				<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /></svg>
+				<span class="numbox" id="numbox"><span id="num" class="num">42</span></span>
+			</span>
+			<button type="button" class="icon-btn" data-sheet="dark" data-impulse="tap" data-weight="0.3" aria-label="Аккаунт">
+				<i class="sheet-layer" aria-hidden="true"></i>
+				<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.5" /><path d="M5 20c.8-3.5 3.6-5.5 7-5.5s6.2 2 7 5.5" /></svg>
+			</button>
+		</div>
+	</header>
+
+	<main class="page">
+		<div class="tabs" id="tabs" role="tablist">
+			<i class="tabs-ind" id="ind" data-sheet="ridge"><i class="sheet-layer" aria-hidden="true"></i></i>
+			<button type="button" class="tab" role="tab" aria-selected="true">
+				<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="3" /><circle cx="9" cy="10" r="1.5" /><path d="M5 17l4.5-4 3.5 3 3-2.5 3 3" /></svg>
+				Изображение
+			</button>
+			<button type="button" class="tab" role="tab" aria-selected="false">
+				<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3L5 13h6l-1 8 8-10h-6z" /></svg>
+				Турбо
+			</button>
+		</div>
+
+		<div class="field" id="field" data-sheet="ring">
+			<textarea id="prompt" rows="4" aria-label="Промпт"></textarea>
+			<div class="field-foot">
+				<button type="button" class="chip" data-sheet="dark" data-impulse="tap" data-weight="0.2" aria-label="Модель">
+					<i class="sheet-layer" aria-hidden="true"></i>
+					<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c.6 4.4 2.2 6 6.5 6.5-4.3.5-5.9 2.1-6.5 6.5-.6-4.4-2.2-6-6.5-6.5C9.8 9 11.4 7.4 12 3z" /></svg>
+					<span>Krea 2</span>
+				</button>
+				<button type="button" class="go" id="go" data-sheet="ridge" data-impulse="tap" data-weight="0.65" aria-label="Создать">
+					<i class="sheet-layer" aria-hidden="true"></i>
+					<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c.6 4.4 2.2 6 6.5 6.5-4.3.5-5.9 2.1-6.5 6.5-.6-4.4-2.2-6-6.5-6.5C9.8 9 11.4 7.4 12 3z" /></svg>
+					<span class="price"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /></svg>10</span>
+				</button>
+			</div>
+		</div>
+
+		<section class="reasoning">
+			<h2 class="h">
+				<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5a3 3 0 0 0-3 3 3 3 0 0 0-1.5 5.2A3 3 0 0 0 8 18a3 3 0 0 0 4 1V5.5A2.5 2.5 0 0 0 9 5zM15 5a3 3 0 0 1 3 3 3 3 0 0 1 1.5 5.2A3 3 0 0 1 16 18a3 3 0 0 1-4 1" /></svg>
+				Рассуждение
+			</h2>
+			<div class="slider" id="slider" role="slider" tabindex="0" aria-label="Уровень рассуждения" aria-valuemin="0" aria-valuemax="3" aria-valuenow="1" aria-valuetext="Высокое">
+				<div class="track" data-sheet="dark"><i class="sheet-layer" aria-hidden="true"></i></div>
+				<div class="fill" id="fill" data-sheet="spectrum"><i class="sheet-layer" aria-hidden="true"></i></div>
+				<div class="thumb" id="thumb" data-sheet="ridge"><i class="sheet-layer" aria-hidden="true"></i></div>
+			</div>
+		</section>
+
+		<div class="frame" id="frame" data-sheet="dark" role="img" aria-label="Кадр">
+			<i class="sheet-layer" aria-hidden="true"></i>
+			<div class="pic" id="pic"></div>
+			<i class="flow" id="flow" data-sheet="spectrum"><i class="sheet-layer" aria-hidden="true"></i></i>
+		</div>
+
+		<section class="gallery" aria-label="Недавние">
+			<div class="h" aria-hidden="true">
+				<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.5-5.8L4 8.5M4 4v4.5h4.5M12 8v4l3 2" /></svg>
+			</div>
+			<div class="tiles" id="tiles">
+				<button type="button" class="tile" data-sheet="ring" data-impulse="tap" data-weight="0.3" aria-label="Открыть" style="background: radial-gradient(circle at 30% 30%, #ffb86b, transparent 55%), radial-gradient(circle at 70% 70%, #2dd4bf, transparent 60%), #2a1f3d"></button>
+				<button type="button" class="tile" data-sheet="ring" data-impulse="tap" data-weight="0.3" aria-label="Открыть" style="background: conic-gradient(from 40deg at 50% 50%, #f59e0b, #10b981, #3b82f6, #f59e0b)"></button>
+				<button type="button" class="tile" data-sheet="ring" data-impulse="tap" data-weight="0.3" aria-label="Открыть" style="background: linear-gradient(160deg, #f97316, #be123c)"></button>
+				<button type="button" class="tile" data-sheet="ring" data-impulse="tap" data-weight="0.3" aria-label="Открыть" style="background: radial-gradient(circle at 60% 40%, #fde68a, #f59e0b 40%, #7c2d12 85%)"></button>
+			</div>
+		</section>
+	</main>
+
+	<script type="module" src="./proto.ts"></script>
+</body>
+</html>
