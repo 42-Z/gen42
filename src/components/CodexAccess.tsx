@@ -179,7 +179,7 @@ export function CodexAccess() {
 			.at(0) ?? null;
 
 	return (
-		<section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:280ms]">
+		<section className="animate-pop-in mt-6 border-t border-border pt-6 [animation-delay:280ms]">
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<h3 className="font-display text-xl font-bold text-foreground">
 					Вход Codex

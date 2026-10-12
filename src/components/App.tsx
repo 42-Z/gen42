@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Admin } from "./Admin";
 import { Auth } from "./Auth";
 import { Generate } from "./Generate";
-import { PopLogo, PopSpinner } from "./graphics";
+import { PopLogo } from "./graphics";
 import { Balance } from "./sheet/Balance";
 import { Sheet, useSheetRuntime } from "./sheet/Sheet";
 
@@ -117,7 +117,15 @@ export function App() {
 		return (
 			<div className="relative isolate flex min-h-screen w-full items-center justify-center">
 				<Sheet />
-				<PopSpinner className="h-12 w-12 text-primary" />
+				<div
+					role="status"
+					aria-label="Загрузка"
+					data-sheet="ridge"
+					data-loading="true"
+					className="h-3 w-28 rounded-full"
+				>
+					<i className="sheet-layer" aria-hidden="true" />
+				</div>
 			</div>
 		);
 	}
@@ -158,7 +166,13 @@ export function App() {
 							className="flex items-center justify-center py-24"
 							aria-label="Загрузка"
 						>
-							<PopSpinner className="h-8 w-8 text-primary" />
+							<div
+								data-sheet="ridge"
+								data-loading="true"
+								className="h-2.5 w-20 rounded-full"
+							>
+								<i className="sheet-layer" aria-hidden="true" />
+							</div>
 						</div>
 					) : (
 						<Generate balance={balance} onBalanceChange={setBalance} />

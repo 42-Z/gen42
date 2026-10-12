@@ -25,8 +25,6 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { CodexAccess } from "./CodexAccess";
-import { DecoScatter } from "./DecoScatter";
-import { PopSkeleton, SparkStar } from "./graphics";
 import { QuotaBar } from "./QuotaBar";
 
 export function Admin() {
@@ -197,10 +195,13 @@ export function Admin() {
 				</h2>
 				<div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
 					{[0, 1, 2].map((i) => (
-						<PopSkeleton key={i} className="h-32" />
+						<div
+							key={i}
+							className="h-32 rounded-[22px] border border-border bg-secondary/60"
+						/>
 					))}
 				</div>
-				<PopSkeleton className="mt-6 h-64" />
+				<div className="mt-6 h-64 rounded-[22px] border border-border bg-secondary/60" />
 			</div>
 		);
 	}
@@ -258,14 +259,10 @@ export function Admin() {
 
 	return (
 		<div className="relative mx-auto max-w-5xl overflow-hidden">
-			<DecoScatter />
 			<div className="animate-pop-in">
-				<div className="flex items-center gap-2.5">
-					<SparkStar className="h-6 w-6" />
-					<h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground">
-						Админка
-					</h2>
-				</div>
+				<h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground">
+					Админка
+				</h2>
 			</div>
 
 			{error && (
@@ -284,7 +281,7 @@ export function Admin() {
 			{stats && (
 				<div className="animate-pop-in mt-8 grid grid-cols-1 gap-4 [animation-delay:80ms] sm:grid-cols-3">
 					{statsCards.map((s) => (
-						<div key={s.label} className="pop-card p-6">
+						<div key={s.label} className="border-t border-border pt-6">
 							<div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
 								<s.icon className="h-4 w-4 text-primary" strokeWidth={1.75} />
 								{s.label}
@@ -298,7 +295,7 @@ export function Admin() {
 			)}
 
 			{keys.length > 0 && (
-				<section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:110ms]">
+				<section className="animate-pop-in mt-6 border-t border-border pt-6 [animation-delay:110ms]">
 					<div className="flex flex-wrap items-baseline justify-between gap-2">
 						<h3 className="font-display text-xl font-bold text-foreground">
 							Пул генерации
@@ -365,7 +362,7 @@ export function Admin() {
 				</section>
 			)}
 
-			<section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:140ms]">
+			<section className="animate-pop-in mt-6 border-t border-border pt-6 [animation-delay:140ms]">
 				<h3 className="font-display text-xl font-bold text-foreground">
 					Пользователи
 				</h3>
@@ -411,7 +408,7 @@ export function Admin() {
 				</div>
 			</section>
 
-			<section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:200ms]">
+			<section className="animate-pop-in mt-6 border-t border-border pt-6 [animation-delay:200ms]">
 				<h3 className="font-display text-xl font-bold text-foreground">
 					Ключи генерации
 				</h3>
@@ -528,7 +525,7 @@ export function Admin() {
 				</div>
 			</section>
 
-			<section className="animate-pop-in pop-card mt-6 p-6 [animation-delay:240ms]">
+			<section className="animate-pop-in mt-6 border-t border-border pt-6 [animation-delay:240ms]">
 				<h3 className="font-display text-xl font-bold text-foreground">
 					Ключи LLM
 				</h3>
