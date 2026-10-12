@@ -1,6 +1,9 @@
 import { Slider as SliderPrimitive } from "radix-ui";
 import * as React from "react";
-
+import { SheetLayer } from "@/components/sheet/SheetLayer";
+import { useFlip } from "@/components/sheet/use-flip";
+import { impulse } from "@/lib/sheet/impulses";
+import type { Mass } from "@/lib/sheet/springs";
 import { cn } from "@/lib/utils";
 
 function Slider({
@@ -25,6 +28,29 @@ function Slider({
 		[value, defaultValue, min, max],
 	);
 
+	const thumbRef = React.useRef<HTMLSpanElement>(null);
+	const rangeRef = React.useRef<HTMLSpanElement>(null);
+	const level = _values[0] ?? min;
+	const index = (level - min) / (max - min || 1);
+	// у каждого уровня своя масса: нижний лёгкий, верхний тяжёлый
+	const mass: Mass = index <= 0 ? "light" : index >= 1 ? "heavy" : "medium";
+	useFlip(thumbRef, level, { mass, origin: "center" });
+	useFlip(rangeRef, level, { mass, origin: "left" });
+	const prevLevel = React.useRef(level);
+	React.useLayoutEffect(() => {
+		if (prevLevel.current === level) return;
+		const source = thumbRef.current;
+		if (source) {
+			impulse({
+				source,
+				sign: level > prevLevel.current ? 1 : -1,
+				weight: 0.2 + 0.4 * index,
+				mass,
+			});
+		}
+		prevLevel.current = level;
+	}, [level, index, mass]);
+
 	return (
 		<SliderPrimitive.Root
 			data-slot="slider"
@@ -40,27 +66,37 @@ function Slider({
 		>
 			<SliderPrimitive.Track
 				data-slot="slider-track"
+				data-sheet="dark"
 				className={cn(
-					"relative grow overflow-hidden rounded-full bg-muted data-[orientation=horizontal]:h-1.5 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5",
+					"relative grow overflow-hidden rounded-full border border-border data-[orientation=horizontal]:h-2 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-2",
 				)}
 			>
+				<SheetLayer />
 				<SliderPrimitive.Range
+					ref={rangeRef}
 					data-slot="slider-range"
+					data-sheet="spectrum"
 					className={cn(
-						"absolute bg-primary data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full",
+						"absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full",
 					)}
-				/>
+				>
+					<SheetLayer />
+				</SliderPrimitive.Range>
 			</SliderPrimitive.Track>
-			{Array.from({ length: _values.length }, (_, index) => (
+			{Array.from({ length: _values.length }, (_, i) => (
 				<SliderPrimitive.Thumb
+					ref={i === 0 ? thumbRef : undefined}
 					data-slot="slider-thumb"
-					key={index}
+					data-sheet="ridge"
+					key={i}
 					// без значения атрибут не передаётся: явный undefined затёр бы подписи
 					// «Minimum»/«Maximum», которые Radix строит сам у диапазона
 					{...(ariaLabel ? { "aria-label": ariaLabel } : {})}
 					{...(ariaValueText ? { "aria-valuetext": ariaValueText } : {})}
-					className="block size-4 shrink-0 rounded-full border border-primary bg-white shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
-				/>
+					className="block h-[30px] w-[46px] shrink-0 rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:pointer-events-none disabled:opacity-50"
+				>
+					<SheetLayer />
+				</SliderPrimitive.Thumb>
 			))}
 		</SliderPrimitive.Root>
 	);

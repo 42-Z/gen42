@@ -1,6 +1,10 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { Tabs as TabsPrimitive } from "radix-ui";
 import type * as React from "react";
+import { useEffect, useRef } from "react";
+import { SheetLayer } from "@/components/sheet/SheetLayer";
+import { SPRINGS, springLinear } from "@/lib/sheet/springs";
+import { remeasure } from "@/lib/sheet/windows";
 import { cn } from "@/lib/utils";
 
 function Tabs({
@@ -27,7 +31,7 @@ const tabsListVariants = cva(
 	{
 		variants: {
 			variant: {
-				default: "bg-muted",
+				default: "border border-border bg-secondary/60",
 				line: "gap-1 bg-transparent",
 			},
 		},
@@ -40,16 +44,82 @@ const tabsListVariants = cva(
 function TabsList({
 	className,
 	variant = "default",
+	children,
 	...props
 }: React.ComponentProps<typeof TabsPrimitive.List> &
 	VariantProps<typeof tabsListVariants>) {
+	const listRef = useRef<HTMLDivElement>(null);
+	const indRef = useRef<HTMLElement>(null);
+	const at = useRef<{ x: number; w: number } | null>(null);
+
+	useEffect(() => {
+		const list = listRef.current;
+		const ind = indRef.current;
+		if (!list || !ind) return;
+		const reduced = () =>
+			matchMedia("(prefers-reduced-motion: reduce)").matches;
+		function place(animate: boolean) {
+			const tab = list?.querySelector<HTMLElement>('[data-state="active"]');
+			if (!tab || !ind) return;
+			const x = tab.offsetLeft;
+			const w = tab.offsetWidth;
+			const was = at.current;
+			at.current = { x, w };
+			ind.style.width = `${w}px`;
+			ind.style.transform = `translate(${x}px,0)`;
+			remeasure(ind);
+			if (!animate || !was || reduced() || (was.x === x && was.w === w)) return;
+			// резинка: индикатор растягивается на обе вкладки и сжимается к новой
+			const span = (Math.abs(x - was.x) + Math.max(w, was.w)) / w;
+			const anim = ind.animate(
+				[
+					{ transform: `translate(${was.x}px,0) scaleX(${was.w / w})` },
+					{
+						transform: `translate(${Math.min(x, was.x)}px,0) scaleX(${span})`,
+						offset: 0.45,
+					},
+					{ transform: `translate(${x}px,0) scaleX(1)` },
+				],
+				{ duration: SPRINGS.medium.move + 280, easing: springLinear("medium") },
+			);
+			anim.onfinish = () => remeasure(ind);
+		}
+		place(false);
+		const mo = new MutationObserver(() => place(true));
+		mo.observe(list, {
+			subtree: true,
+			attributes: true,
+			attributeFilter: ["data-state"],
+		});
+		const onResize = () => place(false);
+		window.addEventListener("resize", onResize);
+		return () => {
+			mo.disconnect();
+			window.removeEventListener("resize", onResize);
+		};
+	}, []);
+
 	return (
 		<TabsPrimitive.List
+			ref={listRef}
 			data-slot="tabs-list"
 			data-variant={variant}
-			className={cn(tabsListVariants({ variant }), className)}
+			className={cn(tabsListVariants({ variant }), "relative", className)}
 			{...props}
-		/>
+		>
+			{variant === "default" && (
+				<i
+					ref={indRef}
+					data-sheet="ridge"
+					aria-hidden="true"
+					className="pointer-events-none absolute top-[3px] bottom-[3px] left-0 rounded-full"
+					style={{ transformOrigin: "0 50%" }}
+				>
+					<SheetLayer />
+				</i>
+			)}
+			{children}
+		</TabsPrimitive.List>
 	);
 }
 
@@ -60,10 +130,12 @@ function TabsTrigger({
 	return (
 		<TabsPrimitive.Trigger
 			data-slot="tabs-trigger"
+			data-impulse="tap"
+			data-weight="0.4"
 			className={cn(
-				"relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-full border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap text-foreground/60 transition-all group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 group-data-[variant=default]/tabs-list:data-[state=active]:shadow-sm group-data-[variant=line]/tabs-list:data-[state=active]:shadow-none dark:text-muted-foreground dark:hover:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+				"relative z-10 inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-full border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap text-foreground/60 transition-colors group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 group-data-[variant=line]/tabs-list:data-[state=active]:shadow-none dark:text-muted-foreground dark:hover:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
 				"group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent dark:group-data-[variant=line]/tabs-list:data-[state=active]:border-transparent dark:group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent",
-				"data-[state=active]:bg-[image:var(--pop-gradient)] data-[state=active]:text-white dark:data-[state=active]:border-transparent dark:data-[state=active]:text-white",
+				"data-[state=active]:text-white dark:data-[state=active]:border-transparent dark:data-[state=active]:text-white",
 				"after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:h-0.5 group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:-right-1 group-data-[orientation=vertical]/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100",
 				className,
 			)}

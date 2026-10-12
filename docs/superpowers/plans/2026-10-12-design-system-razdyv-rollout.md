@@ -761,10 +761,11 @@ export function useFlip(
 ): void {
 	const prev = useRef<Box | null>(null);
 	const { mass, origin } = options;
-	// biome-ignore lint/correctness/useExhaustiveDependencies: перезапуск только по смене значения
 	useLayoutEffect(() => {
 		const el = ref.current;
 		if (!el) return;
+		// идущая анимация искажает рамку: сначала снимаем её, меряем положение в раскладке
+		for (const running of el.getAnimations()) running.cancel();
 		const r = el.getBoundingClientRect();
 		const now: Box = { left: r.left, width: r.width };
 		const was = prev.current;
@@ -784,7 +785,7 @@ export function useFlip(
 			{ duration: SPRINGS[mass].move, easing: springLinear(mass) },
 		);
 		anim.onfinish = () => remeasure(el);
-	}, [dep]);
+	}, [dep, mass, origin, ref]);
 }
 ```
 
