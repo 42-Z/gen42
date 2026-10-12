@@ -579,7 +579,14 @@ try {
 		() => document.querySelectorAll(".doodle").length,
 	);
 	check("дудлы: в покое рисунков в DOM", doodlesIdle, doodlesIdle === 0);
-	for (const kind of ["pug", "hippo", "giraffe", "pig"]) {
+	for (const kind of [
+		"pug",
+		"hippo",
+		"giraffe",
+		"pig",
+		"pyatyorka",
+		"mellsher",
+	]) {
 		await dd.page.evaluate((k) => {
 			document
 				.querySelector("header .brand")

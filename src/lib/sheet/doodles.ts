@@ -5,7 +5,14 @@
  * чистая логика показа (виды, паузы, выбор без повтора подряд); рисунки лежат в
  * `src/components/sheet/doodles/`, движение — в `src/doodles.css`.
  */
-export const DOODLES = ["pug", "hippo", "giraffe", "pig"] as const;
+export const DOODLES = [
+	"pug",
+	"hippo",
+	"giraffe",
+	"pig",
+	"pyatyorka",
+	"mellsher",
+] as const;
 export type DoodleKind = (typeof DOODLES)[number];
 
 /** Длина показа, мс: выход слова, появление, игра, уход, возвращение слова */

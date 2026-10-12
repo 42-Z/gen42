@@ -2,14 +2,18 @@
 import type { DoodleKind } from "@/lib/sheet/doodles";
 import { Giraffe } from "./Giraffe";
 import { Hippo } from "./Hippo";
+import { Mellsher } from "./Mellsher";
 import { Pig } from "./Pig";
 import { Pug } from "./Pug";
+import { Pyatyorka } from "./Pyatyorka";
 
 const ART: Record<DoodleKind, () => React.JSX.Element> = {
 	pug: Pug,
 	hippo: Hippo,
 	giraffe: Giraffe,
 	pig: Pig,
+	pyatyorka: Pyatyorka,
+	mellsher: Mellsher,
 };
 
 /** Рисунок одного дудла в рамке 170 × 100; движение — `src/doodles.css` по `dk-<вид>` */
