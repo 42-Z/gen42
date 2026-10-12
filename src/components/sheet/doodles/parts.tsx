@@ -100,30 +100,3 @@ export function Shadow({
 		<rect x={x} y={y} width={w} height={8} rx={4} className="f-n d-shadow" />
 	);
 }
-
-/** Цепь с кулоном «42»: кулон качается на `d-swing` */
-export function Pendant({
-	cx,
-	top,
-	w = 30,
-}: {
-	cx: number;
-	top: number;
-	w?: number;
-}) {
-	const h = w * 0.64;
-	const s = (w - 8) / 92;
-	return (
-		<g className="d-swing">
-			<rect
-				x={cx - w / 2}
-				y={top}
-				width={w}
-				height={h}
-				rx={h * 0.32}
-				className="f-w"
-			/>
-			<Digits42 x={cx - 48 * s} y={top + h / 2 - 31.5 * s} s={s} weight={11} />
-		</g>
-	);
-}

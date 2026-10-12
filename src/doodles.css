@@ -116,7 +116,7 @@
 		}
 	}
 
-	/* общее для всех: моргание дважды, кивок головой, хлопок ушей, кулон на цепи */
+	/* общее для всех: моргание дважды, кивок головой, хлопок ушей */
 	.doodle .d-eye {
 		transform-origin: 50% 50%;
 		animation: d-blink var(--d-ms, 3800ms) both;
@@ -213,34 +213,6 @@
 			transform: rotate(-6deg);
 		}
 		43%,
-		100% {
-			transform: rotate(0deg);
-		}
-	}
-
-	.doodle .d-swing {
-		transform-origin: 50% 0%;
-		animation: d-swing var(--d-ms, 3800ms) both;
-	}
-
-	@keyframes d-swing {
-		0%,
-		18% {
-			transform: rotate(0deg);
-		}
-		24% {
-			transform: rotate(16deg);
-		}
-		31% {
-			transform: rotate(-12deg);
-		}
-		38% {
-			transform: rotate(7deg);
-		}
-		45% {
-			transform: rotate(-3deg);
-		}
-		52%,
 		100% {
 			transform: rotate(0deg);
 		}

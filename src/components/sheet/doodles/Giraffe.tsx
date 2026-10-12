@@ -1,9 +1,9 @@
 // src/components/sheet/doodles/Giraffe.tsx
-import { EyeDot, Pendant, Shadow } from "./parts";
+import { EyeDot, Shadow } from "./parts";
 
 /**
  * Жираф: шея вытягивается и ныряет вниз. Глаза со «сонным» веком, как у кошки
- * Duolingo, пятна и брюшко — второй тон шерсти, ошейник-«таблетка» на шее.
+ * Duolingo, пятна и брюшко — второй тон шерсти, украшений нет.
  */
 export function Giraffe() {
 	return (
@@ -66,10 +66,6 @@ export function Giraffe() {
 						/>
 					</g>
 				</g>
-
-				{/* ошейник на основании шеи, бирка с номером */}
-				<rect x="101" y="63" width="26" height="7" rx="3.5" className="f-0" />
-				<Pendant cx={114} top={69} w={26} />
 			</g>
 		</>
 	);

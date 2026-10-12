@@ -1,10 +1,9 @@
 // src/components/sheet/doodles/Hippo.tsx
-import { EyeDot, Pendant, Shadow } from "./parts";
+import { EyeDot, Shadow } from "./parts";
 
 /**
  * Бегемот на самокате. Правила те же, что у мопса: блоки с малым скруглением,
- * глаза — белые круги с тёмным зрачком без блика, линий нет, ошейник-«таблетка»
- * вместо дуги цепи.
+ * глаза — белые круги с тёмным зрачком без блика, линий нет, украшений нет.
  */
 export function Hippo() {
 	return (
@@ -42,10 +41,6 @@ export function Hippo() {
 						className="f-2"
 					/>
 				</g>
-
-				{/* ошейник под подбородком, бирка с номером */}
-				<rect x="82" y="55" width="26" height="8" rx="4" className="f-0" />
-				<Pendant cx={95} top={62} w={26} />
 
 				<g className="d-head">
 					<g className="d-ear-l">

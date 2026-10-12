@@ -1,5 +1,5 @@
 // src/components/sheet/doodles/Pug.tsx
-import { Digits42, EyeDot, Shadow } from "./parts";
+import { EyeDot, Shadow } from "./parts";
 
 /**
  * Мопс-король. Построен по собакам Duolingo: голова и тело — прямоугольники с
@@ -15,13 +15,6 @@ export function Pug() {
 				{/* тело: блок шерсти, окорок темнее */}
 				<rect x="54" y="58" width="62" height="34" rx="12" className="f-l" />
 				<rect x="54" y="66" width="22" height="26" rx="12" className="t-d" />
-
-				{/* ошейник и бирка с номером */}
-				<rect x="56" y="66" width="58" height="9" rx="4.5" className="f-0" />
-				<g className="d-swing">
-					<rect x="71" y="74" width="28" height="17" rx="6" className="f-w" />
-					<Digits42 x={77} y={77.6} s={0.2} weight={11} />
-				</g>
 
 				<g className="d-head">
 					{/* уши — лоскуты, висят от верхних углов головы */}
