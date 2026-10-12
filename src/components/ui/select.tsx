@@ -1,6 +1,8 @@
 import { IconCheck, IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import { Select as SelectPrimitive } from "radix-ui";
 import type * as React from "react";
+import { HoverWindow } from "@/components/sheet/HoverWindow";
+import { SheetLayer } from "@/components/sheet/SheetLayer";
 import { cn } from "@/lib/utils";
 
 function Select({
@@ -71,11 +73,12 @@ function SelectContent({
 				<SelectScrollUpButton />
 				<SelectPrimitive.Viewport
 					className={cn(
-						"p-1",
+						"isolate p-1",
 						position === "popper" &&
 							"h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1",
 					)}
 				>
+					<HoverWindow item='[data-slot="select-item"]' mode="highlight" />
 					{children}
 				</SelectPrimitive.Viewport>
 				<SelectScrollDownButton />
@@ -105,12 +108,14 @@ function SelectItem({
 	return (
 		<SelectPrimitive.Item
 			data-slot="select-item"
+			data-sheet="ridge"
 			className={cn(
-				"relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+				"relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none focus:text-accent-foreground data-[state=checked]:text-white data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
 				className,
 			)}
 			{...props}
 		>
+			<SheetLayer />
 			<span
 				data-slot="select-item-indicator"
 				className="absolute right-2 flex size-3.5 items-center justify-center"

@@ -14,8 +14,11 @@ const SITE = path.join(OUT, "site");
 const SHOTS = path.join(OUT, "shots");
 const ROOT = path.resolve(SITE);
 const COST_BUDGET_MS = 4;
-const IDLE_LAYERS = 7;
+const IDLE_LAYERS = 8;
 const WAIT_LAYERS = 11;
+/** Отрисовка кадров по трассировке (мс). Headless Chromium рисует программно, без GPU, — худший случай */
+const IDLE_DRAW_MS_PER_3S = 150;
+const WAIT_DRAW_MS_PER_1_2S = 400;
 
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(SHOTS, { recursive: true });
@@ -96,17 +99,68 @@ async function mockApi(
 		if (p === "/api/generations") return json(state.history);
 		if (p === "/api/generations/active") return json({ error: "none" }, 404);
 		if (p === "/api/generate") {
+			state.startedAt = Date.now();
 			await Bun.sleep(opts.waitMs ?? 4500);
 			state.history = [REC];
 			return json(REC);
 		}
+		// опрос записи после обновления страницы: идёт, пока не прошло время ожидания
+		if (/^\/api\/generations\/[^/]+$/.test(p)) {
+			const running = Date.now() - state.startedAt < (opts.waitMs ?? 4500);
+			return json(
+				running ? { id: "g1", status: "running", prompt: "кот в короне" } : REC,
+			);
+		}
 		if (p === "/api/admin/stats")
-			return json({ users: 3, generations: 12, credits: 90 });
+			return json({ totalGenerations: 128, todayGenerations: 12 });
+		if (p === "/api/admin/users")
+			return json([{ id: "u1", email: "a@b.c", name: "A", balance: 42 }]);
+		if (p === "/api/admin/keys")
+			return json(
+				url.searchParams.get("provider")
+					? []
+					: [
+							{
+								id: "k1",
+								name: "Основной",
+								key: "hf_…a1b2",
+								is_active: true,
+								hf_current: 540,
+								hf_base: 600,
+								hf_runs_remaining: 7,
+								hf_runs_limit: 8,
+							},
+							{
+								id: "k2",
+								name: "Запасной",
+								key: "hf_…c3d4",
+								is_active: true,
+								hf_current: 210,
+								hf_base: 600,
+								hf_runs_remaining: 3,
+								hf_runs_limit: 8,
+							},
+							{
+								id: "k3",
+								name: "Старый",
+								key: "hf_…e5f6",
+								is_active: true,
+								hf_current: 40,
+								hf_base: 600,
+								hf_runs_remaining: 0,
+								hf_runs_limit: 8,
+							},
+						],
+			);
+		if (p.startsWith("/api/admin/keys/")) return json({ ok: true });
 		if (p.startsWith("/api/admin/")) return json([]);
 		return json({});
 	});
 }
-const state: { history: unknown[] } = { history: [] };
+const state: { history: unknown[]; startedAt: number } = {
+	history: [],
+	startedAt: 0,
+};
 
 const rows: Array<{ name: string; value: string; ok: boolean }> = [];
 function check(name: string, value: number, ok: boolean, unit = ""): void {
@@ -136,6 +190,51 @@ const describeAnimations = (page: Page) =>
 				return `${t?.tagName?.toLowerCase()}.${String(t?.className).slice(0, 40)} ${name}`;
 			}),
 	);
+/**
+ * Нагрузка за окно времени по трассировке Chrome (мс): растеризация, показ кадров,
+ * стили/раскладка/отрисовка основного потока и скрипт. Это не FPS, а цена кадров:
+ * анимации только на композиторе дают почти ноль.
+ */
+async function measureLoad(browser: Browser, page: Page, ms: number) {
+	await browser.startTracing(page, {
+		categories: ["devtools.timeline", "cc", "viz", "gpu"],
+		screenshots: false,
+	});
+	await pause(page, ms);
+	const buf = await browser.stopTracing();
+	const events = (
+		JSON.parse(buf.toString()) as {
+			traceEvents: Array<{ name: string; ph: string; dur?: number }>;
+		}
+	).traceEvents;
+	const sum = (re: RegExp) =>
+		events
+			.filter((e) => e.ph === "X" && re.test(e.name))
+			.reduce((a, e) => a + (e.dur ?? 0), 0) / 1000;
+	const out = {
+		raster: sum(/^RasterTask$/),
+		draw: sum(/^(Display::DrawAndSwap|DrawFrame)$/),
+		style: sum(/^(UpdateLayoutTree|RecalcStyle)$/),
+		layout: sum(/^Layout$/),
+		paint: sum(/^(Paint|PrePaint|UpdateLayer|Layerize)$/),
+		script: sum(/^(FunctionCall|EvaluateScript|FireAnimationFrame|TimerFire)$/),
+	};
+	if (process.env.TRACE_DEBUG) {
+		const by = new Map<string, number>();
+		for (const e of events)
+			if (e.ph === "X")
+				by.set(e.name, (by.get(e.name) ?? 0) + (e.dur ?? 0) / 1000);
+		console.log(
+			"  трассировка (топ):",
+			[...by.entries()]
+				.sort((a, b) => b[1] - a[1])
+				.slice(0, 14)
+				.map(([n, v]) => `${n} ${v.toFixed(1)}`)
+				.join("; "),
+		);
+	}
+	return out;
+}
 const rafCount = (page: Page) =>
 	page.evaluate(() => (window as unknown as { __raf: number }).__raf);
 
@@ -152,7 +251,13 @@ async function findChromium(): Promise<string> {
 
 async function open(
 	browser: Browser,
-	o: { signedIn: boolean; video?: boolean; reduced?: boolean; hash?: string },
+	o: {
+		signedIn: boolean;
+		video?: boolean;
+		reduced?: boolean;
+		hash?: string;
+		waitMs?: number;
+	},
 ) {
 	const context = await browser.newContext({
 		viewport: { width: 1280, height: 960 },
@@ -167,6 +272,7 @@ async function open(
 			: {}),
 	});
 	const page = await context.newPage();
+	page.on("pageerror", (e) => console.log("  ошибка страницы:", e.message));
 	await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
 	await page.addInitScript(() => {
 		const w = window as unknown as { __raf: number };
@@ -177,7 +283,7 @@ async function open(
 			return original(cb);
 		};
 	});
-	await mockApi(page, { signedIn: o.signedIn });
+	await mockApi(page, { signedIn: o.signedIn, waitMs: o.waitMs });
 	await page.goto(`http://localhost:${server.port}/${o.hash ?? ""}`);
 	return { context, page };
 }
@@ -258,6 +364,16 @@ try {
 		(await rafCount(page)) === raf0,
 	);
 	check("простой: слоёв композитора", layers, layers <= IDLE_LAYERS);
+	{
+		const t = await measureLoad(browser, page, 3000);
+		console.log("  простой, нагрузка за 3 с, мс:", JSON.stringify(t));
+		check(
+			"простой: отрисовка кадров за 3 с",
+			t.draw,
+			t.draw <= IDLE_DRAW_MS_PER_3S,
+			" мс",
+		);
+	}
 	await shot(page, "03-main-idle");
 
 	await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
@@ -321,11 +437,66 @@ try {
 	await pause(page, 2600);
 	check("ожидание: слоёв композитора", layers, layers <= WAIT_LAYERS);
 	if (layers > WAIT_LAYERS) console.log("  слои:", await describeLayers());
+	{
+		const t = await measureLoad(browser, page, 1200);
+		console.log("  ожидание, нагрузка за 1,2 с, мс:", JSON.stringify(t));
+		check(
+			"ожидание: отрисовка кадров за 1,2 с",
+			t.draw,
+			t.draw <= WAIT_DRAW_MS_PER_1_2S,
+			" мс",
+		);
+	}
 	await shot(page, "09-waiting");
-	await pause(page, 1700);
+	// занавес: кадр сразу после начала сдёргивания потока
+	await page
+		.waitForFunction(
+			() =>
+				(document.querySelector(".frame-flow") as HTMLElement | null)
+					?.getAnimations()
+					.some((a) =>
+						(a.effect as KeyframeEffect | null)
+							?.getKeyframes()
+							.some((k) => "transform" in k),
+					),
+			undefined,
+			{ timeout: 12000 },
+		)
+		.catch(() => undefined);
+	await pause(page, 200);
 	await shot(page, "10-curtain");
+	// вспышка на пике «выдоха»: полоса и логотип оживают один раз после занавеса
+	const flashed = await page
+		.waitForFunction(
+			() =>
+				(
+					document.querySelector('[data-flash="band"]') as HTMLElement | null
+				)?.getAnimations().length,
+			undefined,
+			{ timeout: 12000 },
+		)
+		.then(() => true)
+		.catch(() => false);
+	check("вспышка: полоса шапки ожила", flashed ? 1 : 0, flashed);
+	await pause(page, 250);
+	await shot(page, "10b-flash");
 	await pause(page, 1800);
 	await shot(page, "11-done");
+	// шапка залипает при прокрутке (без размытия) и остаётся окном листа
+	await page.evaluate(() => window.scrollTo(0, 700));
+	await pause(page, 500);
+	const headTop = await page.evaluate(
+		() => document.querySelector("header")?.getBoundingClientRect().top ?? -1,
+	);
+	check(
+		"шапка при прокрутке: верх окна просмотра",
+		headTop,
+		headTop === 0,
+		" px",
+	);
+	await shot(page, "11b-sticky-header");
+	await page.evaluate(() => window.scrollTo(0, 0));
+	await pause(page, 400);
 
 	await page.locator("section[aria-label=Недавние] button").first().click();
 	await pause(page, 700);
@@ -346,10 +517,54 @@ try {
 	await page.goto(`http://localhost:${server.port}/#/admin`);
 	await pause(page, 1400);
 	await shot(page, "13-admin");
+	// строки таблицы входят волной (кадр сразу после монтирования выше), наведение — одно скользящее окно
+	await page
+		.locator("[data-slot=table-body] > [data-slot=table-row]")
+		.nth(1)
+		.hover();
+	await pause(page, 500);
+	await shot(page, "14-table-hover");
+	await page
+		.locator("[data-slot=table-body] > [data-slot=table-row]")
+		.nth(2)
+		.hover();
+	await pause(page, 110);
+	await shot(page, "14b-table-hover-moving");
+	// меню аккаунта: открытие пружиной, наведённый пункт — скользящее окно
+	await page.getByRole("button", { name: "Аккаунт" }).click();
+	await pause(page, 600);
+	await page.getByRole("menuitem").first().hover();
+	await pause(page, 400);
+	await shot(page, "15-account-menu");
+	await page.keyboard.press("Escape");
+	await page.mouse.click(10, 500);
+	await pause(page, 300);
 
 	const videoPath = await page.video()?.path();
 	await context.close();
 	if (videoPath) renameSync(videoPath, path.join(OUT, "demo.webm"));
+
+	// ── обновление страницы во время ожидания: рамка сразу на второй ступени ──
+	const rs = await open(browser, { signedIn: true, waitMs: 9000 });
+	await rs.page.waitForSelector("#prompt");
+	await rs.page.fill("#prompt", "кот в короне");
+	await rs.page.getByRole("button", { name: /Сгенерировать/ }).click();
+	await pause(rs.page, 1800);
+	await rs.page.reload();
+	await rs.page.waitForSelector(".frame-flow");
+	await pause(rs.page, 350);
+	const resumedOpacity = await rs.page.evaluate(() =>
+		Number.parseFloat(
+			(document.querySelector(".frame-flow") as HTMLElement).style.opacity,
+		),
+	);
+	check(
+		"после обновления: ступень ожидания (яркость потока)",
+		resumedOpacity,
+		resumedOpacity >= 0.4,
+	);
+	await shot(rs.page, "16-resumed");
+	await rs.context.close();
 
 	// ── reduced-motion ──────────────────────────────────────────────────
 	const rm = await open(browser, { signedIn: true, reduced: true });

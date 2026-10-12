@@ -1,9 +1,12 @@
 import {
+	IconActivity,
 	IconCoins,
 	IconKey,
 	IconPhoto,
 	IconRefresh,
+	IconSparkles,
 	IconTrash,
+	IconUsers,
 } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +27,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { impulse } from "@/lib/sheet/impulses";
 import { CodexAccess } from "./CodexAccess";
 import { QuotaBar } from "./QuotaBar";
 
@@ -144,6 +148,16 @@ export function Admin() {
 		try {
 			const res = await fetch(`/api/admin/keys/${id}`, { method: "POST" });
 			const data = await res.json().catch(() => null);
+			// успех — лист вперёд, отказ — назад
+			const row = document.querySelector(`[data-key-id="${id}"]`);
+			if (row) {
+				impulse({
+					source: row,
+					sign: res.ok ? 1 : -1,
+					weight: 0.45,
+					mass: "medium",
+				});
+			}
 			if (!res.ok) {
 				setCheckError(data?.error || "Ключ не прошёл проверку");
 			}
@@ -299,7 +313,11 @@ export function Admin() {
 			{keys.length > 0 && (
 				<section className="animate-pop-in mt-6 border-t border-border pt-6 [animation-delay:110ms]">
 					<div className="flex flex-wrap items-baseline justify-between gap-2">
-						<h3 className="font-display text-xl font-bold text-foreground">
+						<h3 className="flex items-center gap-2 font-display text-xl font-bold text-foreground">
+							<IconActivity
+								className="size-5 text-primary"
+								aria-hidden="true"
+							/>
 							Пул генерации
 						</h3>
 						<span className="text-sm text-muted-foreground">
@@ -365,7 +383,8 @@ export function Admin() {
 			)}
 
 			<section className="animate-pop-in mt-6 border-t border-border pt-6 [animation-delay:140ms]">
-				<h3 className="font-display text-xl font-bold text-foreground">
+				<h3 className="flex items-center gap-2 font-display text-xl font-bold text-foreground">
+					<IconUsers className="size-5 text-primary" aria-hidden="true" />
 					Пользователи
 				</h3>
 
@@ -411,7 +430,8 @@ export function Admin() {
 			</section>
 
 			<section className="animate-pop-in mt-6 border-t border-border pt-6 [animation-delay:200ms]">
-				<h3 className="font-display text-xl font-bold text-foreground">
+				<h3 className="flex items-center gap-2 font-display text-xl font-bold text-foreground">
+					<IconKey className="size-5 text-primary" aria-hidden="true" />
 					Ключи генерации
 				</h3>
 
@@ -455,7 +475,7 @@ export function Admin() {
 						</TableHeader>
 						<TableBody>
 							{keys.map((k) => (
-								<TableRow key={k.id}>
+								<TableRow key={k.id} data-key-id={k.id}>
 									<TableCell className="font-semibold">{k.name}</TableCell>
 									<TableCell className="font-mono text-xs text-muted-foreground">
 										{k.key}
@@ -528,7 +548,8 @@ export function Admin() {
 			</section>
 
 			<section className="animate-pop-in mt-6 border-t border-border pt-6 [animation-delay:240ms]">
-				<h3 className="font-display text-xl font-bold text-foreground">
+				<h3 className="flex items-center gap-2 font-display text-xl font-bold text-foreground">
+					<IconSparkles className="size-5 text-primary" aria-hidden="true" />
 					Ключи LLM
 				</h3>
 
@@ -593,7 +614,7 @@ export function Admin() {
 						</TableHeader>
 						<TableBody>
 							{llmKeys.map((k) => (
-								<TableRow key={k.id}>
+								<TableRow key={k.id} data-key-id={k.id}>
 									<TableCell className="font-semibold">{k.name}</TableCell>
 									<TableCell className="text-xs text-muted-foreground">
 										{k.provider === "inception" ? "Inception" : "Poolside"}

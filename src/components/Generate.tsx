@@ -39,6 +39,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ModelPicker } from "./ModelPicker";
 import { ResultFrame } from "./sheet/ResultFrame";
+import { useFlipList } from "./sheet/use-flip";
 
 interface GenerateProps {
 	balance: number | null;
@@ -134,6 +135,8 @@ function readStoredReasoning(): TurboReasoning {
 export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const [prompt, setPrompt] = useState("");
 	const [loading, setLoading] = useState(false);
+	// ожидание возобновлено после обновления страницы (рамка пропускает первую ступень)
+	const [resumed, setResumed] = useState(false);
 	const [result, setResult] = useState<any>(null);
 	const [resultPrompt, setResultPrompt] = useState("");
 	const [error, setError] = useState("");
@@ -146,6 +149,10 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const [reasoning, setReasoning] =
 		useState<TurboReasoning>(readStoredReasoning);
 	const pollTimer = useRef<number | null>(null);
+	const galleryRef = useRef<HTMLDivElement>(null);
+	useFlipList(galleryRef, history.map((img) => img.id).join(","), () =>
+		document.querySelector<HTMLElement>('[data-slot="result-frame"]'),
+	);
 	// асинхронные продолжения не должны жить дольше экрана: он снимается при
 	// переходе в админку
 	const aliveRef = useRef(true);
@@ -352,6 +359,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 		if (pendingId) {
 			const rec = await fetchGeneration(pendingId);
 			if (rec?.status === "running") {
+				setResumed(true);
 				waitForGeneration(rec);
 				return;
 			}
@@ -364,6 +372,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 
 		const active = await fetchActiveGeneration();
 		if (active) {
+			setResumed(true);
 			waitForGeneration(active);
 			return;
 		}
@@ -382,6 +391,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 		const id = newGenerationId();
 		rememberPending(id);
 
+		setResumed(false);
 		setLoading(true);
 		setError("");
 		setResult(null);
@@ -596,6 +606,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 				<div className="animate-pop-in mt-10">
 					<ResultFrame
 						loading={loading}
+						resumed={resumed}
 						image={
 							result
 								? {
@@ -645,11 +656,15 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 						<IconHistory className="size-5" />
 						<h2 className="sr-only">Недавние</h2>
 					</div>
-					<div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-4">
+					<div
+						ref={galleryRef}
+						className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-4"
+					>
 						{history.map((img, idx) => (
 							<button
 								key={img.id}
 								type="button"
+								data-key={img.id}
 								data-sheet="ring"
 								data-impulse="tap"
 								data-weight="0.3"

@@ -1,7 +1,18 @@
 import { SheetLayer } from "@/components/sheet/SheetLayer";
 import { cn } from "@/lib/utils";
 
-/** Полоса остатка лимита: дорожка — тёмное окно, заливка — спектр до значения (scaleX) */
+/**
+ * Тон заливки по остатку — только фиолетовые оттенки листа: от спектра (много)
+ * через хребет (средне) к притушенному хребту (мало). Остаток читается ещё и по
+ * длине, поэтому тон не единственный носитель смысла.
+ */
+function tone(ratio: number): { sheet: "spectrum" | "ridge"; dim: boolean } {
+	if (ratio > 0.5) return { sheet: "spectrum", dim: false };
+	if (ratio > 0.2) return { sheet: "ridge", dim: false };
+	return { sheet: "ridge", dim: true };
+}
+
+/** Полоса остатка лимита: дорожка — тёмное окно, заливка — лист до значения (scaleX) */
 export function QuotaBar({
 	remaining,
 	total,
@@ -14,6 +25,7 @@ export function QuotaBar({
 	className?: string;
 }) {
 	const ratio = total > 0 ? Math.min(1, Math.max(0, remaining / total)) : 0;
+	const { sheet, dim } = tone(ratio);
 	return (
 		<div
 			data-sheet="dark"
@@ -25,8 +37,11 @@ export function QuotaBar({
 		>
 			<SheetLayer />
 			<div
-				data-sheet="spectrum"
-				className="h-full origin-left rounded-full transition-[transform]"
+				data-sheet={sheet}
+				className={cn(
+					"h-full origin-left rounded-full transition-[transform,opacity]",
+					dim && "opacity-60",
+				)}
 				style={{
 					transform: `scaleX(${ratio})`,
 					transitionDuration: "var(--spring-medium-ms)",

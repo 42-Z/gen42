@@ -47,8 +47,12 @@ export function remeasure(el?: HTMLElement): void {
 	else for (const w of known.keys()) if (w.isConnected) measure(w);
 }
 
+/** Массив окон кешируется: импульс читает его на каждое событие, а набор окон меняется редко */
+let cached: SheetWindow[] | null = null;
+
 export function sheetWindows(): SheetWindow[] {
-	return [...known.values()].filter((w) => w.el.isConnected);
+	cached ??= [...known.values()].filter((w) => w.el.isConnected);
+	return cached;
 }
 
 export function startWindows(): () => void {
@@ -69,6 +73,7 @@ export function startWindows(): () => void {
 			h: 0,
 			fixed: false,
 		});
+		cached = null;
 		sizes.observe(el);
 		measure(el);
 	}
@@ -82,6 +87,7 @@ export function startWindows(): () => void {
 		for (const el of known.keys()) {
 			if (!el.isConnected) {
 				known.delete(el);
+				cached = null;
 				sizes.unobserve(el);
 			}
 		}
@@ -121,5 +127,6 @@ export function startWindows(): () => void {
 		page.disconnect();
 		sizes.disconnect();
 		known.clear();
+		cached = null;
 	};
 }

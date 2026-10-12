@@ -58,6 +58,16 @@ export function Auth({ onLogin }: AuthProps) {
 			}
 
 			const data = await res.json();
+			// успех: поля отвечают сверху вниз, затем форма уходит влево
+			(isLogin ? ["email", "password"] : ["name", "email", "password"]).forEach(
+				(id, i) => {
+					window.setTimeout(() => {
+						const el = document.getElementById(id);
+						if (el)
+							impulse({ source: el, sign: 1, weight: 0.3, mass: "light" });
+					}, i * 60);
+				},
+			);
 			if (!reduced()) {
 				await formRef.current
 					?.animate(

@@ -31,8 +31,10 @@ let backdrop: HTMLElement | null | undefined;
 /** getAnimations() принудительно пересчитывает стили, поэтому активные импульсы считаем сами */
 const busy = new WeakMap<Element, number>();
 
+/** Запрос медиа создаётся один раз: `matchMedia` на каждое окно дорог */
+let reducedQuery: MediaQueryList | undefined;
 const reduced = (): boolean =>
-	matchMedia("(prefers-reduced-motion: reduce)").matches;
+	(reducedQuery ??= matchMedia("(prefers-reduced-motion: reduce)")).matches;
 
 export interface ImpulseInput {
 	source: Element;

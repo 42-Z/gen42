@@ -6,7 +6,9 @@ import { Auth } from "./Auth";
 import { Generate } from "./Generate";
 import { PopLogo } from "./graphics";
 import { Balance } from "./sheet/Balance";
+import { HoverWindow } from "./sheet/HoverWindow";
 import { Sheet, useSheetRuntime } from "./sheet/Sheet";
+import { SheetLayer } from "./sheet/SheetLayer";
 
 interface User {
 	id: string;
@@ -137,12 +139,37 @@ export function App() {
 	return (
 		<div className="relative isolate min-h-screen w-full">
 			<Sheet />
-			<header className="border-b border-border/60">
+			<header className="sticky top-0 z-50 isolate">
+				{/* шапка — тёмное окно в координатах окна просмотра (залипает, не размывает) */}
+				<i
+					data-sheet="dark"
+					data-sheet-fixed
+					aria-hidden="true"
+					className="absolute inset-0 -z-10 border-b border-border/60"
+				>
+					<SheetLayer />
+				</i>
+				{/* полоса вспышки на пике «выдоха»: по нижней кромке шапки */}
+				<span
+					aria-hidden="true"
+					className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] overflow-hidden"
+				>
+					<i
+						data-flash="band"
+						data-sheet="spectrum"
+						data-sheet-fixed
+						className="block size-full opacity-0"
+					>
+						<SheetLayer />
+					</i>
+				</span>
 				<div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:flex-wrap sm:gap-4 sm:px-6 sm:py-4">
 					<a
 						href="#/"
 						data-impulse="tap"
 						data-weight="0.2"
+						data-flash="logo"
+						className="inline-block"
 						aria-label="gen42 — на главную"
 					>
 						<PopLogo />
@@ -223,6 +250,7 @@ function AccountMenu({ user, onLogout }: { user: User; onLogout: () => void }) {
 				aria-haspopup="menu"
 				aria-label="Аккаунт"
 				weight={0.3}
+				data-sheet-fixed
 			>
 				<IconUserCircle className="size-5" />
 			</Button>
@@ -230,8 +258,9 @@ function AccountMenu({ user, onLogout }: { user: User; onLogout: () => void }) {
 				<div
 					role="menu"
 					aria-label="Аккаунт"
-					className="animate-pop-in absolute right-0 top-full z-50 mt-2 w-60 rounded-[22px] border border-border bg-popover p-2"
+					className="animate-pop-in absolute right-0 top-full isolate z-50 mt-2 w-60 rounded-[22px] border border-border bg-popover p-2"
 				>
+					<HoverWindow item="[role='menuitem']" mode="pointer" />
 					<p
 						className="truncate px-3 pb-2 pt-1.5 text-xs text-muted-foreground"
 						title={user.email}
@@ -245,7 +274,7 @@ function AccountMenu({ user, onLogout }: { user: User; onLogout: () => void }) {
 							data-weight="0.2"
 							href="#/admin"
 							onClick={() => setOpen(false)}
-							className="flex items-center gap-2.5 rounded-2xl px-3 py-2 text-sm text-foreground transition-colors outline-none hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring"
+							className="flex items-center gap-2.5 rounded-2xl px-3 py-2 text-sm text-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
 						>
 							<IconSettings className="h-4 w-4 text-muted-foreground" />
 							Админка
@@ -260,7 +289,7 @@ function AccountMenu({ user, onLogout }: { user: User; onLogout: () => void }) {
 							setOpen(false);
 							onLogout();
 						}}
-						className="flex w-full items-center gap-2.5 rounded-2xl px-3 py-2 text-sm text-foreground transition-colors outline-none hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring"
+						className="flex w-full items-center gap-2.5 rounded-2xl px-3 py-2 text-sm text-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					>
 						<IconLogout className="h-4 w-4 text-muted-foreground" />
 						Выйти

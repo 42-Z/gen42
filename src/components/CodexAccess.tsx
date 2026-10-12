@@ -1,4 +1,5 @@
 import {
+	IconBolt,
 	IconExternalLink,
 	IconLogin2,
 	IconLogout,
@@ -181,7 +182,8 @@ export function CodexAccess() {
 	return (
 		<section className="animate-pop-in mt-6 border-t border-border pt-6 [animation-delay:280ms]">
 			<div className="flex flex-wrap items-center justify-between gap-2">
-				<h3 className="font-display text-xl font-bold text-foreground">
+				<h3 className="flex items-center gap-2 font-display text-xl font-bold text-foreground">
+					<IconBolt className="size-5 text-primary" aria-hidden="true" />
 					Вход Codex
 				</h3>
 				{status && (

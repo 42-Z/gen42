@@ -1,5 +1,6 @@
 // src/components/sheet/ResultFrame.tsx
 import { useEffect, useRef } from "react";
+import { flash } from "@/lib/sheet/flash";
 import { impulse } from "@/lib/sheet/impulses";
 import { SPRINGS, springLinear } from "@/lib/sheet/springs";
 import { remeasure } from "@/lib/sheet/windows";
@@ -8,6 +9,8 @@ import { SheetLayer } from "./SheetLayer";
 
 interface ResultFrameProps {
 	loading: boolean;
+	/** Генерация возобновлена после обновления страницы: первая ступень давно пройдена */
+	resumed?: boolean;
 	image: { url: string; alt: string } | null;
 	className?: string;
 }
@@ -19,7 +22,12 @@ const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
  * отправлен → принят), затем дыхание; без слов и цифр. Готово — занавес
  * сдёргивается влево, картинка проявляется, волна уходит по странице («выдох»).
  */
-export function ResultFrame({ loading, image, className }: ResultFrameProps) {
+export function ResultFrame({
+	loading,
+	resumed = false,
+	image,
+	className,
+}: ResultFrameProps) {
 	const frame = useRef<HTMLDivElement>(null);
 	const flow = useRef<HTMLElement>(null);
 	const pic = useRef<HTMLImageElement>(null);
@@ -39,19 +47,28 @@ export function ResultFrame({ loading, image, className }: ResultFrameProps) {
 			was.current = true;
 			remeasure(fr);
 			fl.dataset.on = "true";
-			fl.style.opacity = "0.25";
-			timer.current = window.setTimeout(() => {
+			const settle = (announce: boolean) => {
 				fl.style.opacity = "0.4";
-				impulse({ source: fr, sign: 1, weight: 0.3, mass: "heavy" });
+				if (announce) {
+					impulse({ source: fr, sign: 1, weight: 0.3, mass: "heavy" });
+				}
 				if (!reduced()) {
 					breath.current = fl.animate([{ opacity: 0.4 }, { opacity: 0.55 }], {
 						duration: 2000,
 						direction: "alternate",
 						iterations: Number.POSITIVE_INFINITY,
-						easing: "ease-in-out",
+						// ступенчатое дыхание: кадр рисуется только при заметном изменении яркости
+						easing: "steps(6)",
 					});
 				}
-			}, 800);
+			};
+			if (resumed) {
+				// после обновления страницы запрос давно принят: сразу вторая ступень
+				settle(false);
+			} else {
+				fl.style.opacity = "0.25";
+				timer.current = window.setTimeout(() => settle(true), 800);
+			}
 			return clearTimer;
 		}
 		clearTimer();
@@ -73,6 +90,7 @@ export function ResultFrame({ loading, image, className }: ResultFrameProps) {
 		if (reduced()) {
 			finish();
 			impulse({ source: fr, sign: 1, weight: 1, mass: "heavy" });
+			flash();
 			return;
 		}
 		pic.current?.animate(
@@ -92,15 +110,17 @@ export function ResultFrame({ loading, image, className }: ResultFrameProps) {
 				finish();
 				curtain.cancel();
 				impulse({ source: fr, sign: 1, weight: 1, mass: "heavy" });
+				flash();
 			},
 			() => finish(),
 		);
 		return clearTimer;
-	}, [loading]);
+	}, [loading, resumed]);
 
 	return (
 		<div
 			ref={frame}
+			data-slot="result-frame"
 			data-sheet="dark"
 			{...(image ? {} : { role: "img", "aria-label": "Пустой холст" })}
 			className={cn(
