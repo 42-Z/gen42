@@ -2,6 +2,19 @@
 @import "./sheet.generated.css";
 @import "./sheet.css";
 
+/*
+ * Gothic №60 (Алина Молчанова): заголовки, логотип, крупные числа. Одно начертание
+ * Regular, юникейс; диапазон весов в @font-face заявляет, что оно подходит под любой
+ * вес, поэтому браузер не рисует искусственный полужирный.
+ */
+@font-face {
+  font-family: "Gothic 60";
+  src: url("./fonts/gothic60.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --color-background: #0d0b1e;
   --color-foreground: #f2efff;
@@ -26,7 +39,7 @@
   --pop-indigo: #6c5cff;
   --pop-fuchsia: #ff5ca8;
 
-  --font-display: "Bricolage Grotesque", "Inter Tight", system-ui, sans-serif;
+  --font-display: "Gothic 60", "Inter Tight", system-ui, sans-serif;
   --font-sans: "Inter Tight", system-ui, sans-serif;
 }
 
@@ -61,5 +74,8 @@
 @layer utilities {
   .font-display {
     font-family: var(--font-display);
+    font-synthesis: none;
+    /* пробел в Gothic №60 узкий: без добавки слова слипаются («пулгенерации») */
+    word-spacing: 0.22em;
   }
 }
