@@ -1,0 +1,63 @@
+/* src/doodle-mellsher.css
+   Движение дудла «Меллшер» (рисунок — src/components/sheet/doodles/Mellsher.tsx).
+   Общие правила дудлов (цвета, появление, моргание, кивок) — в src/doodles.css.
+   Проценты в @keyframes — доли показа (DOODLE_MS = 3800 мс): появление до 22 %,
+   игра до 82 %, уход до 100 %. Анимируются только transform и opacity. */
+@layer components {
+	/* Меллшер: рука с микрофоном качается в такт, кудри подпрыгивают */
+	.dk-mellsher .d-arm-up {
+		transform-origin: 50% 100%;
+		animation: mel-arm var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes mel-arm {
+		0%,
+		22% {
+			transform: rotate(0deg);
+		}
+		30% {
+			transform: rotate(-14deg);
+		}
+		38% {
+			transform: rotate(10deg);
+		}
+		46% {
+			transform: rotate(-14deg);
+		}
+		54% {
+			transform: rotate(10deg);
+		}
+		62% {
+			transform: rotate(-10deg);
+		}
+		70%,
+		100% {
+			transform: rotate(0deg);
+		}
+	}
+
+	.dk-mellsher .d-hair {
+		animation: mel-hair var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes mel-hair {
+		0%,
+		24% {
+			transform: translate(0, 0);
+		}
+		30%,
+		46%,
+		62% {
+			transform: translate(0, -2.5px);
+		}
+		34%,
+		50%,
+		66% {
+			transform: translate(0, 0);
+		}
+		70%,
+		100% {
+			transform: translate(0, 0);
+		}
+	}
+}

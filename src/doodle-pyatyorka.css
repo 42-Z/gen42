@@ -1,0 +1,63 @@
+/* src/doodle-pyatyorka.css
+   Движение дудла «Пятёрка» (рисунок — src/components/sheet/doodles/Pyatyorka.tsx).
+   Общие правила дудлов (цвета, появление, моргание, кивок) — в src/doodles.css.
+   Проценты в @keyframes — доли показа (DOODLE_MS = 3800 мс): появление до 22 %,
+   игра до 82 %, уход до 100 %. Анимируются только transform и opacity. */
+@layer components {
+	/* Пятёрка: крылья раскрываются и машут, голова хитро кивает */
+	.dk-pyatyorka .d-wing-l {
+		transform-origin: 100% 70%;
+		animation: pya-wing-l var(--d-ms, 3800ms) both;
+	}
+
+	.dk-pyatyorka .d-wing-r {
+		transform-origin: 0% 70%;
+		animation: pya-wing-r var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes pya-wing-l {
+		0%,
+		20% {
+			transform: rotate(20deg) scale(0.7);
+		}
+		30% {
+			transform: rotate(-16deg) scale(1.08);
+		}
+		38% {
+			transform: rotate(6deg) scale(1);
+		}
+		46% {
+			transform: rotate(-14deg) scale(1.04);
+		}
+		54% {
+			transform: rotate(4deg) scale(1);
+		}
+		62%,
+		100% {
+			transform: rotate(0deg) scale(1);
+		}
+	}
+
+	@keyframes pya-wing-r {
+		0%,
+		20% {
+			transform: rotate(-20deg) scale(0.7);
+		}
+		30% {
+			transform: rotate(16deg) scale(1.08);
+		}
+		38% {
+			transform: rotate(-6deg) scale(1);
+		}
+		46% {
+			transform: rotate(14deg) scale(1.04);
+		}
+		54% {
+			transform: rotate(-4deg) scale(1);
+		}
+		62%,
+		100% {
+			transform: rotate(0deg) scale(1);
+		}
+	}
+}
