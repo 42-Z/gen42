@@ -1147,7 +1147,6 @@ export function ResultFrame({ loading, image, className }: ResultFrameProps) {
 	const breath = useRef<Animation | null>(null);
 	const timer = useRef<number | null>(null);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: реагируем на смену `loading`
 	useEffect(() => {
 		const fl = flow.current;
 		const fr = frame.current;
@@ -1217,8 +1216,7 @@ export function ResultFrame({ loading, image, className }: ResultFrameProps) {
 		<div
 			ref={frame}
 			data-sheet="dark"
-			role={image ? undefined : "img"}
-			aria-label={image ? undefined : "Пустой холст"}
+			{...(image ? {} : { role: "img", "aria-label": "Пустой холст" })}
 			className={cn("relative aspect-square w-full overflow-hidden rounded-[22px] border border-border", className)}
 		>
 			<SheetLayer />

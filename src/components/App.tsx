@@ -1,15 +1,11 @@
-import {
-	IconCoins,
-	IconLogout,
-	IconSettings,
-	IconUserCircle,
-} from "@tabler/icons-react";
+import { IconLogout, IconSettings, IconUserCircle } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Admin } from "./Admin";
 import { Auth } from "./Auth";
 import { Generate } from "./Generate";
 import { PopLogo, PopSpinner } from "./graphics";
+import { Balance } from "./sheet/Balance";
 import { Sheet, useSheetRuntime } from "./sheet/Sheet";
 
 interface User {
@@ -133,7 +129,7 @@ export function App() {
 	return (
 		<div className="relative isolate min-h-screen w-full">
 			<Sheet />
-			<header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-md">
+			<header className="border-b border-border/60">
 				<div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:flex-wrap sm:gap-4 sm:px-6 sm:py-4">
 					<a href="#/" aria-label="gen42 — на главную">
 						<PopLogo />
@@ -142,30 +138,11 @@ export function App() {
 					<div className="flex items-center gap-3">
 						{balance === null ? (
 							<div
-								className="h-8 w-16 animate-pulse rounded-full bg-secondary/60"
+								className="h-8 w-16 rounded-full bg-secondary/60"
 								aria-hidden
 							/>
 						) : (
-							<div
-								className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm tabular-nums"
-								role="status"
-								aria-label={`Баланс: ${balance}`}
-							>
-								<IconCoins
-									className={cn(
-										"h-4 w-4",
-										balance > 0 ? "text-[#ffd54a]" : "text-destructive",
-									)}
-									strokeWidth={1.75}
-								/>
-								<span
-									className={
-										balance > 0 ? "text-foreground" : "text-destructive"
-									}
-								>
-									{balance}
-								</span>
-							</div>
+							<Balance value={balance} />
 						)}
 						<AccountMenu user={user} onLogout={handleLogout} />
 					</div>
@@ -218,21 +195,23 @@ function AccountMenu({ user, onLogout }: { user: User; onLogout: () => void }) {
 
 	return (
 		<div ref={rootRef} className="relative">
-			<button
+			<Button
 				type="button"
+				variant="outline"
+				size="icon"
 				onClick={() => setOpen((o) => !o)}
 				aria-expanded={open}
 				aria-haspopup="menu"
 				aria-label="Аккаунт"
-				className="rounded-full border border-border bg-card p-2 text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.95]"
+				weight={0.3}
 			>
-				<IconUserCircle className="h-5 w-5" />
-			</button>
+				<IconUserCircle className="size-5" />
+			</Button>
 			{open && (
 				<div
 					role="menu"
 					aria-label="Аккаунт"
-					className="pop-card animate-pop-in absolute right-0 top-full z-50 mt-2 w-60 p-2"
+					className="animate-pop-in absolute right-0 top-full z-50 mt-2 w-60 rounded-[22px] border border-border bg-popover p-2"
 				>
 					<p
 						className="truncate px-3 pb-2 pt-1.5 text-xs text-muted-foreground"
@@ -243,6 +222,8 @@ function AccountMenu({ user, onLogout }: { user: User; onLogout: () => void }) {
 					{user.isAdmin && (
 						<a
 							role="menuitem"
+							data-impulse="tap"
+							data-weight="0.2"
 							href="#/admin"
 							onClick={() => setOpen(false)}
 							className="flex items-center gap-2.5 rounded-2xl px-3 py-2 text-sm text-foreground transition-colors outline-none hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring"
@@ -254,6 +235,8 @@ function AccountMenu({ user, onLogout }: { user: User; onLogout: () => void }) {
 					<button
 						type="button"
 						role="menuitem"
+						data-impulse="tap"
+						data-weight="0.2"
 						onClick={() => {
 							setOpen(false);
 							onLogout();

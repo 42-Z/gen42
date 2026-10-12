@@ -1,14 +1,16 @@
 import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
-/* Пузырьковый градиентный вордмарк + искра */
+/* «gen42»: слово залито листом */
 export function PopLogo({ className }: { className?: string }) {
 	return (
-		<span className={cn("inline-flex items-center gap-1.5", className)}>
-			<span className="pop-gradient-text font-display text-2xl font-extrabold tracking-tight">
-				gen42
-			</span>
-			<SparkStar className="h-5 w-5" />
+		<span
+			className={cn(
+				"logo font-display text-2xl font-extrabold tracking-tight",
+				className,
+			)}
+		>
+			gen42
 		</span>
 	);
 }
