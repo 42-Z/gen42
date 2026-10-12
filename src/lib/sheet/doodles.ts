@@ -8,7 +8,6 @@
 export const DOODLES = [
 	"pug",
 	"hippo",
-	"giraffe",
 	"pig",
 	"pyatyorka",
 	"mellsher",

@@ -1,6 +1,5 @@
 // src/components/sheet/doodles/index.tsx
 import type { DoodleKind } from "@/lib/sheet/doodles";
-import { Giraffe } from "./Giraffe";
 import { Hippo } from "./Hippo";
 import { Mellsher } from "./Mellsher";
 import { Pig } from "./Pig";
@@ -10,7 +9,6 @@ import { Pyatyorka } from "./Pyatyorka";
 const ART: Record<DoodleKind, () => React.JSX.Element> = {
 	pug: Pug,
 	hippo: Hippo,
-	giraffe: Giraffe,
 	pig: Pig,
 	pyatyorka: Pyatyorka,
 	mellsher: Mellsher,
