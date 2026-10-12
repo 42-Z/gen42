@@ -119,7 +119,7 @@ export function Auth({ onLogin }: AuthProps) {
 					ref={formRef}
 					className="animate-pop-in w-full border-t border-border pt-8 [animation-delay:120ms]"
 				>
-					<h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
+					<h1 className="font-display text-2xl text-foreground">
 						{isLogin ? "Вход" : "Регистрация"}
 					</h1>
 

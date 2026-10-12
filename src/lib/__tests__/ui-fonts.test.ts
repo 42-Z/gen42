@@ -21,6 +21,27 @@ describe("шрифты", () => {
 		expect(css).toContain("font-synthesis: none");
 	});
 
+	test("у display-шрифта есть трекинг и межсловный пробел (плотный набор слипается)", async () => {
+		const css = await read("src/index.css");
+		expect(css).toMatch(
+			/\.font-display\s*\{[^}]*letter-spacing:\s*0\.0[4-8]em/,
+		);
+		expect(css).toMatch(/\.font-display\s*\{[^}]*word-spacing:/);
+	});
+
+	test("display-элементы не сжимаются классом tracking-tight", async () => {
+		for (const file of [
+			"Auth",
+			"Admin",
+			"CodexAccess",
+			"Generate",
+			"graphics",
+		]) {
+			const src = await read(`src/components/${file}.tsx`);
+			expect(src).not.toMatch(/font-display[^"`]*tracking-tight/);
+		}
+	});
+
 	test("страница не грузит display-шрифт без кириллицы", async () => {
 		const html = await read("index.html");
 		expect(html).not.toContain("Bricolage");

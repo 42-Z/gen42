@@ -204,9 +204,7 @@ export function Admin() {
 	if (loading) {
 		return (
 			<div className="mx-auto max-w-5xl">
-				<h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground">
-					Админка
-				</h2>
+				<h2 className="font-display text-3xl text-foreground">Админка</h2>
 				<div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
 					{[0, 1, 2].map((i) => (
 						<div
@@ -274,9 +272,7 @@ export function Admin() {
 	return (
 		<div className="relative mx-auto max-w-5xl overflow-hidden">
 			<div className="animate-pop-in">
-				<h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground">
-					Админка
-				</h2>
+				<h2 className="font-display text-3xl text-foreground">Админка</h2>
 			</div>
 
 			{error && (
