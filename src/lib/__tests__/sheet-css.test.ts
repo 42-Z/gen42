@@ -100,6 +100,11 @@ describe("css-lint", () => {
 		expect(props.has("transition-duration")).toBe(false);
 	});
 
+	test("кривая отрезка animation-timing-function в кадрах не считается анимируемым свойством", () => {
+		const css = `@keyframes a { 0% { transform: none; animation-timing-function: ease-in } 100% { transform: scale(2) } }`;
+		expect([...animatedProperties(css)]).toEqual(["transform"]);
+	});
+
 	test("разрешённые свойства и запрещённые токены", () => {
 		expect([...ALLOWED_ANIMATED].sort()).toEqual([
 			"opacity",

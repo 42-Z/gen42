@@ -275,6 +275,11 @@ async function open(
 	page.on("pageerror", (e) => console.log("  ошибка страницы:", e.message));
 	await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
 	await page.addInitScript(() => {
+		// дудлы по таймеру выключены, чтобы не попадать в окна замеров;
+		// сценарий «дудлы» запускает их вручную событием
+		try {
+			localStorage.setItem("gen42-doodles", "off");
+		} catch {}
 		const w = window as unknown as { __raf: number };
 		w.__raf = 0;
 		const original = window.requestAnimationFrame.bind(window);
@@ -565,6 +570,74 @@ try {
 	);
 	await shot(rs.page, "16-resumed");
 	await rs.context.close();
+
+	// ── дудлы: слово уступает место персонажу и возвращается, покой чистый ──
+	const dd = await open(browser, { signedIn: true });
+	await dd.page.waitForSelector("header .brand");
+	await pause(dd.page, 900);
+	const doodlesIdle = await dd.page.evaluate(
+		() => document.querySelectorAll(".doodle").length,
+	);
+	check("дудлы: в покое рисунков в DOM", doodlesIdle, doodlesIdle === 0);
+	for (const kind of ["pug", "hippo", "giraffe", "pig"]) {
+		await dd.page.evaluate((k) => {
+			document
+				.querySelector("header .brand")
+				?.dispatchEvent(new CustomEvent("doodle:play", { detail: k }));
+		}, kind);
+		await pause(dd.page, 1700);
+		await shot(dd.page, `17-doodle-${kind}`);
+		const during = await dd.page.evaluate(() => {
+			const logo = document.querySelector("header .logo") as HTMLElement;
+			const svg = document.querySelector("header .doodle") as SVGElement | null;
+			const box = svg?.getBoundingClientRect();
+			return {
+				logoOpacity: Number.parseFloat(getComputedStyle(logo).opacity),
+				cls: svg?.getAttribute("class") ?? "",
+				top: box?.top ?? -1,
+				bottom: box?.bottom ?? -1,
+				headerBottom:
+					document.querySelector("header")?.getBoundingClientRect().bottom ?? 0,
+			};
+		});
+		check(
+			`дудл ${kind}: слово ушло, персонаж в шапке`,
+			during.logoOpacity,
+			during.logoOpacity < 0.05 &&
+				during.cls.includes(`dk-${kind}`) &&
+				during.top >= 0 &&
+				during.bottom <= during.headerBottom,
+		);
+		await dd.page.waitForFunction(
+			() => !document.querySelector(".doodle"),
+			null,
+			{
+				timeout: 6000,
+			},
+		);
+		await pause(dd.page, 300);
+	}
+	const after = await dd.page.evaluate(() => ({
+		marked: document
+			.querySelector("header .brand")
+			?.hasAttribute("data-doodle"),
+		logoOpacity: Number.parseFloat(
+			getComputedStyle(document.querySelector("header .logo") as HTMLElement)
+				.opacity,
+		),
+	}));
+	check(
+		"дудлы: после показа слово вернулось",
+		after.logoOpacity,
+		after.logoOpacity === 1 && after.marked === false,
+	);
+	const afterAnimations = await animations(dd.page);
+	check(
+		"дудлы: после показа активных анимаций (дрейф фона)",
+		afterAnimations,
+		afterAnimations === 1,
+	);
+	await dd.context.close();
 
 	// ── reduced-motion ──────────────────────────────────────────────────
 	const rm = await open(browser, { signedIn: true, reduced: true });

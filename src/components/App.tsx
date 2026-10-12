@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Admin } from "./Admin";
 import { Auth } from "./Auth";
 import { Generate } from "./Generate";
-import { PopLogo } from "./graphics";
 import { Balance } from "./sheet/Balance";
+import { BrandMark } from "./sheet/BrandMark";
 import { HoverWindow } from "./sheet/HoverWindow";
 import { Sheet, useSheetRuntime } from "./sheet/Sheet";
 import { SheetLayer } from "./sheet/SheetLayer";
@@ -172,7 +172,7 @@ export function App() {
 						className="inline-block"
 						aria-label="gen42 — на главную"
 					>
-						<PopLogo />
+						<BrandMark />
 					</a>
 
 					<div className="flex items-center gap-3">

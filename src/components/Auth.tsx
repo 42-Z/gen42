@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { impulse } from "@/lib/sheet/impulses";
 import { springLinear } from "@/lib/sheet/springs";
-import { PopLogo } from "./graphics";
+import { BrandMark } from "./sheet/BrandMark";
 import { Sheet } from "./sheet/Sheet";
 
 interface AuthProps {
@@ -112,7 +112,7 @@ export function Auth({ onLogin }: AuthProps) {
 			<Sheet />
 			<div className="mx-auto grid min-h-screen w-full max-w-5xl grid-cols-1 items-center gap-12 px-6 py-16 lg:grid-cols-2 lg:gap-16">
 				<div className="animate-pop-in flex flex-col items-start">
-					<PopLogo className="text-5xl lg:text-6xl" />
+					<BrandMark className="text-5xl lg:text-6xl" />
 				</div>
 
 				<div

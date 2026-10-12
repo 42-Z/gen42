@@ -1,8 +1,11 @@
 // src/lib/sheet/css.ts
 import {
+	BASE,
 	color,
 	ERROR,
+	mix,
 	phase,
+	type RGB,
 	type Role,
 	rgbString,
 	STOPS,
@@ -33,6 +36,23 @@ export function gradient(role: Role): string {
 
 const MASSES: Mass[] = ["light", "medium", "heavy"];
 
+/**
+ * Плоские цвета персонажей-дудлов: те же опоры листа, без золота и жёлтого.
+ * `d-0…d-5` — опоры S0…S5; `d-w` — белки глаз и цифры; `d-l` — светлый тон
+ * (морда, брюхо); `d-n` — глубокий индиго (зрачки, пасть, тень).
+ */
+export const DOODLE_COLORS: Record<string, RGB> = {
+	"d-0": STOPS.S0,
+	"d-1": STOPS.S1,
+	"d-2": STOPS.S2,
+	"d-3": STOPS.S3,
+	"d-4": STOPS.S4,
+	"d-5": STOPS.S5,
+	"d-w": TEXT,
+	"d-l": mix(STOPS.S1, TEXT, 0.6),
+	"d-n": mix(STOPS.S0, BASE, 0.8),
+};
+
 export function buildSheetCss(): string {
 	const lines = [
 		"/* Сгенерировано scripts/gen-sheet-css.ts из src/lib/sheet/*. Не править вручную: bun run sheet:css */",
@@ -47,6 +67,9 @@ export function buildSheetCss(): string {
 		`  --error: ${rgbString(ERROR)};`,
 		`  --wave-max: ${WAVE_MAX_MS}ms;`,
 	];
+	for (const [name, rgb] of Object.entries(DOODLE_COLORS)) {
+		lines.push(`  --${name}: ${rgbString(rgb)};`);
+	}
 	for (const mass of MASSES) {
 		lines.push(`  --spring-${mass}: ${springLinear(mass)};`);
 		lines.push(`  --spring-${mass}-ms: ${SPRINGS[mass].move}ms;`);

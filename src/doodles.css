@@ -1,0 +1,580 @@
+/* src/doodles.css
+   Дудлы вместо логотипа: короткие появления персонажей про 42 в стиле Duolingo.
+   Рисунки — src/components/sheet/doodles/, логика показа — src/lib/sheet/doodles.ts.
+   Показ идёт только по таймеру или событию и сам убирает рисунок из DOM, поэтому в
+   покое от дудлов нет ни анимаций, ни слоёв. Анимируются только transform и opacity.
+   Проценты в @keyframes — доли показа (DOODLE_MS = 3800 мс): появление до 22 %,
+   игра до 82 %, уход до 100 %. */
+@layer components {
+	/* знак: слово «gen42», поверх него на время показа — дудл */
+	.brand {
+		position: relative;
+		display: inline-block;
+	}
+
+	.brand > .doodle {
+		position: absolute;
+		left: 0;
+		top: 50%;
+		width: 3.4em;
+		height: 2em;
+		margin-top: -1em;
+		overflow: visible;
+		pointer-events: none;
+		transform-origin: 50% 92%;
+		animation: d-show var(--d-ms, 3800ms) both;
+	}
+
+	/* слово уходит, пока играет дудл, и возвращается пружиной */
+	.brand[data-doodle] > .logo {
+		animation: d-logo var(--d-ms, 3800ms) both;
+	}
+
+	/* оси вращения и масштаба считаются по габариту самой части (классы d-*);
+	   у деталей с атрибутом transform="rotate(…)" режим не включается: с fill-box
+	   поворот шёл бы вокруг левого верхнего угла, а не заданной точки */
+	.doodle [class^="d-"],
+	.doodle [class*=" d-"] {
+		transform-box: fill-box;
+	}
+
+	/* плоские цвета листа; t-l и t-d — светлый и тёмный тон поверх основного
+	   (светлое «брюшко», пятна), чтобы персонаж оставался в одном оттенке */
+	.doodle .f-0 { fill: var(--d-0); }
+	.doodle .f-1 { fill: var(--d-1); }
+	.doodle .f-2 { fill: var(--d-2); }
+	.doodle .f-3 { fill: var(--d-3); }
+	.doodle .f-4 { fill: var(--d-4); }
+	.doodle .f-5 { fill: var(--d-5); }
+	.doodle .f-w { fill: var(--d-w); }
+	.doodle .f-l { fill: var(--d-l); }
+	.doodle .f-n { fill: var(--d-n); }
+	.doodle .t-l {
+		fill: var(--d-w);
+		fill-opacity: 0.26;
+	}
+	.doodle .t-d {
+		fill: var(--d-n);
+		fill-opacity: 0.32;
+	}
+	.doodle .s-4 { stroke: var(--d-4); }
+	.doodle .s-5 { stroke: var(--d-5); }
+	.doodle .s-w { stroke: var(--d-w); }
+	.doodle .s-l { stroke: var(--d-l); }
+	.doodle .s-n { stroke: var(--d-n); }
+
+	/* появление: сплющивание и растяжение, уход тем же жестом */
+	@keyframes d-show {
+		0% {
+			opacity: 0;
+			transform: scale(0.2, 0.2);
+		}
+		5% {
+			opacity: 1;
+			transform: scale(1.12, 0.84);
+		}
+		11% {
+			transform: scale(0.94, 1.1);
+		}
+		17% {
+			transform: scale(1.03, 0.98);
+		}
+		22% {
+			transform: scale(1, 1);
+		}
+		82% {
+			opacity: 1;
+			transform: scale(1, 1);
+		}
+		87% {
+			transform: scale(1.06, 0.9);
+		}
+		100% {
+			opacity: 0;
+			transform: scale(0.15, 0.15);
+		}
+	}
+
+	@keyframes d-logo {
+		0% {
+			opacity: 1;
+			transform: scale(1);
+		}
+		4% {
+			opacity: 0;
+			transform: scale(0.7);
+		}
+		90% {
+			opacity: 0;
+			transform: scale(0.7);
+			animation-timing-function: var(--spring-medium);
+		}
+		100% {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	/* общее для всех: моргание дважды, кивок головой, хлопок ушей, кулон на цепи */
+	.doodle .d-eye {
+		transform-origin: 50% 50%;
+		animation: d-blink var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes d-blink {
+		0%,
+		29% {
+			transform: scale(1, 1);
+		}
+		31% {
+			transform: scale(1, 0.08);
+		}
+		33%,
+		60% {
+			transform: scale(1, 1);
+		}
+		62% {
+			transform: scale(1, 0.08);
+		}
+		64%,
+		100% {
+			transform: scale(1, 1);
+		}
+	}
+
+	.doodle .d-head {
+		transform-origin: 50% 90%;
+		animation: d-nod var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes d-nod {
+		0%,
+		16% {
+			transform: rotate(0deg);
+		}
+		24% {
+			transform: rotate(-5deg);
+		}
+		34% {
+			transform: rotate(4deg);
+		}
+		44% {
+			transform: rotate(0deg);
+		}
+		52% {
+			transform: rotate(5deg);
+		}
+		62% {
+			transform: rotate(-4deg);
+		}
+		72%,
+		100% {
+			transform: rotate(0deg);
+		}
+	}
+
+	.doodle .d-ear-l {
+		transform-origin: 70% 90%;
+		animation: d-ear-l var(--d-ms, 3800ms) both;
+	}
+
+	.doodle .d-ear-r {
+		transform-origin: 30% 90%;
+		animation: d-ear-r var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes d-ear-l {
+		0%,
+		20% {
+			transform: rotate(0deg);
+		}
+		27% {
+			transform: rotate(-12deg);
+		}
+		35% {
+			transform: rotate(6deg);
+		}
+		43%,
+		100% {
+			transform: rotate(0deg);
+		}
+	}
+
+	@keyframes d-ear-r {
+		0%,
+		20% {
+			transform: rotate(0deg);
+		}
+		27% {
+			transform: rotate(12deg);
+		}
+		35% {
+			transform: rotate(-6deg);
+		}
+		43%,
+		100% {
+			transform: rotate(0deg);
+		}
+	}
+
+	.doodle .d-swing {
+		transform-origin: 50% 0%;
+		animation: d-swing var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes d-swing {
+		0%,
+		18% {
+			transform: rotate(0deg);
+		}
+		24% {
+			transform: rotate(16deg);
+		}
+		31% {
+			transform: rotate(-12deg);
+		}
+		38% {
+			transform: rotate(7deg);
+		}
+		45% {
+			transform: rotate(-3deg);
+		}
+		52%,
+		100% {
+			transform: rotate(0deg);
+		}
+	}
+
+	/* мопс: уши висят от макушки, корона подпрыгивает, язык дышит */
+	.dk-pug .d-ear-l {
+		transform-origin: 70% 15%;
+	}
+
+	.dk-pug .d-ear-r {
+		transform-origin: 30% 15%;
+	}
+
+	.dk-pug .d-crown {
+		transform-origin: 50% 100%;
+		animation: pug-crown var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes pug-crown {
+		0%,
+		22% {
+			transform: translate(0, 0) rotate(0deg);
+		}
+		27% {
+			transform: translate(0, -7px) rotate(-8deg);
+		}
+		33%,
+		50% {
+			transform: translate(0, 0) rotate(0deg);
+		}
+		55% {
+			transform: translate(0, -5px) rotate(7deg);
+		}
+		61%,
+		100% {
+			transform: translate(0, 0) rotate(0deg);
+		}
+	}
+
+	.dk-pug .d-tongue {
+		transform-origin: 50% 0%;
+		animation: pug-pant var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes pug-pant {
+		0%,
+		36% {
+			transform: scale(1, 1);
+		}
+		40% {
+			transform: scale(1.1, 1.4);
+		}
+		44% {
+			transform: scale(1, 1);
+		}
+		48% {
+			transform: scale(1.1, 1.4);
+		}
+		52%,
+		100% {
+			transform: scale(1, 1);
+		}
+	}
+
+	/* бегемот: выезжает, колёса крутятся, подпрыгивает, уезжает */
+	.dk-hippo .d-ride {
+		animation: hippo-ride var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes hippo-ride {
+		0% {
+			transform: translate(-46px, 0);
+			animation-timing-function: var(--spring-medium);
+		}
+		22% {
+			transform: translate(0, 0);
+		}
+		80% {
+			transform: translate(0, 0);
+			animation-timing-function: ease-in;
+		}
+		100% {
+			transform: translate(48px, 0);
+		}
+	}
+
+	.dk-hippo .d-wheel {
+		transform-origin: 50% 50%;
+		animation: hippo-wheel var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes hippo-wheel {
+		0% {
+			transform: rotate(0deg);
+		}
+		22%,
+		80% {
+			transform: rotate(540deg);
+		}
+		100% {
+			transform: rotate(1080deg);
+		}
+	}
+
+	.dk-hippo .d-hop {
+		transform-origin: 50% 100%;
+		animation: hippo-hop var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes hippo-hop {
+		0%,
+		36% {
+			transform: translate(0, 0) scale(1, 1);
+		}
+		41% {
+			transform: translate(0, 0) scale(1.06, 0.9);
+		}
+		47% {
+			transform: translate(0, -13px) scale(0.96, 1.08) rotate(-3deg);
+		}
+		55% {
+			transform: translate(0, 0) scale(1.07, 0.92);
+		}
+		60%,
+		70% {
+			transform: translate(0, 0) scale(1, 1);
+		}
+		74% {
+			transform: translate(0, -7px) scale(0.98, 1.04);
+		}
+		79%,
+		100% {
+			transform: translate(0, 0) scale(1, 1);
+		}
+	}
+
+	.dk-hippo .d-ear-l,
+	.dk-hippo .d-ear-r {
+		transform-origin: 50% 100%;
+	}
+
+	/* жираф: шея вытягивается и ныряет, голова едет на её верхушке в такт */
+	.dk-giraffe .d-neck {
+		transform-origin: 50% 100%;
+		animation: giraffe-neck var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes giraffe-neck {
+		0%,
+		18% {
+			transform: scale(1, 0.45);
+		}
+		30% {
+			transform: scale(1, 1.18);
+		}
+		38% {
+			transform: scale(1, 0.96);
+		}
+		44%,
+		56% {
+			transform: scale(1, 1);
+		}
+		62% {
+			transform: scale(1, 0.55);
+		}
+		70% {
+			transform: scale(1, 1.1);
+		}
+		78%,
+		100% {
+			transform: scale(1, 1);
+		}
+	}
+
+	.dk-giraffe .d-gh {
+		animation: giraffe-head var(--d-ms, 3800ms) both;
+	}
+
+	/* сдвиг головы = длина шеи (46) × (1 − масштаб шеи) */
+	@keyframes giraffe-head {
+		0%,
+		18% {
+			transform: translate(0, 25.3px);
+		}
+		30% {
+			transform: translate(0, -8.3px);
+		}
+		38% {
+			transform: translate(0, 1.8px);
+		}
+		44%,
+		56% {
+			transform: translate(0, 0);
+		}
+		62% {
+			transform: translate(0, 20.7px);
+		}
+		70% {
+			transform: translate(0, -4.6px);
+		}
+		78%,
+		100% {
+			transform: translate(0, 0);
+		}
+	}
+
+	.dk-giraffe .d-tail {
+		transform-origin: 90% 85%;
+		animation: giraffe-tail var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes giraffe-tail {
+		0%,
+		30% {
+			transform: rotate(0deg);
+		}
+		38% {
+			transform: rotate(-16deg);
+		}
+		46% {
+			transform: rotate(10deg);
+		}
+		54% {
+			transform: rotate(-14deg);
+		}
+		62% {
+			transform: rotate(8deg);
+		}
+		70%,
+		100% {
+			transform: rotate(0deg);
+		}
+	}
+
+	/* свин: рука носит попкорн ко рту, пятачок жуёт, зёрна подскакивают */
+	.dk-pig .d-arm {
+		transform-origin: 8% 50%;
+		animation: pig-arm var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes pig-arm {
+		0%,
+		24% {
+			transform: rotate(0deg);
+		}
+		31%,
+		35% {
+			transform: rotate(-72deg);
+		}
+		42%,
+		46% {
+			transform: rotate(0deg);
+		}
+		53%,
+		57% {
+			transform: rotate(-72deg);
+		}
+		64%,
+		100% {
+			transform: rotate(0deg);
+		}
+	}
+
+	.dk-pig .d-snout {
+		transform-origin: 50% 40%;
+		animation: pig-chew var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes pig-chew {
+		0%,
+		33% {
+			transform: scale(1, 1);
+		}
+		36% {
+			transform: scale(1.06, 0.9);
+		}
+		39% {
+			transform: scale(1, 1);
+		}
+		42% {
+			transform: scale(1.06, 0.9);
+		}
+		45%,
+		55% {
+			transform: scale(1, 1);
+		}
+		58% {
+			transform: scale(1.06, 0.9);
+		}
+		61% {
+			transform: scale(1, 1);
+		}
+		64% {
+			transform: scale(1.06, 0.9);
+		}
+		67%,
+		100% {
+			transform: scale(1, 1);
+		}
+	}
+
+	.dk-pig .d-corn {
+		transform-origin: 50% 100%;
+		animation: pig-corn var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes pig-corn {
+		0%,
+		24% {
+			transform: translate(0, 0);
+		}
+		28% {
+			transform: translate(0, -4px);
+		}
+		32%,
+		50% {
+			transform: translate(0, 0);
+		}
+		54% {
+			transform: translate(0, -4px);
+		}
+		58%,
+		100% {
+			transform: translate(0, 0);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.brand > .doodle {
+			display: none;
+		}
+
+		.brand[data-doodle] > .logo {
+			animation: none;
+		}
+	}
+}

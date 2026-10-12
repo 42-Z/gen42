@@ -20,8 +20,10 @@ export function animatedProperties(css: string): Set<string> {
 		/@keyframes\s+[\w-]+\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g,
 	)) {
 		for (const frame of block[1]!.matchAll(/\{([^{}]*)\}/g)) {
-			for (const decl of frame[1]!.matchAll(/([a-z-]+)\s*:/g))
-				out.add(decl[1]!);
+			for (const decl of frame[1]!.matchAll(/([a-z-]+)\s*:/g)) {
+				// кривая отрезка между кадрами управляет временем, а не анимирует свойство
+				if (decl[1] !== "animation-timing-function") out.add(decl[1]!);
+			}
 		}
 	}
 	for (const m of source.matchAll(
