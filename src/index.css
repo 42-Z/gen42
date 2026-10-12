@@ -3,13 +3,15 @@
 @import "./sheet.css";
 
 /*
- * Gothic №60 (Алина Молчанова): заголовки, логотип, крупные числа. Одно начертание
- * Regular, юникейс; диапазон весов в @font-face заявляет, что оно подходит под любой
- * вес, поэтому браузер не рисует искусственный полужирный.
+ * Gogh ExtraBold (Type Forward): заголовки, логотип, крупные числа. Геометрический
+ * гротеск с круглыми формами и плотным штрихом, поэтому градиентная заливка читается.
+ * Файл — подмножество (латиница, кириллица, №, знаки препинания). Одно начертание;
+ * диапазон весов в @font-face заявляет, что оно подходит под любой вес, поэтому
+ * браузер не рисует искусственный полужирный.
  */
 @font-face {
-  font-family: "Gothic 60";
-  src: url("./fonts/gothic60.woff2") format("woff2");
+  font-family: "Gogh";
+  src: url("./fonts/gogh-extrabold.woff2") format("woff2");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -39,7 +41,7 @@
   --pop-indigo: #6c5cff;
   --pop-fuchsia: #ff5ca8;
 
-  --font-display: "Gothic 60", "Inter Tight", system-ui, sans-serif;
+  --font-display: "Gogh", "Inter Tight", system-ui, sans-serif;
   --font-sans: "Inter Tight", system-ui, sans-serif;
 }
 
@@ -75,10 +77,8 @@
   .font-display {
     font-family: var(--font-display);
     font-synthesis: none;
-    /* Gothic №60 набран плотно: при нулевом трекинге буквы почти касаются и текст
-       читается «лапшой»; 0,06 em подобран по специмену (0,1 em уже расползается) */
-    letter-spacing: 0.06em;
-    /* пробел в шрифте узкий: без добавки слова слипаются («пулгенерации») */
-    word-spacing: 0.16em;
+    /* Gogh ExtraBold набран ровно, добавка минимальная: 0,01 em подобран по образцу
+       заголовков на заливке листа; tracking-tight на display-элементах не ставить */
+    letter-spacing: 0.01em;
   }
 }
