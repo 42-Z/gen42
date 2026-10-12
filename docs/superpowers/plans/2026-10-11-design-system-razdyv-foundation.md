@@ -25,7 +25,7 @@
 - Движение: перелёт пружин ≤ 4%, задержка волны ≤ 280 мс (1 мс на 2,5 px), затухание ÷ (1 + d/400 px), нарастание ≤ 120 мс, спад 600–1200 мс; три массы пружин (лёгкая, средняя, тяжёлая) в CSS `linear()`.
 - Постоянного `requestAnimationFrame` нет; без событий активных анимаций не больше одной (дрейф фона, период 90 с, амплитуда ±40 px); при `prefers-reduced-motion: reduce` пружины, волна, дрейф отключены (остаётся `opacity` ≤ 150 мс).
 - Слоёв композитора в покое ≤ 6, во время ожидания ≤ 10; обработка события ≤ 1 мс при замедлении процессора ×4.
-- Текст в прототипе только там, где его нельзя заменить знаком (логотип «gen42», «Изображение», «Турбо», «Рассуждение», «Krea 2»); цена — монета и число без слова «кредитов»; у значков без текста есть `aria-label` на русском.
+- Нового текста по сравнению с текущим приложением не добавляется нигде (названия моделей, подписи и подсказки уходят в `aria-label`). Текст в прототипе только там, где его нельзя заменить знаком (логотип «gen42», «Изображение», «Турбо», «Рассуждение»); цена — монета и число без слова «кредитов»; у значков без текста есть `aria-label` на русском.
 - Нельзя `import … from "bun"` в `src/lib/**`.
 
 ---
@@ -254,8 +254,15 @@ export const spectrum = (p: number): RGB => along(SPECTRUM_STOPS, p);
 /** Доля хребта в фоне: L фона = 0,925 · L(базы) + 0,075 · L(хребта) ≈ 0,0174 */
 export const DARK_MIX = 0.075;
 
+/**
+ * Фон держится одного семейства оттенков (индиго → орхидея): малина и фуксия в
+ * него не заходят, иначе по диагонали экрана фон плывёт от синего к бордовому и
+ * читается радужной плёнкой. Малина живёт только в окнах и акцентах.
+ */
+const DARK_STOPS: readonly RGB[] = [STOPS.S0, STOPS.S1, STOPS.S2];
+
 /** Тёмная полоса: фон */
-export const dark = (p: number): RGB => mix(BASE, ridge(p), DARK_MIX);
+export const dark = (p: number): RGB => mix(BASE, along(DARK_STOPS, p), DARK_MIX);
 
 export type Role = "dark" | "ridge" | "spectrum";
 
@@ -1643,10 +1650,9 @@ Expected: FAIL (`ENOENT … proto.css`)
 		<div class="field" id="field" data-sheet="ring">
 			<textarea id="prompt" rows="4" aria-label="Промпт"></textarea>
 			<div class="field-foot">
-				<button type="button" class="chip" data-sheet="dark" data-impulse="tap" data-weight="0.2" aria-label="Модель">
+				<button type="button" class="chip" data-sheet="dark" data-impulse="tap" data-weight="0.2" aria-label="Модель: Krea 2">
 					<i class="sheet-layer" aria-hidden="true"></i>
 					<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c.6 4.4 2.2 6 6.5 6.5-4.3.5-5.9 2.1-6.5 6.5-.6-4.4-2.2-6-6.5-6.5C9.8 9 11.4 7.4 12 3z" /></svg>
-					<span>Krea 2</span>
 					<span class="price"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /></svg>1</span>
 				</button>
 				<button type="button" class="go" id="go" data-sheet="ridge" data-impulse="tap" data-weight="0.65" aria-label="Создать">

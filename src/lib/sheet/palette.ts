@@ -77,8 +77,16 @@ export const spectrum = (p: number): RGB => along(SPECTRUM_STOPS, p);
 /** Доля хребта в фоне: L фона = 0,925 · L(базы) + 0,075 · L(хребта) ≈ 0,0174 */
 export const DARK_MIX = 0.075;
 
+/**
+ * Фон держится одного семейства оттенков (индиго → орхидея): малина и фуксия в
+ * него не заходят, иначе по диагонали экрана фон плывёт от синего к бордовому и
+ * читается радужной плёнкой. Малина живёт только в окнах и акцентах.
+ */
+const DARK_STOPS: readonly RGB[] = [STOPS.S0, STOPS.S1, STOPS.S2];
+
 /** Тёмная полоса: фон */
-export const dark = (p: number): RGB => mix(BASE, ridge(p), DARK_MIX);
+export const dark = (p: number): RGB =>
+	mix(BASE, along(DARK_STOPS, p), DARK_MIX);
 
 export type Role = "dark" | "ridge" | "spectrum";
 
