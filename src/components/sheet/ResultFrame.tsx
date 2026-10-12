@@ -69,7 +69,12 @@ export function ResultFrame({
 				fl.style.opacity = "0.25";
 				timer.current = window.setTimeout(() => settle(true), 800);
 			}
-			return clearTimer;
+			// бесконечное дыхание не должно пережить рамку (переход в админку во время генерации)
+			return () => {
+				clearTimer();
+				breath.current?.cancel();
+				breath.current = null;
+			};
 		}
 		clearTimer();
 		breath.current?.cancel();
@@ -122,7 +127,15 @@ export function ResultFrame({
 			ref={frame}
 			data-slot="result-frame"
 			data-sheet="dark"
-			{...(image ? {} : { role: "img", "aria-label": "Пустой холст" })}
+			{...(image
+				? {}
+				: loading
+					? {
+							role: "status",
+							"aria-busy": true,
+							"aria-label": "Идёт генерация",
+						}
+					: { role: "img", "aria-label": "Пустой холст" })}
 			className={cn(
 				"relative aspect-square w-full overflow-hidden rounded-[22px] border border-border",
 				className,

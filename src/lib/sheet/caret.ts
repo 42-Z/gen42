@@ -113,6 +113,8 @@ function inputCaret(el: HTMLInputElement): CaretPoint {
 	const cs = getComputedStyle(el);
 	measureCtx ??= document.createElement("canvas").getContext("2d");
 	const r = el.getBoundingClientRect();
+	// у email и number браузер не отдаёт каретку (selectionEnd = null, это норма
+	// спецификации), поэтому эффект идёт к концу значения: читать больше нечего
 	const pos = el.selectionEnd ?? el.value.length;
 	let width = 0;
 	if (measureCtx) {

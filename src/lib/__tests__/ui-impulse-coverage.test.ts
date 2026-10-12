@@ -37,10 +37,11 @@ describe("покрытие импульсами", () => {
 			);
 			for (const tag of NATIVE) {
 				for (const props of propsOf(js, tag)) {
-					if (
-						/href:|onClick|type:\s*"button"|role:/.test(props) &&
-						!props.includes("data-impulse")
-					)
+					// нативный button интерактивен всегда (без type он ещё и отправляет форму),
+					// ссылке нужен href, остальное — по признакам действия
+					const interactive =
+						tag === "button" || /href:|onClick|role:/.test(props);
+					if (interactive && !props.includes("data-impulse"))
 						bare.push(`${name}: <${tag}>`);
 				}
 			}

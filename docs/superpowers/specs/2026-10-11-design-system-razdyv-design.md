@@ -152,7 +152,7 @@ Gogh ExtraBold (заголовки, «Рассуждение», логотип �
 - `src/lib/sheet/palette.ts`: опорные цвета, `hue(p)`, три яркостные роли в линейном RGB (чистый, тестируется);
 - `src/lib/sheet/springs.ts`: три пружины в строку `linear()` и расчёт перелёта (чистый);
 - `src/lib/sheet/impulses.ts`: шина импульсов: источник, знак, вес, задержки по расстоянию, засыпание; на WAAPI и CSS-переходах, без постоянного цикла;
-- `src/lib/sheet/windows.ts`: реестр окон, измерение положения (`ResizeObserver`) и CSS-переменные смещения;
+- `src/lib/sheet/windows.ts`: реестр окон, измерение положения (`ResizeObserver`, `MutationObserver`, а после конца CSS-анимации входа меню и списков — по `animationend`: `getBoundingClientRect` читает положение вместе с transform, и без этого текстура пунктов списка оставалась сдвинутой на 5–9 px, замер в Chromium) и CSS-переменные смещения;
 - компоненты: фон `Sheet`, окна в примитивах shadcn (`button`, `input`, `textarea`, `tabs`, `select`, `dropdown-menu`, `slider`, `table`), `ReasoningSlider`, рамка ожидания `GenerationFrame`, хвост каретки `CaretTail`;
 - CSS (`src/index.css`): опорные цвета, три яркостные роли, три пружины `linear()` (запасной `ease-out`), `--wave-max: 280ms`, класс окна; существующие `--pop-gradient`, `--color-border` и подобные выводятся из листа или удаляются.
 

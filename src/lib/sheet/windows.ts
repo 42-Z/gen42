@@ -101,6 +101,17 @@ export function startWindows(): () => void {
 		}, 80);
 	}
 
+	// getBoundingClientRect читает положение вместе с transform, а у меню и списков
+	// анимация входа (zoom, slide) идёт, пока окна внутри впервые измеряются; когда
+	// она кончилась, ни ResizeObserver, ни мутации не срабатывают, и текстура
+	// оставалась бы сдвинутой на 5–9 px. Поэтому по концу CSS-анимации окна внутри
+	// анимированного узла измеряются заново.
+	function settled(e: AnimationEvent): void {
+		const target = e.target;
+		if (!(target instanceof HTMLElement)) return;
+		for (const el of known.keys()) if (target.contains(el)) measure(el);
+	}
+
 	const mutations = new MutationObserver((records) => {
 		for (const r of records) {
 			for (const node of r.addedNodes) {
@@ -120,9 +131,11 @@ export function startWindows(): () => void {
 		subtree: true,
 	});
 	window.addEventListener("resize", later);
+	document.addEventListener("animationend", settled, true);
 	return () => {
 		window.clearTimeout(timer);
 		window.removeEventListener("resize", later);
+		document.removeEventListener("animationend", settled, true);
 		mutations.disconnect();
 		page.disconnect();
 		sizes.disconnect();
