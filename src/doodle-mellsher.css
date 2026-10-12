@@ -1,34 +1,34 @@
 /* src/doodle-mellsher.css
    Движение дудла «Меллшер» (рисунок — src/components/sheet/doodles/Mellsher.tsx).
-   Общие правила дудлов (цвета, появление, моргание, кивок) — в src/doodles.css.
+   Общие правила дудлов (цвета, появление, моргание, кивок головой) — в src/doodles.css.
    Проценты в @keyframes — доли показа (DOODLE_MS = 3800 мс): появление до 22 %,
    игра до 82 %, уход до 100 %. Анимируются только transform и opacity. */
 @layer components {
-	/* Меллшер: рука с микрофоном качается в такт, кудри подпрыгивают */
-	.dk-mellsher .d-arm-up {
-		transform-origin: 50% 100%;
-		animation: mel-arm var(--d-ms, 3800ms) both;
+	/* предплечье с микрофоном качается в такт вокруг локтя */
+	.dk-mellsher .d-fore {
+		transform-origin: 48% 100%;
+		animation: mel-fore var(--d-ms, 3800ms) both;
 	}
 
-	@keyframes mel-arm {
+	@keyframes mel-fore {
 		0%,
 		22% {
 			transform: rotate(0deg);
 		}
 		30% {
-			transform: rotate(-14deg);
+			transform: rotate(12deg);
 		}
 		38% {
-			transform: rotate(10deg);
+			transform: rotate(-8deg);
 		}
 		46% {
-			transform: rotate(-14deg);
+			transform: rotate(12deg);
 		}
 		54% {
-			transform: rotate(10deg);
+			transform: rotate(-8deg);
 		}
 		62% {
-			transform: rotate(-10deg);
+			transform: rotate(10deg);
 		}
 		70%,
 		100% {
@@ -36,11 +36,12 @@
 		}
 	}
 
-	.dk-mellsher .d-hair {
-		animation: mel-hair var(--d-ms, 3800ms) both;
+	/* корпус подпрыгивает на каждый такт, тень остаётся на месте */
+	.dk-mellsher .d-pop {
+		animation: mel-bob var(--d-ms, 3800ms) both;
 	}
 
-	@keyframes mel-hair {
+	@keyframes mel-bob {
 		0%,
 		24% {
 			transform: translate(0, 0);
@@ -48,14 +49,40 @@
 		30%,
 		46%,
 		62% {
-			transform: translate(0, -2.5px);
+			transform: translate(0, -1.6px);
 		}
-		34%,
-		50%,
-		66% {
+		35%,
+		51%,
+		67% {
 			transform: translate(0, 0);
 		}
 		70%,
+		100% {
+			transform: translate(0, 0);
+		}
+	}
+
+	/* кудри подпрыгивают чуть позже корпуса */
+	.dk-mellsher .d-hair {
+		animation: mel-hair var(--d-ms, 3800ms) both;
+	}
+
+	@keyframes mel-hair {
+		0%,
+		26% {
+			transform: translate(0, 0);
+		}
+		32%,
+		48%,
+		64% {
+			transform: translate(0, -2.4px);
+		}
+		38%,
+		54%,
+		70% {
+			transform: translate(0, 0);
+		}
+		72%,
 		100% {
 			transform: translate(0, 0);
 		}
