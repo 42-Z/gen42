@@ -78,11 +78,11 @@ export const spectrum = (p: number): RGB => along(SPECTRUM_STOPS, p);
 export const DARK_MIX = 0.075;
 
 /**
- * Фон держится одного семейства оттенков (индиго → орхидея): малина и фуксия в
+ * Фон держится одного семейства оттенков (индиго → фиолетовый): малина и фуксия в
  * него не заходят, иначе по диагонали экрана фон плывёт от синего к бордовому и
  * читается радужной плёнкой. Малина живёт только в окнах и акцентах.
  */
-const DARK_STOPS: readonly RGB[] = [STOPS.S0, STOPS.S1, STOPS.S2];
+const DARK_STOPS: readonly RGB[] = [STOPS.S0, STOPS.S1];
 
 /** Тёмная полоса: фон */
 export const dark = (p: number): RGB =>
