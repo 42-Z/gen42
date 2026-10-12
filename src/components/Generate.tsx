@@ -7,6 +7,7 @@ import {
 	IconCoins,
 	IconCopy,
 	IconDownload,
+	IconHistory,
 	IconPhoto,
 	IconPhotoOff,
 	IconSparkles,
@@ -19,7 +20,6 @@ import {
 	InputGroupAddon,
 	InputGroupTextarea,
 } from "@/components/ui/input-group";
-import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { imageExtension } from "@/lib/image-format";
@@ -28,6 +28,7 @@ import {
 	type SpaceEngine,
 	TURBO_MODEL,
 } from "@/lib/models";
+import { impulse } from "@/lib/sheet/impulses";
 import { TURBO_CLIENT_WAIT_MS } from "@/lib/turbo/constants";
 import {
 	parseTurboReasoning,
@@ -36,14 +37,8 @@ import {
 	type TurboReasoning,
 } from "@/lib/turbo/reasoning";
 import { cn } from "@/lib/utils";
-import {
-	EmptyCanvasArt,
-	PopSpinner,
-	SparkStar,
-	StickerBurst,
-} from "./graphics";
 import { ModelPicker } from "./ModelPicker";
-import { PopWait } from "./PopWait";
+import { ResultFrame } from "./sheet/ResultFrame";
 
 interface GenerateProps {
 	balance: number | null;
@@ -195,6 +190,12 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 			if (pollTimer.current !== null) clearTimeout(pollTimer.current);
 		};
 	}, []);
+
+	useEffect(() => {
+		if (!error) return;
+		const source = document.getElementById("prompt");
+		if (source) impulse({ source, sign: -1, weight: 0.3, mass: "medium" });
+	}, [error]);
 
 	async function loadModels() {
 		try {
@@ -500,7 +501,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 								<IconPhoto />
 								Изображение
 							</TabsTrigger>
-							<TabsTrigger value="turbo" disabled={loading}>
+							<TabsTrigger value="turbo" data-weight="0.6" disabled={loading}>
 								<IconBolt />
 								{turboModel.label}
 							</TabsTrigger>
@@ -508,18 +509,10 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 					</Tabs>
 				)}
 				<div className="flex flex-col gap-2">
-					<div className="flex items-center gap-2">
-						<SparkStar className="h-4 w-4" />
-						<Label
-							htmlFor="prompt"
-							className="font-display text-lg font-bold text-foreground"
-						>
-							Промпт
-						</Label>
-					</div>
 					<InputGroup>
 						<InputGroupTextarea
 							id="prompt"
+							aria-label="Промпт"
 							value={prompt}
 							onChange={(e) => setPrompt(e.target.value)}
 							rows={4}
@@ -544,6 +537,8 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 								<Button
 									type="button"
 									size="icon-lg"
+									weight={Math.min(1, cost / 10)}
+									data-loading={loading ? "true" : undefined}
 									onClick={handleGenerate}
 									disabled={loading || !prompt.trim() || outOfCredits}
 									aria-label={
@@ -552,15 +547,11 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 											: `Сгенерировать за ${cost}`
 									}
 								>
-									{loading ? (
-										<PopSpinner className="size-5" />
-									) : (
-										<IconSparkles data-icon="inline-start" />
-									)}
+									<IconSparkles data-icon="inline-start" />
 								</Button>
 								<span
 									aria-hidden="true"
-									className="absolute -right-1.5 -top-1.5 flex items-center gap-0.5 rounded-full bg-[#ffd54a] px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-[#0d0b1e]"
+									className="absolute -right-1.5 -top-1.5 flex items-center gap-0.5 rounded-full border border-border bg-background px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-foreground"
 								>
 									<IconCoins className="size-3" strokeWidth={2.5} />
 									{cost}
@@ -572,18 +563,10 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 
 				{activeMode === "turbo" && (
 					<div className="animate-pop-in mt-6 flex flex-col gap-3">
-						<div className="flex items-center justify-between gap-4">
-							<div className="flex items-center gap-2">
-								<IconBrain className="size-5 text-primary" />
-								<span className="font-display text-lg font-bold text-foreground">
-									Рассуждение
-								</span>
-							</div>
-							<span
-								className="text-sm font-semibold text-foreground"
-								aria-hidden="true"
-							>
-								{REASONING_LABELS[reasoning]}
+						<div className="flex items-center gap-2">
+							<IconBrain className="size-5 text-primary" />
+							<span className="font-display text-lg font-bold text-foreground">
+								Рассуждение
 							</span>
 						</div>
 						<Slider
@@ -596,13 +579,6 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 							aria-label="Уровень рассуждения"
 							aria-valuetext={REASONING_LABELS[reasoning]}
 						/>
-						<div
-							className="flex items-center justify-between text-xs text-muted-foreground"
-							aria-hidden="true"
-						>
-							<span>Быстрее</span>
-							<span>Дольше, но продуманнее</span>
-						</div>
 					</div>
 				)}
 
@@ -617,83 +593,78 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 				)}
 			</div>
 
-			{loading && (
+			{(loading || result || history.length === 0) && (
 				<div className="animate-pop-in mt-10">
-					<PopWait className="aspect-square w-full" />
-				</div>
-			)}
-
-			{!loading && !result && history.length === 0 && (
-				<div className="animate-pop-in mt-10 flex flex-col items-center py-10 [animation-delay:140ms]">
-					<span role="img" aria-label="Пустой холст">
-						<EmptyCanvasArt className="h-44 w-auto" />
-					</span>
-				</div>
-			)}
-
-			{result && (
-				<div className="animate-pop-in relative mt-10">
-					<StickerBurst className="animate-float-slow absolute -right-4 -top-8 h-16 w-16 sm:-right-8" />
-					<div className="group relative overflow-hidden rounded-[22px]">
-						<img
-							src={result.image_url}
-							alt={resultPrompt || prompt || "Сгенерированное изображение"}
-							className="block w-full transition-transform duration-500 group-hover:scale-[1.015]"
-						/>
-					</div>
-					<div className="mt-4 flex items-center justify-end gap-2">
-						{result.seed !== null && result.seed !== undefined && (
-							<button
-								type="button"
-								onClick={copySeed}
-								title="Скопировать seed"
-								aria-label={`Скопировать seed ${result.seed}`}
-								className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm tabular-nums text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+					<ResultFrame
+						loading={loading}
+						image={
+							result
+								? {
+										url: result.image_url,
+										alt:
+											resultPrompt || prompt || "Сгенерированное изображение",
+									}
+								: null
+						}
+					/>
+					{result && !loading && (
+						<div className="mt-4 flex items-center justify-end gap-2">
+							{result.seed !== null && result.seed !== undefined && (
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={copySeed}
+									title="Скопировать seed"
+									aria-label={`Скопировать seed ${result.seed}`}
+									className="tabular-nums"
+								>
+									{seedCopied ? (
+										<IconCheck className="size-3.5 text-primary" />
+									) : (
+										<IconCopy className="size-3.5" />
+									)}
+									{result.seed}
+								</Button>
+							)}
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => downloadImage(result.image_url, result.seed)}
 							>
-								{seedCopied ? (
-									<IconCheck className="h-3.5 w-3.5 text-primary" />
-								) : (
-									<IconCopy className="h-3.5 w-3.5" />
-								)}
-								{result.seed}
-							</button>
-						)}
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => downloadImage(result.image_url, result.seed)}
-						>
-							<IconDownload className="h-4 w-4" />
-							Скачать
-						</Button>
-					</div>
+								<IconDownload className="size-4" />
+								Скачать
+							</Button>
+						</div>
+					)}
 				</div>
 			)}
 
 			{history.length > 0 && (
 				<section className="mt-12" aria-label="Недавние">
-					<div className="flex items-center gap-2">
-						<SparkStar className="h-4 w-4" />
-						<h2 className="font-display text-lg font-bold text-foreground">
-							Недавние
-						</h2>
+					<div className="flex items-center gap-2 text-muted-foreground">
+						<IconHistory className="size-5" />
+						<h2 className="sr-only">Недавние</h2>
 					</div>
 					<div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-4">
 						{history.map((img, idx) => (
 							<button
 								key={img.id}
 								type="button"
+								data-sheet="ring"
+								data-impulse="tap"
+								data-weight="0.3"
 								onClick={() => setSelected(idx)}
 								title={img.prompt}
 								aria-label={`Открыть изображение: ${img.prompt}`}
-								className="group relative block aspect-square overflow-hidden rounded-[22px] border border-border/60 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								className="group relative block aspect-square overflow-hidden rounded-[22px] border border-border/60 text-left outline-none transition-[scale] duration-300 hover:scale-[1.02]"
 							>
 								<img
 									src={img.thumb_url ?? img.image_url}
 									alt=""
 									loading="lazy"
 									decoding="async"
-									className="block h-full w-full rounded-[22px] object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+									className="block h-full w-full rounded-[22px] object-cover"
 								/>
 							</button>
 						))}
@@ -703,7 +674,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 
 			{selectedImg && (
 				<div
-					className="animate-pop-in fixed inset-0 z-[70] flex items-center justify-center bg-background/90 p-4 backdrop-blur-md sm:p-10"
+					className="animate-pop-in fixed inset-0 z-[70] flex items-center justify-center bg-background/95 p-4 sm:p-10"
 					role="dialog"
 					aria-modal="true"
 					aria-label={`Просмотр изображения ${selected! + 1} из ${history.length}`}
@@ -747,39 +718,45 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 
 					{history.length > 1 && (
 						<>
-							<button
+							<Button
 								type="button"
+								variant="outline"
+								size="icon"
 								onClick={(e) => {
 									e.stopPropagation();
 									step(-1);
 								}}
 								aria-label="Предыдущее изображение"
-								className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-border bg-card/90 p-3 text-foreground transition-all hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95 sm:left-6"
+								className="absolute left-3 top-1/2 -translate-y-1/2 sm:left-6"
 							>
-								<IconChevronLeft className="h-5 w-5" />
-							</button>
-							<button
+								<IconChevronLeft className="size-5" />
+							</Button>
+							<Button
 								type="button"
+								variant="outline"
+								size="icon"
 								onClick={(e) => {
 									e.stopPropagation();
 									step(1);
 								}}
 								aria-label="Следующее изображение"
-								className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-border bg-card/90 p-3 text-foreground transition-all hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95 sm:right-6"
+								className="absolute right-3 top-1/2 -translate-y-1/2 sm:right-6"
 							>
-								<IconChevronRight className="h-5 w-5" />
-							</button>
+								<IconChevronRight className="size-5" />
+							</Button>
 						</>
 					)}
 
-					<button
+					<Button
 						type="button"
+						variant="outline"
+						size="icon"
 						onClick={() => setSelected(null)}
-						className="absolute right-5 top-5 rounded-full border border-border bg-card/80 p-2 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.95]"
 						aria-label="Закрыть"
+						className="absolute right-5 top-5"
 					>
-						<IconX className="h-5 w-5" />
-					</button>
+						<IconX className="size-5" />
+					</Button>
 				</div>
 			)}
 		</div>
