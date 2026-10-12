@@ -618,7 +618,7 @@ try {
 	for (let i = 0; i < 5; i++) {
 		samples.push(
 			await page.evaluate(() => {
-				const el = document.querySelector("[data-slot=button][data-impulse]")!;
+				const el = document.querySelector("[data-slot=button][data-impulse]") ?? document.querySelector("button")!;
 				const t0 = performance.now();
 				el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }));
 				const dt = performance.now() - t0;
