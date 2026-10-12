@@ -8,31 +8,48 @@
 /** Положение зрачка внутри белка, доли свободного места: [по x, по y] */
 type Look = readonly [number, number];
 
-interface EyeProps {
-	x: number;
-	y: number;
-	w?: number;
-	h?: number;
-	/** Зрачок не по центру по вертикали: у Duolingo он сидит в нижней части */
+/**
+ * Глаз как у зверей Duolingo: белый круг и тёмный круглый зрачок (около 45 %
+ * диаметра) без блика. Зрачок смещён: `look` — доли радиуса по x и y. С `lid`
+ * верх закрыт плоским веком цвета шерсти: тот самый «сонный» взгляд их
+ * персонажей. Моргает по `d-eye`.
+ */
+export function EyeDot({
+	cx,
+	cy,
+	r = 9,
+	look = [0, 0.35],
+	lid,
+	lidH = 0.62,
+}: {
+	cx: number;
+	cy: number;
+	r?: number;
 	look?: Look;
-}
-
-/** Глаз-«таблетка»: белок, зрачок и блик в верхнем левом углу; моргает по `d-eye` */
-export function Eye({ x, y, w = 18, h = 22, look = [0.5, 0.7] }: EyeProps) {
-	const pw = w * 0.54;
-	const ph = h * 0.56;
-	const px = x + (w - pw) * look[0];
-	const py = y + (h - ph) * look[1];
+	/** Класс заливки века (цвет шерсти вокруг глаза); без него глаз открыт */
+	lid?: string;
+	/** Высота века в радиусах глаза */
+	lidH?: number;
+}) {
+	const pr = r * 0.48;
 	return (
 		<g className="d-eye">
-			<rect x={x} y={y} width={w} height={h} rx={w / 2} className="f-w" />
-			<rect x={px} y={py} width={pw} height={ph} rx={pw / 2} className="f-n" />
+			<circle cx={cx} cy={cy} r={r} className="f-w" />
 			<circle
-				cx={px + pw * 0.32}
-				cy={py + ph * 0.3}
-				r={pw * 0.17}
-				className="f-w"
+				cx={cx + look[0] * (r - pr)}
+				cy={cy + look[1] * (r - pr)}
+				r={pr}
+				className="f-n"
 			/>
+			{lid && (
+				<rect
+					x={cx - r - 0.5}
+					y={cy - r - 0.5}
+					width={r * 2 + 1}
+					height={r * lidH}
+					className={lid}
+				/>
+			)}
 		</g>
 	);
 }

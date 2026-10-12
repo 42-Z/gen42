@@ -1,14 +1,18 @@
 // src/components/sheet/doodles/Pig.tsx
-import { Digits42, Eye, Shadow } from "./parts";
+import { Digits42, EyeDot, Shadow } from "./parts";
 
-/** Свин в джерси с крупным 42: ест попкорн из ведёрка */
+/**
+ * Свин в джерси с крупным 42, ест попкорн. Блоки с малым скруглением, глаза —
+ * белые круги с тёмным зрачком без блика (взгляд на ведёрко), уши — скруглённые
+ * треугольники более тёмного тона.
+ */
 export function Pig() {
 	return (
 		<>
 			<Shadow x={34} w={104} />
 			<g className="d-pop">
 				{/* тело-джерси с номером и ноги */}
-				<rect x="50" y="48" width="70" height="46" rx="22" className="f-1" />
+				<rect x="50" y="48" width="70" height="46" rx="14" className="f-1" />
 				<rect x="56" y="84" width="20" height="11" rx="5.5" className="f-4" />
 				<rect x="94" y="84" width="20" height="11" rx="5.5" className="f-4" />
 				<Digits42 x={69.5} y={66} s={0.33} className="s-w" weight={11} />
@@ -31,21 +35,14 @@ export function Pig() {
 							className="f-4 s-4"
 						/>
 					</g>
-					<rect x="44" y="8" width="82" height="56" rx="28" className="f-5" />
+					<rect x="44" y="8" width="82" height="56" rx="14" className="f-5" />
 					<g className="d-snout">
-						<rect
-							x="65"
-							y="36"
-							width="40"
-							height="25"
-							rx="12.5"
-							className="f-4"
-						/>
+						<rect x="65" y="36" width="40" height="25" rx="9" className="f-4" />
 						<rect x="74" y="43" width="6" height="11" rx="3" className="f-n" />
 						<rect x="90" y="43" width="6" height="11" rx="3" className="f-n" />
 					</g>
-					<Eye x={53} y={20} w={19} h={22} look={[0.6, 0.72]} />
-					<Eye x={98} y={20} w={19} h={22} look={[0.4, 0.72]} />
+					<EyeDot cx={62} cy={29} r={9.5} look={[0.6, 0.45]} />
+					<EyeDot cx={108} cy={29} r={9.5} look={[0.6, 0.45]} />
 				</g>
 
 				{/* ведёрко попкорна справа; рука носит зёрна ко рту */}

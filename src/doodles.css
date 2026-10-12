@@ -57,6 +57,7 @@
 		fill: var(--d-n);
 		fill-opacity: 0.32;
 	}
+	.doodle .s-1 { stroke: var(--d-1); }
 	.doodle .s-4 { stroke: var(--d-4); }
 	.doodle .s-5 { stroke: var(--d-5); }
 	.doodle .s-w { stroke: var(--d-w); }
@@ -247,11 +248,11 @@
 
 	/* мопс: уши висят от макушки, корона подпрыгивает, язык дышит */
 	.dk-pug .d-ear-l {
-		transform-origin: 70% 15%;
+		transform-origin: 90% 10%;
 	}
 
 	.dk-pug .d-ear-r {
-		transform-origin: 30% 15%;
+		transform-origin: 10% 10%;
 	}
 
 	.dk-pug .d-crown {
