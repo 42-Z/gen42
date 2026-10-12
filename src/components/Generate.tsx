@@ -538,7 +538,6 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 									type="button"
 									size="icon-lg"
 									weight={Math.min(1, cost / 10)}
-									data-loading={loading ? "true" : undefined}
 									onClick={handleGenerate}
 									disabled={loading || !prompt.trim() || outOfCredits}
 									aria-label={

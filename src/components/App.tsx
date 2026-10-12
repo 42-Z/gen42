@@ -139,7 +139,12 @@ export function App() {
 			<Sheet />
 			<header className="border-b border-border/60">
 				<div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:flex-wrap sm:gap-4 sm:px-6 sm:py-4">
-					<a href="#/" aria-label="gen42 — на главную">
+					<a
+						href="#/"
+						data-impulse="tap"
+						data-weight="0.2"
+						aria-label="gen42 — на главную"
+					>
 						<PopLogo />
 					</a>
 

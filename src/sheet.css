@@ -158,7 +158,7 @@
 
 	/* вход блока: пружина средней массы, только transform и opacity */
 	.animate-pop-in {
-		animation: sheet-enter var(--spring-medium-ms) var(--spring-medium) both;
+		animation: sheet-enter var(--spring-medium-ms) var(--spring-medium) backwards;
 	}
 
 	@keyframes sheet-enter {

@@ -51,12 +51,17 @@ export function showTail(
 	for (const a of tail.getAnimations()) a.cancel();
 	const base = `translate(${x}px, ${y}px)`;
 	tail.style.transform = base;
+	tail.style.visibility = "visible";
 	if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-	tail.animate(
+	// после затухания хвост скрыт совсем: невидимый fixed-элемент держал бы слой композитора
+	const anim = tail.animate(
 		[
 			{ opacity: 1, transform: `${base} scaleX(${len / FULL})` },
 			{ opacity: 0, transform: `${base} scaleX(0.2)` },
 		],
 		{ duration: 600, easing: "ease-out" },
 	);
+	anim.onfinish = () => {
+		tail.style.visibility = "hidden";
+	};
 }

@@ -52,7 +52,7 @@ const server = Bun.serve({
 const ART =
 	"data:image/svg+xml;utf8," +
 	encodeURIComponent(
-		`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><radialGradient id='a' cx='30%' cy='30%'><stop offset='0' stop-color='#fde047'/><stop offset='1' stop-color='#1f2a44'/></radialGradient></defs><rect width='100' height='100' fill='url(#a)'/></svg>`,
+		`<svg xmlns='http://www.w3.org/2000/svg' width='1024' height='1024' viewBox='0 0 100 100'><defs><radialGradient id='a' cx='30%' cy='30%'><stop offset='0' stop-color='#fde047'/><stop offset='1' stop-color='#1f2a44'/></radialGradient></defs><rect width='100' height='100' fill='url(#a)'/></svg>`,
 	);
 const REC = {
 	id: "g1",
@@ -96,7 +96,7 @@ async function mockApi(
 		if (p === "/api/generations") return json(state.history);
 		if (p === "/api/generations/active") return json({ error: "none" }, 404);
 		if (p === "/api/generate") {
-			await Bun.sleep(opts.waitMs ?? 2500);
+			await Bun.sleep(opts.waitMs ?? 4500);
 			state.history = [REC];
 			return json(REC);
 		}
@@ -116,7 +116,26 @@ const shot = (page: Page, name: string) =>
 	page.screenshot({ path: path.join(SHOTS, `${name}.png`) });
 const pause = (page: Page, ms: number) => page.waitForTimeout(ms);
 const animations = (page: Page) =>
-	page.evaluate(() => document.getAnimations().length);
+	page.evaluate(
+		() =>
+			document.getAnimations().filter((a) => a.playState === "running").length,
+	);
+/** Что именно анимируется: тег, класс и имя анимации (для разбора красных строк) */
+const describeAnimations = (page: Page) =>
+	page.evaluate(() =>
+		document
+			.getAnimations()
+			.filter((a) => a.playState === "running")
+			.map((a) => {
+				const t = (a.effect as KeyframeEffect | null)
+					?.target as HTMLElement | null;
+				const name =
+					(a as CSSAnimation).animationName ??
+					(a as CSSTransition).transitionProperty ??
+					"waapi";
+				return `${t?.tagName?.toLowerCase()}.${String(t?.className).slice(0, 40)} ${name}`;
+			}),
+	);
 const rafCount = (page: Page) =>
 	page.evaluate(() => (window as unknown as { __raf: number }).__raf);
 
@@ -186,9 +205,41 @@ try {
 	});
 	const cdp = await context.newCDPSession(page);
 	let layers = 0;
-	cdp.on("LayerTree.layerTreeDidChange", (e: { layers?: unknown[] }) => {
-		layers = e.layers?.length ?? layers;
-	});
+	let lastLayers: Array<{
+		backendNodeId?: number;
+		width: number;
+		height: number;
+	}> = [];
+	cdp.on(
+		"LayerTree.layerTreeDidChange",
+		(e: { layers?: typeof lastLayers }) => {
+			layers = e.layers?.length ?? layers;
+			lastLayers = e.layers ?? lastLayers;
+		},
+	);
+	/** Какие узлы держат слои (для разбора красных строк) */
+	const describeLayers = async () => {
+		await cdp.send("DOM.enable");
+		await cdp.send("DOM.getDocument", { depth: 1 });
+		const out: string[] = [];
+		for (const l of lastLayers) {
+			let name = "-";
+			if (l.backendNodeId) {
+				try {
+					const d = (await cdp.send("DOM.describeNode", {
+						backendNodeId: l.backendNodeId,
+					})) as {
+						node: { nodeName: string; attributes?: string[] };
+					};
+					const cls =
+						d.node.attributes?.[d.node.attributes.indexOf("class") + 1] ?? "";
+					name = `${d.node.nodeName.toLowerCase()}.${cls.slice(0, 40)}`;
+				} catch {}
+			}
+			out.push(`${Math.round(l.width)}x${Math.round(l.height)} ${name}`);
+		}
+		return out;
+	};
 	await cdp.send("LayerTree.enable");
 	await page.waitForSelector("#prompt");
 	await pause(page, 1800);
@@ -197,6 +248,8 @@ try {
 		await animations(page),
 		(await animations(page)) <= 1,
 	);
+	if ((await animations(page)) > 1)
+		console.log("  идут:", await describeAnimations(page));
 	const raf0 = await rafCount(page);
 	await pause(page, 2000);
 	check(
@@ -264,10 +317,12 @@ try {
 	await page.getByRole("button", { name: /Сгенерировать/ }).click();
 	await pause(page, 400);
 	await shot(page, "08-frame-grows");
-	await pause(page, 1500);
+	// волны старта и «принято» к этому моменту затухли: считаем слои ожидания
+	await pause(page, 2600);
 	check("ожидание: слоёв композитора", layers, layers <= WAIT_LAYERS);
+	if (layers > WAIT_LAYERS) console.log("  слои:", await describeLayers());
 	await shot(page, "09-waiting");
-	await pause(page, 1200);
+	await pause(page, 1700);
 	await shot(page, "10-curtain");
 	await pause(page, 1800);
 	await shot(page, "11-done");
@@ -275,6 +330,8 @@ try {
 	await page.locator("section[aria-label=Недавние] button").first().click();
 	await pause(page, 700);
 	await shot(page, "12-lightbox");
+	await pause(page, 900);
+	await shot(page, "12b-lightbox-late");
 	await page.keyboard.press("Escape");
 	await pause(page, 400);
 

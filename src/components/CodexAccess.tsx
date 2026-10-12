@@ -270,6 +270,8 @@ export function CodexAccess() {
 						<Button asChild variant="outline" size="sm">
 							<a
 								href={pending.verificationUrl}
+								data-impulse="tap"
+								data-weight="0.5"
 								target="_blank"
 								rel="noreferrer"
 							>

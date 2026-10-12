@@ -345,7 +345,7 @@ git commit -m "Раздув: эталон видимого текста и те�
 
 	/* вход блока: пружина средней массы, только transform и opacity */
 	.animate-pop-in {
-		animation: sheet-enter var(--spring-medium-ms) var(--spring-medium) both;
+		animation: sheet-enter var(--spring-medium-ms) var(--spring-medium) backwards;
 	}
 
 	@keyframes sheet-enter {
@@ -512,7 +512,7 @@ const server = Bun.serve({
 const ART =
 	"data:image/svg+xml;utf8," +
 	encodeURIComponent(
-		`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><radialGradient id='a' cx='30%' cy='30%'><stop offset='0' stop-color='#fde047'/><stop offset='1' stop-color='#1f2a44'/></radialGradient></defs><rect width='100' height='100' fill='url(#a)'/></svg>`,
+		`<svg xmlns='http://www.w3.org/2000/svg' width='1024' height='1024' viewBox='0 0 100 100'><defs><radialGradient id='a' cx='30%' cy='30%'><stop offset='0' stop-color='#fde047'/><stop offset='1' stop-color='#1f2a44'/></radialGradient></defs><rect width='100' height='100' fill='url(#a)'/></svg>`,
 	);
 const REC = { id: "g1", status: "completed", image_url: ART, thumb_url: ART, prompt: "кот в короне", seed: 7, engine: "krea", cost: 1, duration: 5 };
 
@@ -1296,7 +1296,6 @@ Expected: сборка и тесты зелёные; на `03-main-idle` лог�
 					type="button"
 					size="icon-lg"
 					weight={Math.min(1, cost / 10)}
-					data-loading={loading ? "true" : undefined}
 					onClick={handleGenerate}
 					disabled={loading || !prompt.trim() || outOfCredits}
 					aria-label={outOfCredits ? "Нет кредитов для генерации" : `Сгенерировать за ${cost}`}
@@ -1552,7 +1551,7 @@ const NATIVE = ["button", "a"];
 /** Тела props у вызовов jsx("button", {…}) в транспилированном коде */
 function propsOf(js: string, tag: string): string[] {
 	const out: string[] = [];
-	const re = new RegExp(`jsxDEV?s?\\("${tag}",\\s*\\{`, "g");
+	const re = new RegExp(`\\bjsx(?:DEV|s)?[\\w$]*\\("${tag}",\\s*\\{`, "g");
 	for (const m of js.matchAll(re)) {
 		let depth = 1;
 		let i = (m.index ?? 0) + m[0].length;

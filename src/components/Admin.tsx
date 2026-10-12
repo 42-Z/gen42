@@ -270,6 +270,8 @@ export function Admin() {
 					{error}{" "}
 					<button
 						type="button"
+						data-impulse="tap"
+						data-weight="0.2"
 						onClick={loadData}
 						className="rounded-full font-medium underline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					>
