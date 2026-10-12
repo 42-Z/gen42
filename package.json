@@ -17,7 +17,8 @@
 		"format": "biome format --write .",
 		"eval:style42": "node_modules/.bin/bun evals/style42.eval.ts",
 		"eval:turbo": "node_modules/.bin/bun evals/turbo.eval.ts",
-		"sheet:css": "bun scripts/gen-sheet-css.ts"
+		"sheet:css": "bun scripts/gen-sheet-css.ts",
+		"sheet:proto": "bun scripts/sheet-proto.ts"
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "4.0.28",
@@ -53,7 +54,8 @@
 		"@biomejs/biome": "^2.5.13",
 		"@types/bun": "latest",
 		"@types/react": "^19",
-		"@types/react-dom": "^19"
+		"@types/react-dom": "^19",
+		"playwright-core": "1.56.1"
 	},
 	"peerDependencies": {
 		"typescript": "^7"
