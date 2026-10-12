@@ -8,9 +8,9 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Admin } from "./Admin";
 import { Auth } from "./Auth";
-import { DecoScatter } from "./DecoScatter";
 import { Generate } from "./Generate";
-import { MeshBackground, PopLogo, PopSpinner } from "./graphics";
+import { PopLogo, PopSpinner } from "./graphics";
+import { Sheet, useSheetRuntime } from "./sheet/Sheet";
 
 interface User {
 	id: string;
@@ -28,6 +28,7 @@ function viewFromHash(): View {
 }
 
 export function App() {
+	useSheetRuntime();
 	const [user, setUser] = useState<User | null>(null);
 	const [balance, setBalance] = useState<number | null>(null);
 	const [view, setView] = useState<View>(() => viewFromHash());
@@ -118,8 +119,8 @@ export function App() {
 
 	if (loading) {
 		return (
-			<div className="pop-noise relative flex min-h-screen w-full items-center justify-center">
-				<MeshBackground />
+			<div className="relative isolate flex min-h-screen w-full items-center justify-center">
+				<Sheet />
 				<PopSpinner className="h-12 w-12 text-primary" />
 			</div>
 		);
@@ -130,9 +131,8 @@ export function App() {
 	}
 
 	return (
-		<div className="pop-noise relative min-h-screen w-full">
-			<MeshBackground />
-			<DecoScatter />
+		<div className="relative isolate min-h-screen w-full">
+			<Sheet />
 			<header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-md">
 				<div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:flex-wrap sm:gap-4 sm:px-6 sm:py-4">
 					<a href="#/" aria-label="gen42 — на главную">

@@ -153,7 +153,8 @@ function animateWindow(
 
 /** Фон отвечает слабее окон: сдвиг вдоль диагонали листа на ≤ 6% ширины экрана */
 function nudgeBackground(sign: 1 | -1, weight: number): void {
-	backdrop ??= document.querySelector<HTMLElement>('[data-slot="sheet"] > i');
+	if (!backdrop?.isConnected)
+		backdrop = document.querySelector<HTMLElement>('[data-slot="sheet"] > i');
 	const layer = backdrop;
 	if (!layer || reduced()) return;
 	const d = Math.round((sign * weight * 0.3 * 0.06 * view.w) / Math.SQRT2);

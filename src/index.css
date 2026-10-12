@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./sheet.generated.css";
+@import "./sheet.css";
 
 @theme {
   --color-background: #0d0b1e;

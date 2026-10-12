@@ -1,0 +1,193 @@
+/* src/sheet.css
+   Лист «Раздув». Токены — src/sheet.generated.css (bun run sheet:css).
+   Правила в слое components: утилиты Tailwind (absolute, fixed…) должны их перекрывать. */
+@layer components {
+	/* Фон: тёмная полоса листа, один слой, дрейф ±40 px с периодом 90 с */
+	.sheet {
+		position: absolute;
+		inset: 0;
+		z-index: -1;
+		overflow: hidden;
+		pointer-events: none;
+		background: var(--sheet-dark);
+		background-size: var(--sheet-tile) var(--sheet-tile);
+	}
+
+	.sheet > i {
+		position: absolute;
+		inset: -64px;
+		background: var(--sheet-dark);
+		background-size: var(--sheet-tile) var(--sheet-tile);
+		background-position: 64px 64px;
+		animation: sheet-drift 90s ease-in-out infinite alternate;
+	}
+
+	@keyframes sheet-drift {
+		from {
+			transform: translate(-40px, -40px);
+		}
+		to {
+			transform: translate(40px, 40px);
+		}
+	}
+
+	/* Окно в лист: дочерний слой с текстурой, выровненной по странице (--wx/--wy) */
+	[data-sheet] {
+		position: relative;
+		overflow: hidden;
+		isolation: isolate;
+	}
+
+	.sheet-layer {
+		position: absolute;
+		inset: -48px;
+		z-index: -1;
+		pointer-events: none;
+		background-image: var(--sheet-ridge);
+		background-size: var(--sheet-tile) var(--sheet-tile);
+		background-position: calc(48px - var(--wx, 0px)) calc(48px - var(--wy, 0px));
+		transition: translate var(--spring-light-ms) var(--spring-light);
+	}
+
+	[data-sheet="dark"] > .sheet-layer {
+		background-image: var(--sheet-dark);
+	}
+
+	[data-sheet="spectrum"] > .sheet-layer {
+		background-image: var(--sheet-spectrum);
+	}
+
+	/* наведение: лист в окне подтягивается к курсору */
+	[data-sheet][data-impulse]:hover > .sheet-layer {
+		translate: 10% 0;
+	}
+
+	/* загрузка: лист внутри течёт быстрее, спиннера нет */
+	[data-loading="true"] > .sheet-layer {
+		animation: sheet-flow 1.4s ease-in-out infinite alternate;
+	}
+
+	@keyframes sheet-flow {
+		from {
+			transform: translate(-8%, 0);
+		}
+		to {
+			transform: translate(8%, 0);
+		}
+	}
+
+	/* кольцо спектра по периметру: фокус поля, наведение на миниатюру */
+	[data-sheet="ring"]::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		padding: 1px;
+		border-radius: inherit;
+		background-image: var(--sheet-spectrum);
+		background-size: var(--sheet-tile) var(--sheet-tile);
+		background-position: calc(0px - var(--wx, 0px)) calc(0px - var(--wy, 0px));
+		-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+		-webkit-mask-composite: xor;
+		mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity var(--spring-medium-ms) var(--spring-medium);
+	}
+
+	[data-sheet="ring"]:focus-within::after,
+	[data-sheet="ring"][data-impulse]:hover::after {
+		opacity: 1;
+	}
+
+	/* рамка ожидания: поток спектра поверх картинки, сдёргивается занавесом */
+	.frame-flow {
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		opacity: 0;
+		pointer-events: none;
+		-webkit-mask-image: linear-gradient(to right, #000 calc(100% - 64px), transparent);
+		mask-image: linear-gradient(to right, #000 calc(100% - 64px), transparent);
+		transition: opacity var(--spring-heavy-ms) var(--spring-heavy);
+	}
+
+	.frame-flow[data-on="true"] > .sheet-layer {
+		animation: frame-drift 6s ease-in-out infinite alternate;
+	}
+
+	@keyframes frame-drift {
+		from {
+			transform: translate(-8%, 0);
+		}
+		to {
+			transform: translate(8%, 0);
+		}
+	}
+
+	/* «gen42»: слово залито листом */
+	.logo {
+		background-image: var(--sheet-spectrum);
+		background-size: var(--sheet-tile) var(--sheet-tile);
+		background-position: -20px -22px;
+		-webkit-background-clip: text;
+		background-clip: text;
+		color: transparent;
+	}
+
+	/* хвост каретки: полоса спектра с мягкой маской, без плашки */
+	.caret-tail {
+		position: fixed;
+		top: 0;
+		left: 0;
+		z-index: 80;
+		width: 48px;
+		height: 3px;
+		border-radius: 2px;
+		background-image: var(--sheet-spectrum);
+		background-size: var(--sheet-tile) var(--sheet-tile);
+		-webkit-mask-image: linear-gradient(to left, #000, transparent);
+		mask-image: linear-gradient(to left, #000, transparent);
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.caret-tail[data-dir="back"] {
+		-webkit-mask-image: linear-gradient(to right, #000, transparent);
+		mask-image: linear-gradient(to right, #000, transparent);
+	}
+
+	/* вход блока: пружина средней массы, только transform и opacity */
+	.animate-pop-in {
+		animation: sheet-enter var(--spring-medium-ms) var(--spring-medium) both;
+	}
+
+	@keyframes sheet-enter {
+		from {
+			opacity: 0;
+			transform: translate(0, 10px);
+		}
+		to {
+			opacity: 1;
+			transform: translate(0, 0);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.sheet > i,
+		.animate-pop-in,
+		[data-loading="true"] > .sheet-layer,
+		.frame-flow[data-on="true"] > .sheet-layer {
+			animation: none;
+		}
+
+		.sheet-layer,
+		.frame-flow,
+		[data-sheet="ring"]::after {
+			transition: none;
+		}
+
+		[data-sheet][data-impulse]:hover > .sheet-layer {
+			translate: none;
+		}
+	}
+}
