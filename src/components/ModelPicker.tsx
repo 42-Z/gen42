@@ -41,7 +41,7 @@ export function ModelPicker({
 	onChange,
 	disabled,
 }: ModelPickerProps) {
-	// режим «Турбо» переключается вкладками, в чипе только движки Space
+	// режим «Ультра» переключается вкладками, в чипе только движки Space
 	const spaceModels = models.filter(
 		(model): model is PublicImageModel & { id: SpaceEngine } =>
 			isSpaceEngine(model.id),

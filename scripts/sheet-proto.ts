@@ -196,7 +196,7 @@ try {
 	await pause(page, 900);
 
 	// вкладка: резинка индикатора
-	await page.getByRole("tab", { name: "Турбо" }).click();
+	await page.getByRole("tab", { name: "Ультра" }).click();
 	await pause(page, 170);
 	await shot(page, "07-tab-mid");
 	await pause(page, 900);

@@ -6,7 +6,7 @@ import {
 } from "../generation-error";
 import { KeyExhaustedError, QueueTimeoutError } from "../hf";
 import { AllKeysExhaustedError } from "../keys";
-import { TURBO_PUBLIC_ERROR, TurboError } from "../turbo/errors";
+import { ULTRA_PUBLIC_ERROR, UltraError } from "../ultra/errors";
 
 describe("describeGenerationError", () => {
 	test("известные ошибки получают код причины", () => {
@@ -24,14 +24,14 @@ describe("describeGenerationError", () => {
 		);
 	});
 
-	test("ошибки Турбо получают свой код", () => {
+	test("ошибки «Ультра» получают свой код", () => {
 		expect(
 			describeGenerationError(
-				new TurboError("generation_rejected", "Codex Images ответил 400"),
+				new UltraError("generation_rejected", "Codex Images ответил 400"),
 			),
 		).toBe("generation_rejected: Codex Images ответил 400");
 		expect(
-			describeGenerationError(new TurboError("agent_timeout", "Время вышло")),
+			describeGenerationError(new UltraError("agent_timeout", "Время вышло")),
 		).toBe("agent_timeout: Время вышло");
 	});
 
@@ -62,9 +62,9 @@ describe("publicGenerationError", () => {
 		);
 	});
 
-	test("сбои Турбо и прочие получают общие сообщения", () => {
+	test("сбои «Ультра» и прочие получают общие сообщения", () => {
 		expect(publicGenerationError("agent_timeout: Время вышло")).toBe(
-			TURBO_PUBLIC_ERROR,
+			ULTRA_PUBLIC_ERROR,
 		);
 		expect(publicGenerationError("error: boom")).toBe("Ошибка генерации");
 		expect(publicGenerationError(null)).toBe("Ошибка генерации");
