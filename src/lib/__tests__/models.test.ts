@@ -76,15 +76,25 @@ describe("Image models", () => {
 		}
 	});
 
-	test("Ультра попадает в список только когда доступна", () => {
+	test("Ультра и turbo-алиас попадают в список только когда она доступна", () => {
 		expect(publicImageModels({ ultra: false }).map((m) => m.id)).toEqual([
 			"krea",
 			"ideogram",
 		]);
 		const withUltra = publicImageModels({ ultra: true });
-		expect(withUltra.map((m) => m.id)).toEqual(["krea", "ideogram", "ultra"]);
-		expect(withUltra.at(-1)).toEqual({
+		expect(withUltra.map((m) => String(m.id))).toEqual([
+			"krea",
+			"ideogram",
+			"ultra",
+			"turbo",
+		]);
+		expect(withUltra.at(-2)).toEqual({
 			id: "ultra",
+			label: "Ультра",
+			cost: 10,
+		});
+		expect(withUltra.at(-1)).toEqual({
+			id: "turbo",
 			label: "Ультра",
 			cost: 10,
 		});

@@ -156,7 +156,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	// переходе в админку
 	const aliveRef = useRef(true);
 
-	// «Ультра» виден, только пока сервер отдаёт его в списке: иначе экран один, обычный
+	// Новый интерфейс ищет канонический id `ultra`; `turbo` в каталоге нужен старым вкладкам.
 	const ultraModel = models.find((m) => m.id === "ultra");
 	const activeMode: Mode = ultraModel ? mode : "image";
 	const cost =

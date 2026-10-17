@@ -84,8 +84,11 @@ export function getEngineCost(engine: ImageEngine): number {
 	return engine === "ultra" ? ULTRA_MODEL.cost : IMAGE_MODELS[engine].cost;
 }
 
+/** `turbo` — только совместимость с уже загруженными старыми интерфейсами. */
+export type PublicImageModelId = ImageEngine | "turbo";
+
 export interface PublicImageModel {
-	id: ImageEngine;
+	id: PublicImageModelId;
 	label: string;
 	cost: number;
 }
@@ -99,10 +102,13 @@ export function publicImageModels(
 		label: IMAGE_MODELS[id].label,
 		cost: IMAGE_MODELS[id].cost,
 	}));
-	return options.ultra
-		? [
-				...spaces,
-				{ id: "ultra", label: ULTRA_MODEL.label, cost: ULTRA_MODEL.cost },
-			]
-		: spaces;
+	if (!options.ultra) return spaces;
+
+	const ultra: PublicImageModel = {
+		id: "ultra",
+		label: ULTRA_MODEL.label,
+		cost: ULTRA_MODEL.cost,
+	};
+	const legacyTurbo: PublicImageModel = { ...ultra, id: "turbo" };
+	return [...spaces, ultra, legacyTurbo];
 }

@@ -95,6 +95,7 @@ async function mockApi(
 				{ id: "krea", label: "Krea 2", cost: 1 },
 				{ id: "ideogram", label: "Ideogram 4", cost: 3 },
 				{ id: "ultra", label: "Ультра", cost: 10 },
+				{ id: "turbo", label: "Ультра", cost: 10 },
 			]);
 		if (p === "/api/generations") return json(state.history);
 		if (p === "/api/generations/active") return json({ error: "none" }, 404);

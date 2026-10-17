@@ -52,7 +52,7 @@ captures/
 docs/evals/*.jsonl
 docs/evals/images/
 
-# библиотека входных изображений «Турбо» — заливается в хранилище скриптом sync-library
+# библиотека входных изображений «Ультра» — заливается в хранилище скриптом sync-library
 /library/
 
 # Workflow SDK: сборка бандлов, локальные данные Local World, кэш SWC
