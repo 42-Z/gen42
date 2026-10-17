@@ -67,7 +67,7 @@ async function generationJson(record: GenerationRecord) {
 
 export const generateRoutes = {
 	"/api/models": {
-		// каталог движков без секретов; Турбо в нём только пока рабочий вход Codex
+		// каталог движков без секретов; «Ультра» в нём только пока рабочий вход Codex
 		GET: async () => {
 			const turbo = await isTurboAvailable().catch(() => false);
 			return Response.json(publicImageModels({ turbo }), {

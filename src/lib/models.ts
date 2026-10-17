@@ -81,7 +81,7 @@ export interface PublicImageModel {
 	cost: number;
 }
 
-/** Безопасный для клиента список моделей (без внутренних адресов Space); Турбо — только когда доступен */
+/** Безопасный для клиента список моделей (без внутренних адресов Space); «Ультра» — только когда доступен */
 export function publicImageModels(
 	options: { turbo?: boolean } = {},
 ): PublicImageModel[] {

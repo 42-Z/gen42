@@ -50,7 +50,7 @@ const HISTORY_LIMIT = 8;
 type Mode = "image" | "turbo";
 const MODE_STORAGE_KEY = "gen42-mode";
 
-/** Выбранный уровень рассуждения Турбо: запоминается между визитами */
+/** Выбранный уровень рассуждения «Ультры»: запоминается между визитами */
 const REASONING_STORAGE_KEY = "gen42-reasoning";
 const REASONING_LABELS: Record<TurboReasoning, string> = {
 	medium: "Среднее",
@@ -156,7 +156,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	// переходе в админку
 	const aliveRef = useRef(true);
 
-	// Турбо виден, только пока сервер отдаёт его в списке: иначе экран один, обычный
+	// «Ультра» виден, только пока сервер отдаёт его в списке: иначе экран один, обычный
 	const turboModel = models.find((m) => m.id === "turbo");
 	const activeMode: Mode = turboModel ? mode : "image";
 	const cost =
@@ -429,7 +429,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 				throw new Error(data?.error || fallback);
 			}
 
-			// Турбо принимается в работу и отвечает сразу: результат приходит опросом
+			// «Ультра» принимается в работу и отвечает сразу: результат приходит опросом
 			if (res.status === 202) {
 				const startedId = data.id ?? id;
 				if (startedId !== id) rememberPending(startedId);
