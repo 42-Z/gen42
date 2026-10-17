@@ -14,7 +14,7 @@ import type {
 	CodexAdminState,
 	CodexCheckResult,
 	CodexLoginEvent,
-} from "@/lib/turbo/codex-events";
+} from "@/lib/ultra/codex-events";
 import { cn } from "@/lib/utils";
 
 interface PendingLogin {

@@ -145,23 +145,30 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS idx_generations_status ON generations(status);
 
--- Режим «Турбо»: движок turbo, входные изображения агента, вход подписки Codex
+-- Режим «Ультра»: движок ultra, входные изображения агента, вход подписки Codex
 ALTER TABLE generations ADD COLUMN IF NOT EXISTS input_images TEXT[];
 
 DO $$ BEGIN
   IF EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conname = 'generations_engine_check'
-      AND pg_get_constraintdef(oid) NOT LIKE '%turbo%'
+      AND (
+        pg_get_constraintdef(oid) NOT LIKE '%ultra%'
+        OR pg_get_constraintdef(oid) NOT LIKE '%turbo%'
+      )
   ) THEN
     ALTER TABLE generations DROP CONSTRAINT generations_engine_check;
   END IF;
+  -- Переносим и уже сохранённую историю на новый идентификатор движка.
+  UPDATE generations SET engine = 'ultra' WHERE engine = 'turbo';
+  -- На время переключения разрешены оба id: старый инстанс ещё может создать
+  -- запись со значением `turbo`; новый код сохраняет только `ultra`.
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'generations_engine_check'
   ) THEN
     ALTER TABLE generations
       ADD CONSTRAINT generations_engine_check
-      CHECK (engine IN ('krea', 'ideogram', 'turbo'));
+      CHECK (engine IN ('krea', 'ideogram', 'ultra', 'turbo'));
   END IF;
 END $$;
 

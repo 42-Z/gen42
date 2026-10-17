@@ -16,7 +16,7 @@
 		"lint:fix": "biome check --write .",
 		"format": "biome format --write .",
 		"eval:style42": "node_modules/.bin/bun evals/style42.eval.ts",
-		"eval:turbo": "node_modules/.bin/bun evals/turbo.eval.ts",
+		"eval:ultra": "node_modules/.bin/bun evals/ultra.eval.ts",
 		"sheet:css": "bun scripts/gen-sheet-css.ts",
 		"sheet:proto": "bun scripts/sheet-proto.ts",
 		"ui:text": "bun scripts/ui-text.ts",

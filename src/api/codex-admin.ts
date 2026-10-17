@@ -4,7 +4,7 @@ import {
 	createCodexAuth,
 	getCodexStatus,
 	getCodexUsage,
-} from "../lib/turbo/codex-auth";
+} from "../lib/ultra/codex-auth";
 import { adminResponse, checkAdmin } from "./admin";
 
 /** Вход по коду живёт до подтверждения; функция Vercel — не больше 300 с */

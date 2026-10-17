@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { makeThumb, thumbKey } from "../thumbnails";
-import { TINY_PNG } from "./helpers/turbo-fakes";
+import { TINY_PNG } from "./helpers/ultra-fakes";
 
 describe("thumbKey", () => {
 	test("превью лежит в отдельном префиксе с расширением webp", () => {

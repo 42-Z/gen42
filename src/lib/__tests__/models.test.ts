@@ -4,9 +4,10 @@ import {
 	getImageModel,
 	isImageEngine,
 	isSpaceEngine,
+	parseGenerationMode,
 	publicImageModels,
 	resolveImageEngine,
-	TURBO_MODEL,
+	ULTRA_MODEL,
 } from "../models";
 
 describe("Image models", () => {
@@ -15,9 +16,9 @@ describe("Image models", () => {
 		expect(getImageModel("ideogram").cost).toBe(3);
 	});
 
-	test("Турбо стоит 10 кредитов", () => {
-		expect(TURBO_MODEL.cost).toBe(10);
-		expect(getEngineCost("turbo")).toBe(10);
+	test("Ультра стоит 10 кредитов", () => {
+		expect(ULTRA_MODEL.cost).toBe(10);
+		expect(getEngineCost("ultra")).toBe(10);
 		expect(getEngineCost("krea")).toBe(1);
 		expect(getEngineCost("ideogram")).toBe(3);
 	});
@@ -36,19 +37,32 @@ describe("Image models", () => {
 		expect(resolveImageEngine(undefined)).toBe("krea");
 	});
 
-	test("turbo без рабочего входа Codex неотличим от неизвестного движка", () => {
-		expect(resolveImageEngine("turbo")).toBe("krea");
-		expect(resolveImageEngine("turbo", false)).toBe("krea");
-		expect(resolveImageEngine("turbo", true)).toBe("turbo");
+	test("ultra — основной id, старый turbo принимается как алиас", () => {
+		expect(resolveImageEngine("ultra", true)).toBe("ultra");
+		expect(resolveImageEngine("turbo", true)).toBe("ultra");
+	});
+
+	test("режим ultra восстанавливается из нового и старого значения localStorage", () => {
+		expect(parseGenerationMode("ultra")).toBe("ultra");
+		expect(parseGenerationMode("turbo")).toBe("ultra");
+		expect(parseGenerationMode("image")).toBe("image");
+		expect(parseGenerationMode("unknown")).toBe("image");
+	});
+
+	test("ultra без рабочего входа Codex неотличим от неизвестного движка", () => {
+		expect(resolveImageEngine("ultra")).toBe("krea");
+		expect(resolveImageEngine("ultra", false)).toBe("krea");
+		expect(resolveImageEngine("ultra", true)).toBe("ultra");
 		expect(resolveImageEngine("ideogram", true)).toBe("ideogram");
 	});
 
 	test("isImageEngine и isSpaceEngine", () => {
 		expect(isImageEngine("krea")).toBe(true);
 		expect(isImageEngine("ideogram")).toBe(true);
-		expect(isImageEngine("turbo")).toBe(true);
+		expect(isImageEngine("ultra")).toBe(true);
+		expect(isImageEngine("turbo")).toBe(false);
 		expect(isImageEngine("nope")).toBe(false);
-		expect(isSpaceEngine("turbo")).toBe(false);
+		expect(isSpaceEngine("ultra")).toBe(false);
 		expect(isSpaceEngine("krea")).toBe(true);
 	});
 
@@ -62,15 +76,15 @@ describe("Image models", () => {
 		}
 	});
 
-	test("Турбо попадает в список только когда доступен", () => {
-		expect(publicImageModels({ turbo: false }).map((m) => m.id)).toEqual([
+	test("Ультра попадает в список только когда доступна", () => {
+		expect(publicImageModels({ ultra: false }).map((m) => m.id)).toEqual([
 			"krea",
 			"ideogram",
 		]);
-		const withTurbo = publicImageModels({ turbo: true });
-		expect(withTurbo.map((m) => m.id)).toEqual(["krea", "ideogram", "turbo"]);
-		expect(withTurbo.at(-1)).toEqual({
-			id: "turbo",
+		const withUltra = publicImageModels({ ultra: true });
+		expect(withUltra.map((m) => m.id)).toEqual(["krea", "ideogram", "ultra"]);
+		expect(withUltra.at(-1)).toEqual({
+			id: "ultra",
 			label: "Ультра",
 			cost: 10,
 		});

@@ -24,18 +24,20 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { imageExtension } from "@/lib/image-format";
 import {
+	type GenerationMode,
 	type PublicImageModel,
+	parseGenerationMode,
 	type SpaceEngine,
-	TURBO_MODEL,
+	ULTRA_MODEL,
 } from "@/lib/models";
 import { impulse } from "@/lib/sheet/impulses";
-import { TURBO_CLIENT_WAIT_MS } from "@/lib/turbo/constants";
+import { ULTRA_CLIENT_WAIT_MS } from "@/lib/ultra/constants";
 import {
-	parseTurboReasoning,
-	TURBO_DEFAULT_REASONING,
-	TURBO_REASONING_LEVELS,
-	type TurboReasoning,
-} from "@/lib/turbo/reasoning";
+	parseUltraReasoning,
+	ULTRA_DEFAULT_REASONING,
+	ULTRA_REASONING_LEVELS,
+	type UltraReasoning,
+} from "@/lib/ultra/reasoning";
 import { ModelPicker } from "./ModelPicker";
 import { ResultFrame } from "./sheet/ResultFrame";
 import { useFlipList } from "./sheet/use-flip";
@@ -47,12 +49,12 @@ interface GenerateProps {
 
 const HISTORY_LIMIT = 8;
 
-type Mode = "image" | "turbo";
+type Mode = GenerationMode;
 const MODE_STORAGE_KEY = "gen42-mode";
 
 /** Выбранный уровень рассуждения «Ультры»: запоминается между визитами */
 const REASONING_STORAGE_KEY = "gen42-reasoning";
-const REASONING_LABELS: Record<TurboReasoning, string> = {
+const REASONING_LABELS: Record<UltraReasoning, string> = {
 	medium: "Среднее",
 	high: "Высокое",
 	xhigh: "Очень высокое",
@@ -64,8 +66,8 @@ const PENDING_KEY = "gen42-pending";
 /** Последняя показанная картинка: она не должна пропадать при обновлении */
 const RESULT_KEY = "gen42-result";
 const POLL_INTERVAL_MS = 2500;
-/** Дольше воркфлоу Турбо (до ~13–14 минут) и короче закрытия зависших на сервере: см. `TURBO_CLIENT_WAIT_MS` */
-const POLL_TIMEOUT_MS = TURBO_CLIENT_WAIT_MS;
+/** Дольше воркфлоу «Ультра» (до ~13–14 минут) и короче закрытия зависших на сервере: см. `ULTRA_CLIENT_WAIT_MS` */
+const POLL_TIMEOUT_MS = ULTRA_CLIENT_WAIT_MS;
 
 /** id генерации придумывает клиент — иначе после обновления её не найти */
 function newGenerationId(): string {
@@ -111,23 +113,21 @@ function rememberResult(id: string) {
 
 function readStoredMode(): Mode {
 	try {
-		return localStorage.getItem(MODE_STORAGE_KEY) === "turbo"
-			? "turbo"
-			: "image";
+		return parseGenerationMode(localStorage.getItem(MODE_STORAGE_KEY));
 	} catch {
 		return "image";
 	}
 }
 
-function readStoredReasoning(): TurboReasoning {
+function readStoredReasoning(): UltraReasoning {
 	try {
 		return (
-			parseTurboReasoning(
+			parseUltraReasoning(
 				localStorage.getItem(REASONING_STORAGE_KEY) ?? undefined,
-			) ?? TURBO_DEFAULT_REASONING
+			) ?? ULTRA_DEFAULT_REASONING
 		);
 	} catch {
-		return TURBO_DEFAULT_REASONING;
+		return ULTRA_DEFAULT_REASONING;
 	}
 }
 
@@ -146,7 +146,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const [engine, setEngine] = useState<SpaceEngine>("krea");
 	const [mode, setMode] = useState<Mode>(readStoredMode);
 	const [reasoning, setReasoning] =
-		useState<TurboReasoning>(readStoredReasoning);
+		useState<UltraReasoning>(readStoredReasoning);
 	const pollTimer = useRef<number | null>(null);
 	const galleryRef = useRef<HTMLDivElement>(null);
 	useFlipList(galleryRef, history.map((img) => img.id).join(","), () =>
@@ -157,16 +157,16 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const aliveRef = useRef(true);
 
 	// «Ультра» виден, только пока сервер отдаёт его в списке: иначе экран один, обычный
-	const turboModel = models.find((m) => m.id === "turbo");
-	const activeMode: Mode = turboModel ? mode : "image";
+	const ultraModel = models.find((m) => m.id === "ultra");
+	const activeMode: Mode = ultraModel ? mode : "image";
 	const cost =
-		activeMode === "turbo"
-			? (turboModel?.cost ?? TURBO_MODEL.cost)
+		activeMode === "ultra"
+			? (ultraModel?.cost ?? ULTRA_MODEL.cost)
 			: (models.find((m) => m.id === engine)?.cost ?? 1);
 	const outOfCredits = balance !== null && balance < cost;
 
 	function changeMode(next: string) {
-		const value: Mode = next === "turbo" ? "turbo" : "image";
+		const value: Mode = next === "ultra" ? "ultra" : "image";
 		setMode(value);
 		try {
 			localStorage.setItem(MODE_STORAGE_KEY, value);
@@ -176,7 +176,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	}
 
 	function changeReasoning(values: number[]) {
-		const next = TURBO_REASONING_LEVELS[values[0] ?? 0];
+		const next = ULTRA_REASONING_LEVELS[values[0] ?? 0];
 		if (!next) return;
 		setReasoning(next);
 		try {
@@ -402,8 +402,8 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(
-					activeMode === "turbo"
-						? { prompt, engine: "turbo", id, reasoning }
+					activeMode === "ultra"
+						? { prompt, engine: "ultra", id, reasoning }
 						: {
 								prompt,
 								engine,
@@ -419,7 +419,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 			// ответ платформы может быть не-JSON (обрыв, лимит времени) — тогда пользователю
 			// достаётся нейтральный текст, а не сообщение парсера
 			const fallback =
-				activeMode === "turbo"
+				activeMode === "ultra"
 					? "Не удалось создать изображение"
 					: "Ошибка генерации";
 			const data = await res.json().catch(() => null);
@@ -499,7 +499,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	return (
 		<div className="mx-auto max-w-3xl">
 			<div className="animate-pop-in">
-				{turboModel && (
+				{ultraModel && (
 					<Tabs
 						value={activeMode}
 						onValueChange={changeMode}
@@ -510,9 +510,9 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 								<IconPhoto />
 								Изображение
 							</TabsTrigger>
-							<TabsTrigger value="turbo" data-weight="0.6" disabled={loading}>
+							<TabsTrigger value="ultra" data-weight="0.6" disabled={loading}>
 								<IconBolt />
-								{turboModel.label}
+								{ultraModel.label}
 							</TabsTrigger>
 						</TabsList>
 					</Tabs>
@@ -547,9 +547,9 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 									<IconBrain className="text-primary" aria-hidden="true" />
 									<Slider
 										min={0}
-										max={TURBO_REASONING_LEVELS.length - 1}
+										max={ULTRA_REASONING_LEVELS.length - 1}
 										step={1}
-										value={[TURBO_REASONING_LEVELS.indexOf(reasoning)]}
+										value={[ULTRA_REASONING_LEVELS.indexOf(reasoning)]}
 										onValueChange={changeReasoning}
 										disabled={loading}
 										aria-label="Уровень рассуждения"

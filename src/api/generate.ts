@@ -35,10 +35,10 @@ import { checkRateLimit } from "../lib/rate-limit";
 import { getImageUrl, uploadImage } from "../lib/storage";
 import { getOrCreateThumb, storeThumb } from "../lib/thumbnails";
 import { traceSpan } from "../lib/tracing";
-import { isTurboAvailable } from "../lib/turbo/codex-auth";
-import { parseTurboReasoning } from "../lib/turbo/reasoning";
-import { startTurbo } from "../lib/turbo/start";
-import { startTurboDeps } from "../lib/turbo/start-deps";
+import { isUltraAvailable } from "../lib/ultra/codex-auth";
+import { parseUltraReasoning } from "../lib/ultra/reasoning";
+import { startUltra } from "../lib/ultra/start";
+import { startUltraDeps } from "../lib/ultra/start-deps";
 
 const MAX_ATTEMPTS = 5;
 
@@ -69,8 +69,8 @@ export const generateRoutes = {
 	"/api/models": {
 		// каталог движков без секретов; «Ультра» в нём только пока рабочий вход Codex
 		GET: async () => {
-			const turbo = await isTurboAvailable().catch(() => false);
-			return Response.json(publicImageModels({ turbo }), {
+			const ultra = await isUltraAvailable().catch(() => false);
+			return Response.json(publicImageModels({ ultra }), {
 				headers: { "Cache-Control": "private, max-age=60" },
 			});
 		},
@@ -93,33 +93,33 @@ export const generateRoutes = {
 			const body = await req.json();
 			const { prompt, negativePrompt, model, width, height, steps, seed } =
 				body;
-			// без рабочего входа Codex «turbo» ничем не отличается от неизвестного движка
-			const turboAvailable =
-				body.engine === "turbo" &&
-				(await isTurboAvailable().catch(() => false));
-			const engine = resolveImageEngine(body.engine, turboAvailable);
+			// Старые вкладки могут прислать прежний id `turbo`; сервер принимает его как `ultra`.
+			const isUltraRequest = body.engine === "ultra" || body.engine === "turbo";
+			const ultraAvailable =
+				isUltraRequest && (await isUltraAvailable().catch(() => false));
+			const engine = resolveImageEngine(body.engine, ultraAvailable);
 
 			if (!prompt || prompt.length > 1000) {
 				return Response.json({ error: "Некорректный промпт" }, { status: 400 });
 			}
 
-			if (engine === "turbo") {
+			if (engine === "ultra") {
 				// неизвестный уровень отклоняется, а не заменяется молча другим
-				const reasoning = parseTurboReasoning(body.reasoning);
+				const reasoning = parseUltraReasoning(body.reasoning);
 				if (!reasoning) {
 					return Response.json(
 						{ error: "Некорректный уровень рассуждения" },
 						{ status: 400 },
 					);
 				}
-				const outcome = await startTurbo(
+				const outcome = await startUltra(
 					{
 						userId: session.user.id,
 						prompt,
 						reasoning,
 						...(typeof body.id === "string" ? { id: body.id } : {}),
 					},
-					startTurboDeps,
+					startUltraDeps,
 				);
 				return Response.json(outcome.body, { status: outcome.status });
 			}
