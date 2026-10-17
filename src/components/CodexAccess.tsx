@@ -58,7 +58,7 @@ function windowLabel(seconds: number): string {
 	return `${hours} ${plural(hours, "час", "часа", "часов")}`;
 }
 
-/** Вход подписки ChatGPT для режима «Турбо»: один вход обслуживает и агента, и картинки */
+/** Вход подписки ChatGPT для режима «Ультра»: один вход обслуживает и агента, и картинки */
 export function CodexAccess() {
 	const [status, setStatus] = useState<CodexAdminState | null>(null);
 	const [pending, setPending] = useState<PendingLogin | null>(null);
@@ -158,7 +158,7 @@ export function CodexAccess() {
 	}
 
 	async function logout() {
-		if (!window.confirm("Выйти из Codex? Режим «Турбо» пропадёт у всех.")) {
+		if (!window.confirm("Выйти из Codex? Режим «Ультра» пропадёт у всех.")) {
 			return;
 		}
 		setBusy("logout");
@@ -193,7 +193,7 @@ export function CodexAccess() {
 						}
 					>
 						{healthy
-							? "Турбо работает"
+							? "Ультра работает"
 							: loggedIn
 								? "Нужна проверка"
 								: "Вход не выполнен"}
@@ -202,7 +202,7 @@ export function CodexAccess() {
 			</div>
 
 			<p className="mt-3 max-w-prose text-sm text-muted-foreground">
-				Подписка ChatGPT, через которую работает режим «Турбо». Пока входа нет
+				Подписка ChatGPT, через которую работает режим «Ультра». Пока входа нет
 				или он нерабочий, пользователи режима не видят.
 			</p>
 

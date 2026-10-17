@@ -94,7 +94,7 @@ async function mockApi(
 			return json([
 				{ id: "krea", label: "Krea 2", cost: 1 },
 				{ id: "ideogram", label: "Ideogram 4", cost: 3 },
-				{ id: "turbo", label: "Турбо", cost: 10 },
+				{ id: "turbo", label: "Ультра", cost: 10 },
 			]);
 		if (p === "/api/generations") return json(state.history);
 		if (p === "/api/generations/active") return json({ error: "none" }, 404);
@@ -419,7 +419,7 @@ try {
 	await shot(page, "05-erasing");
 	await pause(page, 900);
 
-	await page.getByRole("tab", { name: "Турбо" }).click();
+	await page.getByRole("tab", { name: "Ультра" }).click();
 	await pause(page, 170);
 	await shot(page, "06-tab-mid");
 	await pause(page, 900);

@@ -31,8 +31,8 @@ export const IMAGE_MODELS: Record<SpaceEngine, ImageModelDef> = {
 	},
 };
 
-/** Турбо: агент подбирает изображения из библиотеки и рисует через подписку ChatGPT. Без адреса Space. */
-export const TURBO_MODEL = { label: "Турбо", cost: 10 } as const;
+/** «Ультра» движка `turbo`: агент подбирает изображения из библиотеки и рисует через подписку ChatGPT. Без адреса Space. */
+export const TURBO_MODEL = { label: "Ультра", cost: 10 } as const;
 
 export const DEFAULT_IMAGE_ENGINE: SpaceEngine = "krea";
 

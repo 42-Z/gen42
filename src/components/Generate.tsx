@@ -36,7 +36,6 @@ import {
 	TURBO_REASONING_LEVELS,
 	type TurboReasoning,
 } from "@/lib/turbo/reasoning";
-import { cn } from "@/lib/utils";
 import { ModelPicker } from "./ModelPicker";
 import { ResultFrame } from "./sheet/ResultFrame";
 import { useFlipList } from "./sheet/use-flip";
@@ -529,19 +528,35 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 							maxLength={1000}
 							className="min-h-36 text-lg leading-relaxed"
 						/>
-						<InputGroupAddon
-							align="block-end"
-							className={cn(
-								activeMode === "image" ? "justify-between" : "justify-end",
-							)}
-						>
-							{activeMode === "image" && (
+						<InputGroupAddon align="block-end" className="justify-between">
+							{activeMode === "image" ? (
 								<ModelPicker
 									models={models}
 									value={engine}
 									onChange={setEngine}
 									disabled={loading}
 								/>
+							) : (
+								// ползунок рассуждения занимает место чипа модели: аддон встаёт
+								// после ввода в DOM (по документации InputGroup), а клики мимо
+								// ручки не фокусируют текст
+								<span
+									className="flex items-center gap-2"
+									onClick={(e) => e.stopPropagation()}
+								>
+									<IconBrain className="text-primary" aria-hidden="true" />
+									<Slider
+										min={0}
+										max={TURBO_REASONING_LEVELS.length - 1}
+										step={1}
+										value={[TURBO_REASONING_LEVELS.indexOf(reasoning)]}
+										onValueChange={changeReasoning}
+										disabled={loading}
+										aria-label="Уровень рассуждения"
+										aria-valuetext={REASONING_LABELS[reasoning]}
+										className="w-24 sm:w-28"
+									/>
+								</span>
 							)}
 							<span className="relative">
 								<Button
@@ -569,27 +584,6 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 						</InputGroupAddon>
 					</InputGroup>
 				</div>
-
-				{activeMode === "turbo" && (
-					<div className="animate-pop-in mt-6 flex flex-col gap-3">
-						<div className="flex items-center gap-2">
-							<IconBrain className="size-5 text-primary" />
-							<span className="font-display text-lg font-bold text-foreground">
-								Рассуждение
-							</span>
-						</div>
-						<Slider
-							min={0}
-							max={TURBO_REASONING_LEVELS.length - 1}
-							step={1}
-							value={[TURBO_REASONING_LEVELS.indexOf(reasoning)]}
-							onValueChange={changeReasoning}
-							disabled={loading}
-							aria-label="Уровень рассуждения"
-							aria-valuetext={REASONING_LABELS[reasoning]}
-						/>
-					</div>
-				)}
 
 				{error && (
 					<div

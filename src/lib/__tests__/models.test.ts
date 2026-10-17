@@ -69,6 +69,10 @@ describe("Image models", () => {
 		]);
 		const withTurbo = publicImageModels({ turbo: true });
 		expect(withTurbo.map((m) => m.id)).toEqual(["krea", "ideogram", "turbo"]);
-		expect(withTurbo.at(-1)).toEqual({ id: "turbo", label: "Турбо", cost: 10 });
+		expect(withTurbo.at(-1)).toEqual({
+			id: "turbo",
+			label: "Ультра",
+			cost: 10,
+		});
 	});
 });
