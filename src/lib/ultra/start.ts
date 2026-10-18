@@ -8,6 +8,7 @@ export interface StartUltraDeps {
 		id?: string;
 		userId: string;
 		prompt: string;
+		reasoning: UltraReasoning;
 	}): Promise<string>;
 	/** Списание за генерацию; бросает InsufficientCreditsError при нехватке */
 	chargeCredits(params: {
@@ -47,8 +48,8 @@ export function startUltra(
 	deps: StartUltraDeps,
 ): Promise<StartUltraOutcome> {
 	const { userId, prompt } = input;
-	// уровень записывается во вход воркфлоу явно: прогон не зависит от того, что
-	// станет умолчанием позже
+	// Уровень сохраняется в истории и во входе воркфлоу явно: прогон не зависит
+	// от того, что станет умолчанием позже.
 	const reasoning = input.reasoning ?? ULTRA_DEFAULT_REASONING;
 	return startRun(
 		{ userId, engine: "ultra", cost: ULTRA_MODEL.cost },
@@ -58,6 +59,7 @@ export function startUltra(
 					...(input.id ? { id: input.id } : {}),
 					userId,
 					prompt,
+					reasoning,
 				}),
 			chargeCredits: (params) => deps.chargeCredits(params),
 			startWorkflow: (id) =>

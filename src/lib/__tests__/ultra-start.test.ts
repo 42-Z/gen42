@@ -46,6 +46,7 @@ describe("startUltra", () => {
 		expect(deps.startRecord).toHaveBeenCalledWith({
 			userId: "u1",
 			prompt: "пятёрка на троне",
+			reasoning: "high",
 		});
 		expect(deps.chargeCredits).toHaveBeenCalledWith({
 			id: "gen-1",
@@ -66,27 +67,34 @@ describe("startUltra", () => {
 		expect(deps.failRecord).not.toHaveBeenCalled();
 	});
 
-	test("выбранный уровень рассуждения уходит в воркфлоу, цена не меняется", async () => {
-		const deps = makeDeps();
+	for (const reasoning of ["medium", "high", "xhigh", "max"] as const) {
+		test(`уровень ${reasoning} сохраняется и уходит в воркфлоу, цена не меняется`, async () => {
+			const deps = makeDeps();
 
-		const outcome = await startUltra(
-			{ userId: "u1", prompt: "x", reasoning: "max" },
-			deps,
-		);
+			const outcome = await startUltra(
+				{ userId: "u1", prompt: "x", reasoning },
+				deps,
+			);
 
-		expect(deps.startWorkflow).toHaveBeenCalledWith({
-			id: "gen-1",
-			userId: "u1",
-			prompt: "x",
-			reasoning: "max",
+			expect(deps.startRecord).toHaveBeenCalledWith({
+				userId: "u1",
+				prompt: "x",
+				reasoning,
+			});
+			expect(deps.startWorkflow).toHaveBeenCalledWith({
+				id: "gen-1",
+				userId: "u1",
+				prompt: "x",
+				reasoning,
+			});
+			expect(deps.chargeCredits).toHaveBeenCalledWith({
+				id: "gen-1",
+				userId: "u1",
+				cost: 10,
+			});
+			expect(outcome.status).toBe(202);
 		});
-		expect(deps.chargeCredits).toHaveBeenCalledWith({
-			id: "gen-1",
-			userId: "u1",
-			cost: 10,
-		});
-		expect(outcome.status).toBe(202);
-	});
+	}
 
 	test("мало кредитов: 402, воркфлоу не запускается, строка закрыта", async () => {
 		const deps = makeDeps({
@@ -145,6 +153,7 @@ describe("startUltra", () => {
 			id: "client-id",
 			userId: "u1",
 			prompt: "x",
+			reasoning: "high",
 		});
 	});
 

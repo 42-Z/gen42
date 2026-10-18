@@ -148,6 +148,21 @@ CREATE INDEX IF NOT EXISTS idx_generations_status ON generations(status);
 -- Режим «Ультра»: движок ultra, входные изображения агента, вход подписки Codex
 ALTER TABLE generations ADD COLUMN IF NOT EXISTS input_images TEXT[];
 
+-- Уровень рассуждения новых запусков; у прежних записей остаётся NULL
+ALTER TABLE generations ADD COLUMN IF NOT EXISTS reasoning VARCHAR(10);
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'generations_reasoning_check'
+      AND conrelid = 'generations'::regclass
+  ) THEN
+    ALTER TABLE generations
+      ADD CONSTRAINT generations_reasoning_check
+      CHECK (reasoning IN ('medium', 'high', 'xhigh', 'max'));
+  END IF;
+END $$;
+
 DO $$ BEGIN
   IF EXISTS (
     SELECT 1 FROM pg_constraint

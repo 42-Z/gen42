@@ -106,6 +106,35 @@ describe("startGeneration", () => {
 		const insert = queries().find((q) => q.includes("INSERT INTO generations"));
 		expect(insert).toContain("0, 'running'");
 	});
+
+	for (const reasoning of ["medium", "high", "xhigh", "max"] as const) {
+		test(`сохраняет выбранный уровень рассуждения ${reasoning}`, async () => {
+			responses = { "ON CONFLICT (id) DO NOTHING": [{ id: "client-id-42" }] };
+			await startGeneration({
+				...BASE,
+				id: "client-id-42",
+				engine: "ultra",
+				reasoning,
+			});
+			const insert = queries().find((q) =>
+				q.includes("INSERT INTO generations"),
+			);
+			expect(insert).toContain("reasoning");
+			expect(paramsOf("INSERT INTO generations").at(-1)).toBe(reasoning);
+		});
+	}
+
+	for (const reasoning of [null, undefined]) {
+		test(`не подставляет уровень рассуждения вместо ${reasoning}`, async () => {
+			responses = { "ON CONFLICT (id) DO NOTHING": [{ id: "client-id-42" }] };
+			await startGeneration({ ...BASE, id: "client-id-42", reasoning });
+			const insert = queries().find((q) =>
+				q.includes("INSERT INTO generations"),
+			);
+			expect(insert).toContain("reasoning");
+			expect(paramsOf("INSERT INTO generations").at(-1)).toBeNull();
+		});
+	}
 });
 
 describe("потолок идущих генераций", () => {
@@ -288,6 +317,7 @@ describe("чтение генераций", () => {
 		prompt: "пятёрка на троне",
 		engine: "krea",
 		model: "Turbo",
+		reasoning: null,
 		seed: 7,
 		width: 1024,
 		height: 1024,
@@ -315,6 +345,43 @@ describe("чтение генераций", () => {
 		responses = { "WHERE id = ? AND user_id = ?": [] };
 		expect(await getGeneration("u2", "gen-1")).toBeNull();
 	});
+
+	for (const reasoning of ["max", null] as const) {
+		test(`getGeneration читает reasoning=${reasoning} без подмены`, async () => {
+			responses = {
+				"WHERE id = ? AND user_id = ?": [
+					{ ...row, engine: "ultra", reasoning },
+				],
+			};
+			const record = await getGeneration("u1", "gen-1");
+			expect(queries().find((q) => q.includes("SELECT id"))).toContain(
+				"reasoning",
+			);
+			expect(record?.reasoning).toBe(reasoning);
+		});
+
+		test(`getActiveGeneration читает reasoning=${reasoning} без подмены`, async () => {
+			responses = {
+				"ORDER BY created_at DESC": [{ ...row, engine: "ultra", reasoning }],
+			};
+			const record = await getActiveGeneration("u1");
+			expect(queries().find((q) => q.includes("SELECT id"))).toContain(
+				"reasoning",
+			);
+			expect(record?.reasoning).toBe(reasoning);
+		});
+
+		test(`listRunningGenerations читает reasoning=${reasoning} без подмены`, async () => {
+			responses = {
+				"ORDER BY created_at DESC": [{ ...row, engine: "ultra", reasoning }],
+			};
+			const records = await listRunningGenerations("u1");
+			expect(queries().find((q) => q.includes("SELECT id"))).toContain(
+				"reasoning",
+			);
+			expect(records.map((record) => record.reasoning)).toEqual([reasoning]);
+		});
+	}
 
 	test("getActiveGeneration возвращает идущую генерацию", async () => {
 		responses = { "ORDER BY created_at DESC": [row] };

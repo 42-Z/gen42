@@ -1,5 +1,7 @@
 // src/components/sheet/ResultFrame.tsx
-import { useEffect, useRef } from "react";
+
+import { IconPhotoOff } from "@tabler/icons-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { flash } from "@/lib/sheet/flash";
 import { impulse } from "@/lib/sheet/impulses";
 import { SPRINGS, springLinear } from "@/lib/sheet/springs";
@@ -11,7 +13,13 @@ interface ResultFrameProps {
 	loading: boolean;
 	/** Генерация возобновлена после обновления страницы: первая ступень давно пройдена */
 	resumed?: boolean;
-	image: { url: string; alt: string } | null;
+	image: {
+		url: string;
+		originalUrl?: string | null;
+		alt: string;
+		width?: number;
+		height?: number;
+	} | null;
 	className?: string;
 }
 
@@ -34,6 +42,47 @@ export function ResultFrame({
 	const was = useRef(false);
 	const breath = useRef<Animation | null>(null);
 	const timer = useRef<number | null>(null);
+	const [useOriginal, setUseOriginal] = useState(false);
+	const [imageReady, setImageReady] = useState(false);
+	const [imageFailed, setImageFailed] = useState(false);
+	const imageUrl = image?.url;
+	const originalUrl = image?.originalUrl;
+	const src = useOriginal && originalUrl ? originalUrl : imageUrl;
+	const failImage = useCallback(
+		(current: HTMLImageElement, expected: string | undefined) => {
+			if (current.getAttribute("src") !== expected) return;
+			if (!useOriginal && originalUrl && originalUrl !== imageUrl) {
+				setUseOriginal(true);
+				return;
+			}
+			setImageFailed(true);
+			setImageReady(true);
+		},
+		[imageUrl, originalUrl, useOriginal],
+	);
+	const markImageReady = useCallback(
+		(current: HTMLImageElement) => {
+			const expected = src;
+			void current.decode().then(
+				() => {
+					if (current.getAttribute("src") === expected) setImageReady(true);
+				},
+				() => failImage(current, expected),
+			);
+		},
+		[failImage, src],
+	);
+
+	useEffect(() => {
+		setUseOriginal(false);
+		setImageFailed(false);
+	}, [imageUrl, originalUrl]);
+
+	useEffect(() => {
+		setImageReady(false);
+		const current = pic.current;
+		if (current?.complete && current.naturalWidth > 0) markImageReady(current);
+	}, [src, markImageReady]);
 
 	useEffect(() => {
 		const fl = flow.current;
@@ -87,11 +136,14 @@ export function ResultFrame({
 			finish();
 			return;
 		}
-		was.current = false;
 		if (!image) {
+			was.current = false;
 			finish();
 			return;
 		}
+		// Не раскрываем занавес, пока браузер не получил и не декодировал копию.
+		if (!imageReady) return;
+		was.current = false;
 		if (reduced()) {
 			finish();
 			impulse({ source: fr, sign: 1, weight: 1, mass: "heavy" });
@@ -120,13 +172,14 @@ export function ResultFrame({
 			() => finish(),
 		);
 		return clearTimer;
-	}, [loading, resumed]);
+	}, [loading, resumed, imageUrl, originalUrl, imageReady]);
 
 	return (
 		<div
 			ref={frame}
 			data-slot="result-frame"
 			data-sheet="dark"
+			aria-busy={loading || (Boolean(image) && !imageReady)}
 			{...(image
 				? {}
 				: loading
@@ -142,13 +195,28 @@ export function ResultFrame({
 			)}
 		>
 			<SheetLayer />
-			{image && (
+			{image && src && !imageFailed && (
 				<img
 					ref={pic}
-					src={image.url}
+					src={src}
 					alt={image.alt}
+					width={image.width ?? 1024}
+					height={image.height ?? 1024}
+					loading="eager"
+					decoding="async"
+					onLoad={(event) => markImageReady(event.currentTarget)}
+					onError={(event) => failImage(event.currentTarget, src)}
 					className="absolute inset-0 block size-full object-cover"
 				/>
+			)}
+			{imageFailed && (
+				<span
+					role="img"
+					aria-label="Не удалось загрузить изображение"
+					className="absolute inset-0 flex items-center justify-center text-muted-foreground"
+				>
+					<IconPhotoOff />
+				</span>
 			)}
 			<i
 				ref={flow}

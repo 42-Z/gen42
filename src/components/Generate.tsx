@@ -2,8 +2,6 @@ import {
 	IconBolt,
 	IconBrain,
 	IconCheck,
-	IconChevronLeft,
-	IconChevronRight,
 	IconCoins,
 	IconCopy,
 	IconDownload,
@@ -11,10 +9,10 @@ import {
 	IconPhoto,
 	IconPhotoOff,
 	IconSparkles,
-	IconX,
 } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import {
 	InputGroup,
 	InputGroupAddon,
@@ -22,7 +20,10 @@ import {
 } from "@/components/ui/input-group";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { imageExtension } from "@/lib/image-format";
+import {
+	type GenerationView,
+	ULTRA_REASONING_LABELS,
+} from "@/lib/generation-view";
 import {
 	type GenerationMode,
 	type PublicImageModel,
@@ -53,6 +54,7 @@ import {
 	type UltraReasoning,
 } from "@/lib/ultra/reasoning";
 import { cn } from "@/lib/utils";
+import { GenerationViewer } from "./GenerationViewer";
 import { ModelPicker } from "./ModelPicker";
 import { ResultFrame } from "./sheet/ResultFrame";
 import { useFlipList } from "./sheet/use-flip";
@@ -69,13 +71,6 @@ const MODE_STORAGE_KEY = "gen42-mode";
 
 /** Выбранный уровень рассуждения «Ультры»: запоминается между визитами */
 const REASONING_STORAGE_KEY = "gen42-reasoning";
-const REASONING_LABELS: Record<UltraReasoning, string> = {
-	medium: "Среднее",
-	high: "Высокое",
-	xhigh: "Очень высокое",
-	max: "Максимальное",
-};
-
 /** Серия запусков: id рамок, по ним после обновления страницы возвращаются готовые и дожидаются идущие */
 const SERIES_KEY = "gen42-series";
 /** Ключи прежней версии (одна генерация): читаются один раз как затравка и удаляются */
@@ -143,8 +138,8 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const runsRef = useRef<Run[]>([]);
 	const [error, setError] = useState("");
 	const [copiedRun, setCopiedRun] = useState<string | null>(null);
-	const [history, setHistory] = useState<any[]>([]);
-	const [selected, setSelected] = useState<number | null>(null);
+	const [history, setHistory] = useState<GenerationView[]>([]);
+	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [models, setModels] = useState<PublicImageModel[]>([]);
 	const [engine, setEngine] = useState<SpaceEngine>("krea");
 	const [mode, setMode] = useState<Mode>(readStoredMode);
@@ -231,31 +226,16 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 		}
 	}
 
-	useEffect(() => {
-		if (selected === null) return;
-		function onKey(e: KeyboardEvent) {
-			if (e.key === "Escape") setSelected(null);
-			if (e.key === "ArrowRight")
-				setSelected((s) => (s === null ? s : (s + 1) % history.length));
-			if (e.key === "ArrowLeft")
-				setSelected((s) =>
-					s === null ? s : (s - 1 + history.length) % history.length,
-				);
-		}
-		document.addEventListener("keydown", onKey);
-		document.body.style.overflow = "hidden";
-		return () => {
-			document.removeEventListener("keydown", onKey);
-			document.body.style.overflow = "";
-		};
-	}, [selected, history.length]);
-
 	async function loadHistory() {
 		try {
 			const res = await fetch("/api/generations");
 			if (res.ok) {
 				const data = await res.json();
-				setHistory(Array.isArray(data) ? data.slice(0, HISTORY_LIMIT) : []);
+				setHistory(
+					Array.isArray(data)
+						? (data.slice(0, HISTORY_LIMIT) as GenerationView[])
+						: [],
+				);
 			}
 		} catch {
 			/* лента просто останется пустой */
@@ -444,21 +424,6 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 		}
 	}
 
-	async function downloadImage(url: string, seed: any) {
-		try {
-			const res = await fetch(url);
-			const blob = await res.blob();
-			const objectUrl = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = objectUrl;
-			a.download = `gen42-${seed ?? Date.now()}.${imageExtension(blob.type)}`;
-			a.click();
-			URL.revokeObjectURL(objectUrl);
-		} catch {
-			window.open(url, "_blank");
-		}
-	}
-
 	async function copySeed(run: Run) {
 		const seed = run.result?.seed;
 		if (seed === null || seed === undefined) return;
@@ -473,15 +438,6 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 			/* буфер обмена недоступен */
 		}
 	}
-
-	function step(dir: 1 | -1) {
-		setSelected((s) => {
-			if (s === null || history.length === 0) return s;
-			return (s + dir + history.length) % history.length;
-		});
-	}
-
-	const selectedImg = selected !== null ? history[selected] : null;
 
 	return (
 		<div className="mx-auto max-w-3xl">
@@ -538,7 +494,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 										value={[ULTRA_REASONING_LEVELS.indexOf(reasoning)]}
 										onValueChange={changeReasoning}
 										aria-label="Уровень рассуждения"
-										aria-valuetext={REASONING_LABELS[reasoning]}
+										aria-valuetext={ULTRA_REASONING_LABELS[reasoning]}
 										className="w-24 sm:w-28"
 									/>
 								</span>
@@ -600,8 +556,11 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 										image={
 											run.result
 												? {
-														url: run.result.image_url,
+														url: run.result.preview_url ?? run.result.image_url,
+														originalUrl: run.result.image_url,
 														alt: run.prompt || "Сгенерированное изображение",
+														width: run.result.width,
+														height: run.result.height,
 													}
 												: null
 										}
@@ -626,15 +585,16 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 													{run.result.seed}
 												</Button>
 											)}
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() =>
-													downloadImage(run.result!.image_url, run.result!.seed)
-												}
-											>
-												<IconDownload className="size-4" />
-												Скачать
+											<Button variant="outline" size="sm" asChild>
+												<a
+													href={`/api/generations/${encodeURIComponent(run.id)}/download`}
+													download
+													data-impulse="tap"
+													data-weight="0.25"
+												>
+													<IconDownload className="size-4" />
+													Скачать
+												</a>
 											</Button>
 										</div>
 									)}
@@ -655,118 +615,41 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 						ref={galleryRef}
 						className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-4"
 					>
-						{history.map((img, idx) => (
-							<button
+						{history.map((img) => (
+							<Dialog
 								key={img.id}
-								type="button"
-								data-key={img.id}
-								data-sheet="ring"
-								data-impulse="tap"
-								data-weight="0.3"
-								onClick={() => setSelected(idx)}
-								title={img.prompt}
-								aria-label={`Открыть изображение: ${img.prompt}`}
-								className="group relative block aspect-square overflow-hidden rounded-[22px] border border-border/60 text-left outline-none transition-[scale] duration-300 hover:scale-[1.02]"
+								open={selectedId === img.id}
+								onOpenChange={(open) => setSelectedId(open ? img.id : null)}
 							>
-								<img
-									src={img.thumb_url ?? img.image_url}
-									alt=""
-									loading="lazy"
-									decoding="async"
-									className="block h-full w-full rounded-[22px] object-cover"
-								/>
-							</button>
+								<DialogTrigger asChild>
+									<button
+										type="button"
+										data-key={img.id}
+										data-sheet="ring"
+										data-impulse="tap"
+										data-weight="0.3"
+										title={img.prompt}
+										aria-label={`Открыть изображение: ${img.prompt}`}
+										className="group relative block aspect-square overflow-hidden rounded-[22px] border border-border/60 text-left outline-none transition-[scale] duration-300 hover:scale-[1.02]"
+									>
+										<img
+											src={img.thumb_url ?? img.image_url}
+											alt=""
+											width={img.width ?? 640}
+											height={img.height ?? 640}
+											loading="lazy"
+											decoding="async"
+											className="block h-full w-full rounded-[22px] object-cover"
+										/>
+									</button>
+								</DialogTrigger>
+								{selectedId === img.id && (
+									<GenerationViewer key={img.id} generation={img} />
+								)}
+							</Dialog>
 						))}
 					</div>
 				</section>
-			)}
-
-			{selectedImg && (
-				<div
-					className="animate-pop-in fixed inset-0 z-[70] flex items-center justify-center bg-background/95 p-4 sm:p-10"
-					role="dialog"
-					aria-modal="true"
-					aria-label={`Просмотр изображения ${selected! + 1} из ${history.length}`}
-					onClick={() => setSelected(null)}
-				>
-					<div
-						className="flex max-h-full w-full max-w-4xl flex-col items-center gap-5 overflow-y-auto"
-						onClick={(e) => e.stopPropagation()}
-					>
-						<div className="relative min-h-0 w-fit max-w-full">
-							<img
-								src={selectedImg.image_url}
-								alt={selectedImg.prompt}
-								className="max-h-[70dvh] w-auto max-w-full rounded-[22px] border border-border"
-							/>
-						</div>
-						<div className="flex items-center justify-center gap-2">
-							<span className="text-xs tabular-nums text-muted-foreground">
-								{selected! + 1} / {history.length}
-							</span>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() =>
-									downloadImage(selectedImg.image_url, selectedImg.seed)
-								}
-							>
-								<IconDownload className="h-4 w-4" />
-								Скачать
-							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={() => setSelected(null)}
-							>
-								<IconX className="h-4 w-4" />
-								Закрыть
-							</Button>
-						</div>
-					</div>
-
-					{history.length > 1 && (
-						<>
-							<Button
-								type="button"
-								variant="outline"
-								size="icon"
-								onClick={(e) => {
-									e.stopPropagation();
-									step(-1);
-								}}
-								aria-label="Предыдущее изображение"
-								className="absolute left-3 top-1/2 -translate-y-1/2 sm:left-6"
-							>
-								<IconChevronLeft className="size-5" />
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								size="icon"
-								onClick={(e) => {
-									e.stopPropagation();
-									step(1);
-								}}
-								aria-label="Следующее изображение"
-								className="absolute right-3 top-1/2 -translate-y-1/2 sm:right-6"
-							>
-								<IconChevronRight className="size-5" />
-							</Button>
-						</>
-					)}
-
-					<Button
-						type="button"
-						variant="outline"
-						size="icon"
-						onClick={() => setSelected(null)}
-						aria-label="Закрыть"
-						className="absolute right-5 top-5"
-					>
-						<IconX className="size-5" />
-					</Button>
-				</div>
 			)}
 		</div>
 	);

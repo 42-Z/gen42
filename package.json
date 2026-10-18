@@ -20,7 +20,8 @@
 		"sheet:css": "bun scripts/gen-sheet-css.ts",
 		"sheet:proto": "bun scripts/sheet-proto.ts",
 		"ui:text": "bun scripts/ui-text.ts",
-		"ui:check": "bun scripts/ui-check.ts"
+		"ui:check": "bun scripts/ui-check.ts",
+		"ui:result-viewer": "bun scripts/check-result-viewer.ts"
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "4.0.28",
