@@ -279,7 +279,7 @@ describe("инструкция агента «Ультра»", () => {
 		);
 		expect(system).toContain("У света есть цвет, и он из замысла кадра");
 		expect(system).toContain(
-			"золото, серебро и хром только когда они в цветовом замысле",
+			"золото, серебро и хром там только когда они в цветовом замысле",
 		);
 		expect(system).toContain("Вещей «для роскоши» нет");
 		expect(system).toContain(
@@ -289,12 +289,33 @@ describe("инструкция агента «Ультра»", () => {
 			"Навалить побольше и подставить золото не заменяет идею",
 		);
 		expect(system).toContain("вещь без дела в сюжете пустоту не закрывает");
-		expect(system).toContain("на каждом по набору это штамп");
+		expect(system).toContain(
+			"«перстни, очки, кроссовки» на каждом по набору это штамп",
+		);
+		// золотая цепь с кулоном 42 остаётся главным знаком лоска героя, но не размножается
+		// (первая правка убрала её целиком: 0 из 13, владелец вернул её как важный атрибут)
+		expect(system).toContain(
+			"Самая узнаваемая из них золотая цепь с кулоном 42: это знак лоска",
+		);
+		// «по умолчанию на каждом герое» дало цепь в 6 из 6 промптов, «чаще, чем нет» в 8 из 9:
+		// частоту (примерно каждый второй кадр, как было до правки) держит розыгрыш «знак героя»
+		expect(system).toContain("примерно в каждом втором кадре");
+		expect(system).toContain("Но она один из знаков, а не обязанность");
+		expect(system).not.toContain("есть по умолчанию");
+		expect(system).not.toContain("бывает чаще, чем нет");
+		expect(system).toContain("Золотая цепь не размножается");
+		expect(system).toContain("«знак героя»");
+		expect(system).toContain(
+			"половина вариантов с золотой цепью (разной по кулону и по тому, как она висит), половина с другими знаками",
+		);
+		expect(system).toContain(
+			"золотая цепь с кулоном 42 у героя есть примерно в каждом втором кадре",
+		);
+		expect(system).toContain("золотые цепи с кулоном 42, диско-шары");
 		// металл племени больше не назван золотом по умолчанию
 		expect(system).not.toContain(
 			"Металл и блеск у племени это золото, хром, бриллианты",
 		);
-		expect(system).not.toContain("золотые цепи с кулоном 42");
 		// примеры не учат золоту и белому свету: палитры почти без них
 		const examples = system.slice(
 			indexIn(system, "# Примеры"),
@@ -306,9 +327,8 @@ describe("инструкция агента «Ультра»", () => {
 		expect(
 			palettes.filter((p) => /\bgold\b|\bwhite\b/.test(p)).length,
 		).toBeLessThanOrEqual(1);
-		expect(
-			examples.match(/\bgold(?:en)?\b/gi)?.length ?? 0,
-		).toBeLessThanOrEqual(2);
+		// золото в примерах только цепью героя: ни золотых рам, перчаток, лучей и вспышек
+		expect(examples.match(/\bgold(?:en)?\b(?! chain)/gi)?.length ?? 0).toBe(0);
 		expect(examples).not.toMatch(
 			/white (?:flash|floodlights?|spotlights?|beams?|light)/i,
 		);
@@ -698,15 +718,14 @@ describe("инструкция агента «Ультра»", () => {
 			/shades|sunglasses|aviators/i.test(output),
 		);
 		expect(withShades.length).toBeGreaterThanOrEqual(4);
-		// цепь есть, но золотая цепь у каждого героя стала шаблоном «gold chain of
-		// tiny <вещи темы> with a 42 pendant» (замер: золотая цепь в 18 из 38
-		// промптов), поэтому в примерах она одна и не с кулоном из звеньев-вещей темы
-		const withChain = outputs.filter((output) => /\bchains?\b/i.test(output));
+		// золотая цепь с кулоном 42 — главный знак лоска героя и стоит в трёх-четырёх
+		// примерах из семи, но не как шаблон «gold chain of tiny <вещи темы> with a 42
+		// pendant» (замер: такая цепь была в 28 из 38 промптов) и не на каждой фигуре
 		const withGoldChain = outputs.filter((output) =>
 			/gold chain/i.test(output),
 		);
-		expect(withChain.length).toBeGreaterThanOrEqual(1);
-		expect(withGoldChain.length).toBeLessThanOrEqual(1);
+		expect(withGoldChain.length).toBeGreaterThanOrEqual(3);
+		expect(withGoldChain.length).toBeLessThanOrEqual(4);
 		expect(examples).not.toMatch(
 			/chain of [\w-]+ [\w-]+ links[^.]{0,40}42 pendant/i,
 		);
