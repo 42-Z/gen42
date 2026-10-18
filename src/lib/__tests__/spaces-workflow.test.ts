@@ -53,6 +53,7 @@ describe("spaceImageWorkflow: успех", () => {
 		});
 		// в Space уходит обогащённый промпт, а не исходный
 		expect(runtime.attempt.mock.calls[0]![0]).toMatchObject({
+			generationId: "gen-1",
 			userId: "u1",
 			engine: "krea",
 			prompt: ENHANCED.prompt,

@@ -52,6 +52,7 @@ describe("enhanceStep и generateStep", () => {
 		const runtime = makeSpacesRuntime();
 		setSpacesRuntime(runtime);
 		const input = {
+			generationId: "gen-1",
 			userId: "u1",
 			engine: "krea" as const,
 			prompt: "A pug",

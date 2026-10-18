@@ -6,6 +6,7 @@ import type { AttemptInput } from "../spaces/types";
 
 const KEY = { id: "hf-1", name: "основной", key: "hf_secret" };
 const INPUT: AttemptInput = {
+	generationId: "gen-1",
 	userId: "u1",
 	engine: "krea",
 	prompt: "A pug on a throne",
@@ -44,7 +45,10 @@ describe("runAttempt", () => {
 
 		const outcome = await runAttempt(deps, INPUT);
 
-		expect(deps.getAvailableKey).toHaveBeenCalledWith({ excludeIds: ["hf-0"] });
+		expect(deps.getAvailableKey).toHaveBeenCalledWith({
+			excludeIds: ["hf-0"],
+			generationId: "gen-1",
+		});
 		expect(deps.generateImage.mock.calls[0]![1]).toBe("hf_secret");
 		expect(deps.generateImage.mock.calls[0]![0]).toMatchObject({
 			engine: "krea",

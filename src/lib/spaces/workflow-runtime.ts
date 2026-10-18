@@ -6,8 +6,9 @@ import {
 	failGeneration,
 } from "../generations";
 import { generateImage, getZeroGPUQuota } from "../hf";
+import { claimHfKey } from "../hf-key-claim";
 import { normalizeContentType } from "../image-format";
-import { getAvailableKey, updateKeyQuota } from "../keys";
+import { updateKeyQuota } from "../keys";
 import { uploadImage } from "../storage";
 import { storeThumb } from "../thumbnails";
 import { initTracing, traceSpan } from "../tracing";
@@ -34,7 +35,7 @@ function createDefaultRuntime(): SpacesRuntime {
 	// шаги воркфлоу идут отдельными вызовами функций — каждый вход инициализирует трассировку
 	initTracing();
 	const deps: AttemptDeps = {
-		getAvailableKey: (options) => getAvailableKey("huggingface", options),
+		getAvailableKey: (options) => claimHfKey(options),
 		generateImage,
 		refreshQuota: async (key, lastError) => {
 			const quota = await getZeroGPUQuota(key.key);

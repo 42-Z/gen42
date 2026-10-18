@@ -9,7 +9,11 @@ type HfKey = Pick<ApiKeyRow, "id" | "name" | "key">;
 
 /** Внешний мир одной попытки; боевые реализации собирает `workflow-runtime.ts`, тесты подставляют свои */
 export interface AttemptDeps {
-	getAvailableKey(options: { excludeIds: string[] }): Promise<HfKey>;
+	/** Выбирает ключ и закрепляет его за запуском (`generationId`); бросает AllKeysExhaustedError */
+	getAvailableKey(options: {
+		excludeIds: string[];
+		generationId: string;
+	}): Promise<HfKey>;
 	generateImage: typeof generateImage;
 	/** Обновляет квоту ключа после использования */
 	refreshQuota(key: HfKey, lastError?: string): Promise<void>;
@@ -48,7 +52,10 @@ export async function runAttempt(
 	};
 
 	try {
-		key = await deps.getAvailableKey({ excludeIds: input.excludeKeyIds });
+		key = await deps.getAvailableKey({
+			excludeIds: input.excludeKeyIds,
+			generationId: input.generationId,
+		});
 		stage = "Space";
 		const result = await deps.generateImage(
 			{

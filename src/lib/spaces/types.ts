@@ -16,6 +16,8 @@ export interface SpaceRunInput {
 
 /** Вход шага `generate`: одна попытка */
 export interface AttemptInput {
+	/** Строка запуска: ключ HF закрепляется за ней при выборе, по этому видно, сколько запусков идёт на ключе */
+	generationId: string;
 	userId: string;
 	engine: SpaceEngine;
 	/** Промпт после обогащения */

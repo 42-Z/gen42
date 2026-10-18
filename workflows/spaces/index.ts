@@ -32,6 +32,7 @@ export async function spaceImageWorkflow(
 		const drawn = await runWithRotation(
 			(excludeKeyIds) =>
 				generateStep({
+					generationId: input.id,
 					userId: input.userId,
 					engine: input.engine,
 					prompt,
