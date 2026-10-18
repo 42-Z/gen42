@@ -159,7 +159,7 @@ DO $$ BEGIN
   ) THEN
     ALTER TABLE generations
       ADD CONSTRAINT generations_reasoning_check
-      CHECK (reasoning IN ('medium', 'high', 'xhigh', 'max'));
+      CHECK (reasoning IN ('medium', 'high', 'xhigh', 'max')) NOT VALID;
   END IF;
 END $$;
 

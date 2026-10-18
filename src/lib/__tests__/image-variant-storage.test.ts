@@ -4,7 +4,7 @@ import { TINY_PNG } from "./helpers/ultra-fakes";
 
 const IMAGE = "generations/u1/image.png";
 const THUMB = "thumbs/generations/u1/image.webp";
-const PREVIEW = "previews/v1/generations/u1/image.webp";
+const PREVIEW = "previews/v1/generations/u1/image.png.webp";
 
 function fixture() {
 	const objects = new Map<string, Uint8Array>([[IMAGE, TINY_PNG]]);

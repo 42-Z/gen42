@@ -78,6 +78,15 @@ export async function checkResultViewer(
 		}
 		if (p === "/api/generations/viewer-new")
 			return json({ ...record, id: "viewer-new", preview_url: "/slow.png" });
+		if (/^\/api\/generations\/[^/]+\/download$/.test(p)) {
+			return route.fulfill({
+				body: Buffer.from(downloadBytes),
+				headers: {
+					"Content-Type": "image/png",
+					"Content-Disposition": 'attachment; filename="gen42-original.png"',
+				},
+			});
+		}
 		if (p === "/original.png") {
 			originalRequests++;
 			return route.fulfill({
@@ -151,6 +160,20 @@ export async function checkResultViewer(
 		});
 		assert.equal(originalRequests, 0, "просмотр не скачивает оригинал");
 		await page.screenshot({ path: `${out}/viewer-desktop.png` });
+		const downloadFixture = await page.evaluate(async (id) => {
+			const response = await fetch(`/api/generations/${id}/download`);
+			return {
+				status: response.status,
+				contentDisposition: response.headers.get("Content-Disposition"),
+				bytes: Array.from(new Uint8Array(await response.arrayBuffer())),
+			};
+		}, record.id);
+		assert.equal(downloadFixture.status, 200);
+		assert.equal(
+			downloadFixture.contentDisposition,
+			'attachment; filename="gen42-original.png"',
+		);
+		assert.deepEqual(downloadFixture.bytes, [...downloadBytes]);
 		const download = page.waitForEvent("download");
 		await dialog.getByRole("link", { name: "Скачать", exact: true }).click();
 		const file = await download;

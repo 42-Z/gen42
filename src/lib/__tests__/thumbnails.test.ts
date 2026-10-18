@@ -20,16 +20,22 @@ describe("thumbKey", () => {
 });
 
 describe("previewKey", () => {
+	test("не сталкивает изображения с одинаковым именем и разным расширением", () => {
+		expect(thumbnails.previewKey("generations/u1/123.png")).not.toBe(
+			thumbnails.previewKey("generations/u1/123.jpg"),
+		);
+	});
+
 	test("крупное превью использует версионированный префикс, не ключ сетки", () => {
 		expect(thumbnails.previewKey).toBeFunction();
 		for (const [original, expected] of [
-			["generations/u1/123.png", "previews/v1/generations/u1/123.webp"],
-			["generations/u1/456.jpg", "previews/v1/generations/u1/456.webp"],
+			["generations/u1/123.png", "previews/v1/generations/u1/123.png.webp"],
+			["generations/u1/456.jpg", "previews/v1/generations/u1/456.jpg.webp"],
 			[
 				"generations/u.1/без расширения",
 				"previews/v1/generations/u.1/без расширения.webp",
 			],
-			["generations/u1/a.b.png", "previews/v1/generations/u1/a.b.webp"],
+			["generations/u1/a.b.png", "previews/v1/generations/u1/a.b.png.webp"],
 		]) {
 			expect(thumbnails.previewKey(original!)).toBe(expected!);
 		}

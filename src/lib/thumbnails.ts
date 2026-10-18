@@ -13,7 +13,7 @@ export function thumbKey(imageKey: string): string {
 
 /** Версия ключа меняется вместе с параметрами крупного превью. */
 export function previewKey(imageKey: string): string {
-	return `previews/v1/${imageKey.replace(/\.[^./]+$/, "")}.webp`;
+	return `previews/v1/${imageKey}.webp`;
 }
 
 /** Уменьшенная WebP-копия для галереи. Нужен Bun 1.4+ (`Bun.Image`) */
