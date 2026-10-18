@@ -10,6 +10,7 @@ import {
 	type GenerationRecord,
 	getActiveGeneration,
 	getGeneration,
+	listRunningGenerations,
 	startGeneration,
 } from "../lib/generations";
 import {
@@ -414,6 +415,18 @@ export const generateRoutes = {
 			}
 			const record = await getActiveGeneration(session.user.id);
 			return Response.json(record ? await generationJson(record) : null);
+		},
+	},
+
+	"/api/generations/running": {
+		// все идущие генерации пользователя: страница восстанавливает серию рамок
+		GET: async (req: Request) => {
+			const session = await auth.api.getSession({ headers: req.headers });
+			if (!session) {
+				return Response.json({ error: "Unauthorized" }, { status: 401 });
+			}
+			const records = await listRunningGenerations(session.user.id);
+			return Response.json(await Promise.all(records.map(generationJson)));
 		},
 	},
 

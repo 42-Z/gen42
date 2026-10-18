@@ -149,9 +149,11 @@ describe("потолок идущих генераций", () => {
 	test("на единицу ниже потолка запись создаётся", async () => {
 		responses = {
 			"count(*)": [{ count: MAX_RUNNING_GENERATIONS - 1 }],
-			"ON CONFLICT (id) DO NOTHING": [{ id: "gen-1" }],
+			"ON CONFLICT (id) DO NOTHING": [{ id: "client-id-42" }],
 		};
-		expect(await startGeneration({ ...BASE, id: "gen-1" })).toBe("gen-1");
+		expect(await startGeneration({ ...BASE, id: "client-id-42" })).toBe(
+			"client-id-42",
+		);
 	});
 
 	test("зависшие закрываются до подсчёта", async () => {
