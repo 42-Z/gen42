@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { InsufficientCreditsError } from "../credits";
+import {
+	MAX_RUNNING_GENERATIONS,
+	TooManyRunningError,
+} from "../generation-limits";
 
 let responses: Record<string, unknown[]> = {};
 
@@ -25,6 +29,7 @@ const {
 	failGeneration,
 	getActiveGeneration,
 	getGeneration,
+	listRunningGenerations,
 	startGeneration,
 	INTERRUPTED_MESSAGE,
 } = await import("../generations");
@@ -98,8 +103,69 @@ describe("startGeneration", () => {
 	test("строка появляется до списания: running и нулевой cost", async () => {
 		responses = { "ON CONFLICT (id) DO NOTHING": [{ id: "gen-1" }] };
 		await startGeneration({ ...BASE, id: "gen-1" });
-		expect(queries()[0]).toContain("INSERT INTO generations");
-		expect(queries()[0]).toContain("0, 'running'");
+		const insert = queries().find((q) => q.includes("INSERT INTO generations"));
+		expect(insert).toContain("0, 'running'");
+	});
+});
+
+describe("потолок идущих генераций", () => {
+	beforeEach(reset);
+
+	test("перед вставкой берётся замок на пользователя, затем считаются идущие", async () => {
+		responses = {
+			"count(*)": [{ count: 1 }],
+			"ON CONFLICT (id) DO NOTHING": [{ id: "gen-1" }],
+		};
+		await startGeneration({ ...BASE, id: "gen-1" });
+
+		const order = queries();
+		const lock = order.findIndex((q) => q.includes("pg_advisory_xact_lock"));
+		const count = order.findIndex((q) => q.includes("count(*)"));
+		const insert = order.findIndex((q) =>
+			q.includes("INSERT INTO generations"),
+		);
+		expect(lock).toBeGreaterThanOrEqual(0);
+		expect(lock).toBeLessThan(count);
+		expect(count).toBeLessThan(insert);
+		expect((mockSql as any).begin).toHaveBeenCalled();
+	});
+
+	test("на потолке запись не создаётся", async () => {
+		responses = { "count(*)": [{ count: MAX_RUNNING_GENERATIONS }] };
+		await expect(startGeneration(BASE)).rejects.toThrow(TooManyRunningError);
+		expect(queries().some((q) => q.includes("INSERT INTO generations"))).toBe(
+			false,
+		);
+	});
+
+	test("на единицу ниже потолка запись создаётся", async () => {
+		responses = {
+			"count(*)": [{ count: MAX_RUNNING_GENERATIONS - 1 }],
+			"ON CONFLICT (id) DO NOTHING": [{ id: "client-id-42" }],
+		};
+		expect(await startGeneration({ ...BASE, id: "client-id-42" })).toBe(
+			"client-id-42",
+		);
+	});
+
+	test("зависшие закрываются до подсчёта", async () => {
+		responses = {
+			"count(*)": [{ count: 0 }],
+			"ON CONFLICT (id) DO NOTHING": [{ id: "gen-1" }],
+		};
+		await startGeneration({ ...BASE, id: "gen-1" });
+
+		const order = queries();
+		const stale = order.findIndex((q) => q.includes("AND created_at <"));
+		const count = order.findIndex((q) => q.includes("count(*)"));
+		expect(stale).toBeGreaterThanOrEqual(0);
+		expect(stale).toBeLessThan(count);
+	});
+
+	test("считаются идущие именно этого пользователя", async () => {
+		responses = { "ON CONFLICT (id) DO NOTHING": [{ id: "gen-1" }] };
+		await startGeneration({ ...BASE, id: "gen-1" });
+		expect(paramsOf("count(*)")).toContain("u1");
 	});
 });
 
@@ -254,6 +320,15 @@ describe("чтение генераций", () => {
 		responses = { "ORDER BY created_at DESC": [row] };
 		const record = await getActiveGeneration("u1");
 		expect(record?.id).toBe("gen-1");
+	});
+
+	test("listRunningGenerations отдаёт идущие записи пользователя", async () => {
+		responses = {
+			"ORDER BY created_at DESC": [row, { ...row, id: "gen-2" }],
+		};
+		const records = await listRunningGenerations("u1");
+		expect(records.map((r) => r.id)).toEqual(["gen-1", "gen-2"]);
+		expect(paramsOf("ORDER BY created_at DESC")).toContain("u1");
 	});
 
 	test("зависшие генерации закрываются с возвратом кредитов", async () => {

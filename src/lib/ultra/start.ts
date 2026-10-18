@@ -1,6 +1,5 @@
-import { InsufficientCreditsError } from "../credits";
 import { ULTRA_MODEL } from "../models";
-import { ULTRA_PUBLIC_ERROR } from "./errors";
+import { type StartRunOutcome, startRun } from "../start-run";
 import { ULTRA_DEFAULT_REASONING, type UltraReasoning } from "./reasoning";
 
 export interface StartUltraDeps {
@@ -31,27 +30,14 @@ export interface StartUltraDeps {
 	now(): number;
 }
 
-export type StartUltraOutcome =
-	| {
-			status: 202;
-			body: { id: string; engine: "ultra"; cost: number };
-	  }
-	| { status: 402 | 502; body: { error: string } };
-
-async function safely(label: string, action: () => Promise<void>) {
-	try {
-		await action();
-	} catch (error) {
-		console.error(`${label}:`, error);
-	}
-}
+export type StartUltraOutcome = StartRunOutcome;
 
 /**
- * Принимает запуск «Ультры» в работу: строка `running`, списание, старт воркфлоу.
- * Картинку делает воркфлоу; страница ждёт её опросом `/api/generations/:id`.
- * Сбой до старта закрывает строку с возвратом кредитов.
+ * Принимает запуск «Ультры» в работу: строка `running`, списание, старт воркфлоу
+ * (общий приём `startRun`). Картинку делает воркфлоу; страница ждёт её опросом
+ * `/api/generations/:id`.
  */
-export async function startUltra(
+export function startUltra(
 	input: {
 		userId: string;
 		prompt: string;
@@ -64,31 +50,20 @@ export async function startUltra(
 	// уровень записывается во вход воркфлоу явно: прогон не зависит от того, что
 	// станет умолчанием позже
 	const reasoning = input.reasoning ?? ULTRA_DEFAULT_REASONING;
-	const cost = ULTRA_MODEL.cost;
-	const started = deps.now();
-	let id = "";
-
-	try {
-		id = await deps.startRecord({
-			...(input.id ? { id: input.id } : {}),
-			userId,
-			prompt,
-		});
-		await deps.chargeCredits({ id, userId, cost });
-		await deps.startWorkflow({ id, userId, prompt, reasoning });
-		return { status: 202, body: { id, engine: "ultra", cost } };
-	} catch (error) {
-		if (id) {
-			// запись закрывает строку и возвращает кредиты одной транзакцией; если она не
-			// удалась, это сделает ленивое закрытие зависших
-			await safely("Не удалось записать неуспешный запуск Ультры", () =>
-				deps.failRecord({ id, error, durationMs: deps.now() - started }),
-			);
-		}
-		if (error instanceof InsufficientCreditsError) {
-			return { status: 402, body: { error: "Недостаточно кредитов" } };
-		}
-		console.error("Ultra start error:", error);
-		return { status: 502, body: { error: ULTRA_PUBLIC_ERROR } };
-	}
+	return startRun(
+		{ userId, engine: "ultra", cost: ULTRA_MODEL.cost },
+		{
+			startRecord: () =>
+				deps.startRecord({
+					...(input.id ? { id: input.id } : {}),
+					userId,
+					prompt,
+				}),
+			chargeCredits: (params) => deps.chargeCredits(params),
+			startWorkflow: (id) =>
+				deps.startWorkflow({ id, userId, prompt, reasoning }),
+			failRecord: (params) => deps.failRecord(params),
+			now: () => deps.now(),
+		},
+	);
 }

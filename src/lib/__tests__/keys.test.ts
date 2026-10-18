@@ -19,6 +19,7 @@ const {
 	hasConfirmedQuota,
 	hasRemainingQuota,
 	isKeyQuotaStale,
+	rankHfKeys,
 	updateKeyQuota,
 	deactivateKey,
 	updateKeyRateLimit,
@@ -321,5 +322,104 @@ describe("API Keys", () => {
 		expect(query).toContain("rl_remaining");
 		expect(query).toContain("requests_total = requests_total + 1");
 		expect(query).toContain("tokens_total = tokens_total +");
+	});
+});
+
+describe("rankHfKeys: выбор ключа с учётом идущих запусков", () => {
+	const ids = (keys: ReturnType<typeof rankHfKeys>) => keys.map((k) => k.id);
+	const row = (over: Record<string, unknown> = {}) =>
+		keyRow(over) as unknown as Parameters<typeof rankHfKeys>[0][number];
+
+	test("без идущих запусков порядок прежний: больше секунд первым", () => {
+		const ranked = rankHfKeys([
+			row({ id: "k1", hf_current: 200 }),
+			row({ id: "k2", hf_current: 250 }),
+		]);
+		expect(ids(ranked)).toEqual(["k2", "k1"]);
+	});
+
+	test("идущий запуск уводит следующий на соседний ключ с таким же запасом", () => {
+		const keys = [
+			row({ id: "k1", hf_current: 250 }),
+			row({ id: "k2", hf_current: 240 }),
+		];
+		expect(ids(rankHfKeys(keys, new Map([["k1", 1]])))).toEqual(["k2", "k1"]);
+	});
+
+	test("ключ с большим запасом берёт несколько запусков подряд, пока запас не сравняется", () => {
+		const keys = [
+			row({ id: "big", hf_current: 290, hf_runs_remaining: 8 }),
+			row({ id: "small", hf_current: 120, hf_runs_remaining: 3 }),
+		];
+		// запас: big 8, small 3 (по прогонам; секунд хватает на 4)
+		expect(ids(rankHfKeys(keys, new Map([["big", 3]])))[0]).toBe("big");
+		// при равном остатке (3 и 3) решают секунды: big всё ещё первый
+		expect(ids(rankHfKeys(keys, new Map([["big", 5]])))[0]).toBe("big");
+		expect(ids(rankHfKeys(keys, new Map([["big", 6]])))[0]).toBe("small");
+	});
+
+	test("запас считается по более скудному из двух счётчиков", () => {
+		const keys = [
+			// прогонов много, секунд на два запуска
+			row({ id: "few-seconds", hf_current: 70, hf_runs_remaining: 8 }),
+			// секунд много, прогонов на три
+			row({ id: "few-runs", hf_current: 290, hf_runs_remaining: 3 }),
+		];
+		expect(ids(rankHfKeys(keys))[0]).toBe("few-runs");
+	});
+
+	test("сброшенное окно квоты возвращает ключу полный запас", () => {
+		const past = new Date(Date.now() - 60_000);
+		const keys = [
+			row({ id: "fresh", hf_current: 100, hf_runs_remaining: 1 }),
+			// счётчики устарели: окно сброшено, значит снова 300 с и 8 прогонов
+			row({
+				id: "reset",
+				hf_current: 70,
+				hf_runs_remaining: 1,
+				hf_resets_at: past,
+				hf_runs_resets_at: past,
+			}),
+		];
+		expect(ids(rankHfKeys(keys))[0]).toBe("reset");
+	});
+
+	test("занятые ключи не отклоняются: если все заняты, берётся лучший из них", () => {
+		const keys = [
+			row({ id: "k1", hf_current: 100, hf_runs_remaining: 2 }),
+			row({ id: "k2", hf_current: 100, hf_runs_remaining: 2 }),
+		];
+		const ranked = rankHfKeys(
+			keys,
+			new Map([
+				["k1", 4],
+				["k2", 3],
+			]),
+		);
+		expect(ids(ranked)).toEqual(["k2", "k1"]);
+	});
+
+	test("исчерпанные и исключённые ключи не участвуют", () => {
+		const keys = [
+			row({ id: "gone", hf_runs_remaining: 0 }),
+			row({ id: "low", hf_current: 30 }),
+			row({ id: "skip", hf_current: 290 }),
+			row({ id: "ok", hf_current: 100 }),
+		];
+		expect(ids(rankHfKeys(keys, new Map(), new Set(["skip"])))).toEqual(["ok"]);
+	});
+
+	test("ключи без замеров идут последними", () => {
+		const keys = [
+			row({
+				id: "unknown",
+				hf_base: null,
+				hf_current: null,
+				hf_runs_remaining: null,
+				hf_runs_limit: null,
+			}),
+			row({ id: "known", hf_current: 100, hf_runs_remaining: 2 }),
+		];
+		expect(ids(rankHfKeys(keys))).toEqual(["known", "unknown"]);
 	});
 });

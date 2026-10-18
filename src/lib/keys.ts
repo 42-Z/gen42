@@ -30,6 +30,14 @@ export interface ApiKeyRow {
 
 export const HF_MIN_SECONDS = 60;
 
+/**
+ * Сколько секунд GPU уходит на один запуск, когда прикидывается, на сколько запусков
+ * хватит ключа. Замер dev 2026-10-18: `top1` потерял 82 с на четыре запуска Krea 2
+ * (около 20 с на запуск); у Ideogram 4 больше, отдельно не мерилось. Оценка влияет только
+ * на порядок выбора, а не на допуск ключа: допуск остаётся за `HF_MIN_SECONDS`.
+ */
+export const HF_RUN_SECONDS_ESTIMATE = 30;
+
 export class AllKeysExhaustedError extends Error {
 	constructor() {
 		super("All API keys exhausted");
@@ -76,6 +84,62 @@ function isKeyAvailable(key: ApiKeyRow): boolean {
 	});
 }
 
+/** Секунд GPU у ключа сейчас: после сброса окна квоты ключ снова свободен целиком (`hf_base`) */
+function secondsLeft(key: ApiKeyRow): number | null {
+	return resetPassed(key.hf_resets_at) ? (key.hf_base ?? null) : key.hf_current;
+}
+
+/** Прогонов у ключа сейчас: после сброса суточного окна их снова `hf_runs_limit` */
+function runsLeft(key: ApiKeyRow): number | null {
+	return resetPassed(key.hf_runs_resets_at)
+		? (key.hf_runs_limit ?? null)
+		: key.hf_runs_remaining;
+}
+
+/** На сколько запусков хватит ключа по более скудному из двух счётчиков; null — замеров нет */
+function capacityOf(key: ApiKeyRow): number | null {
+	const seconds = secondsLeft(key);
+	const runs = runsLeft(key);
+	const bySeconds =
+		seconds == null ? null : Math.floor(seconds / HF_RUN_SECONDS_ESTIMATE);
+	if (bySeconds == null) return runs;
+	return runs == null ? bySeconds : Math.min(runs, bySeconds);
+}
+
+/**
+ * Ключи HF в порядке предпочтения. Предпочтителен ключ, у которого после вычета уже
+ * идущих на нём запусков остаётся больше всего запаса; при равенстве — тот, у кого
+ * больше секунд. Ключи без замеров идут последними. Занятый ключ не отклоняется: если
+ * заняты все, лучший из них остаётся первым, поэтому запуск не отказывает из-за
+ * «занятости». Недоступные по квоте и исключённые ключи не участвуют.
+ */
+export function rankHfKeys(
+	keys: ApiKeyRow[],
+	inFlight: ReadonlyMap<string, number> = new Map(),
+	excludeIds: ReadonlySet<string> = new Set(),
+): ApiKeyRow[] {
+	return keys
+		.filter((key) => !excludeIds.has(key.id))
+		.filter(isKeyAvailable)
+		.map((key) => {
+			const busy = inFlight.get(key.id) ?? 0;
+			const capacity = capacityOf(key);
+			return {
+				key,
+				busy,
+				room: capacity === null ? null : capacity - busy,
+				seconds: secondsLeft(key) ?? -1,
+			};
+		})
+		.sort((a, b) => {
+			if (a.room === null || b.room === null) {
+				return a.room === b.room ? 0 : a.room === null ? 1 : -1;
+			}
+			return b.room - a.room || b.seconds - a.seconds || a.busy - b.busy;
+		})
+		.map((ranked) => ranked.key);
+}
+
 export function isKeyQuotaStale(
 	key: Pick<
 		ApiKeyRow,
@@ -118,15 +182,11 @@ export async function getAvailableKey(
       AND is_active = TRUE
   `) as ApiKeyRow[];
 
-	const available = keys
-		.filter((key) => !excluded.has(key.id))
-		.filter(isKeyAvailable)
-		.sort((a, b) => (b.hf_current ?? -1) - (a.hf_current ?? -1));
-
-	if (available.length === 0) {
+	const [best] = rankHfKeys(keys, new Map(), excluded);
+	if (!best) {
 		throw new AllKeysExhaustedError();
 	}
-	return available[0]!;
+	return best;
 }
 
 export async function getAvailableLlmKey(): Promise<ApiKeyRow> {

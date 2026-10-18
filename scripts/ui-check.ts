@@ -7,7 +7,8 @@ import { type Browser, chromium, type Page } from "playwright-core";
 /**
  * Прогон реального приложения без сервера и базы: фронтенд собирается как в
  * `build.ts`, API подставляется. Сценарий: вход → главная → печать → вкладки →
- * слайдер → генерация → занавес → лайтбокс → админка. Бюджет — как у прототипа.
+ * слайдер → генерация → занавес → лайтбокс → несколько запусков сразу → админка.
+ * Бюджет — как у прототипа.
  */
 const OUT = process.env.UI_OUT ?? "captures/ui-check";
 const SITE = path.join(OUT, "site");
@@ -97,20 +98,52 @@ async function mockApi(
 				{ id: "ultra", label: "Ультра", cost: 10 },
 				{ id: "turbo", label: "Ультра", cost: 10 },
 			]);
-		if (p === "/api/generations") return json(state.history);
-		if (p === "/api/generations/active") return json({ error: "none" }, 404);
-		if (p === "/api/generate") {
-			state.startedAt = Date.now();
-			await Bun.sleep(opts.waitMs ?? 4500);
-			state.history = [REC];
-			return json(REC);
-		}
-		// опрос записи после обновления страницы: идёт, пока не прошло время ожидания
-		if (/^\/api\/generations\/[^/]+$/.test(p)) {
-			const running = Date.now() - state.startedAt < (opts.waitMs ?? 4500);
+		const waitMs = state.waitMs ?? opts.waitMs ?? 4500;
+		const record = (id: string, run: { startedAt: number; prompt: string }) =>
+			Date.now() - run.startedAt < waitMs
+				? {
+						id,
+						status: "running",
+						prompt: run.prompt,
+						created_at: new Date(run.startedAt).toISOString(),
+					}
+				: {
+						...REC,
+						id,
+						prompt: run.prompt,
+						created_at: new Date(run.startedAt).toISOString(),
+					};
+		if (p === "/api/generations")
 			return json(
-				running ? { id: "g1", status: "running", prompt: "кот в короне" } : REC,
+				[...state.runs]
+					.map(([id, run]) => record(id, run))
+					.filter((r) => r.status === "completed")
+					.reverse(),
 			);
+		if (p === "/api/generations/active") return json({ error: "none" }, 404);
+		if (p === "/api/generations/running")
+			return json(
+				[...state.runs]
+					.map(([id, run]) => record(id, run))
+					.filter((r) => r.status === "running")
+					.reverse(),
+			);
+		if (p === "/api/generate") {
+			// запуск принимается сразу, результат приходит опросом (как у воркфлоу)
+			const body = JSON.parse(route.request().postData() ?? "{}");
+			const id =
+				typeof body.id === "string" ? body.id : `g${state.runs.size + 1}`;
+			state.runs.set(id, {
+				startedAt: Date.now(),
+				prompt: body.prompt ?? "кот в короне",
+			});
+			return json({ id, engine: "krea", cost: 1 }, 202);
+		}
+		// опрос записи: идёт, пока не прошло время ожидания
+		if (/^\/api\/generations\/[^/]+$/.test(p)) {
+			const id = p.split("/").pop() ?? "";
+			const run = state.runs.get(id);
+			return run ? json(record(id, run)) : json({ error: "Не найдено" }, 404);
 		}
 		if (p === "/api/admin/stats")
 			return json({ totalGenerations: 128, todayGenerations: 12 });
@@ -158,10 +191,11 @@ async function mockApi(
 		return json({});
 	});
 }
-const state: { history: unknown[]; startedAt: number } = {
-	history: [],
-	startedAt: 0,
-};
+const state: {
+	runs: Map<string, { startedAt: number; prompt: string }>;
+	/** Сценарий может растянуть ожидание на время замеров (перекрывает `waitMs` контекста) */
+	waitMs?: number;
+} = { runs: new Map() };
 
 const rows: Array<{ name: string; value: string; ok: boolean }> = [];
 function check(name: string, value: number, ok: boolean, unit = ""): void {
@@ -260,6 +294,9 @@ async function open(
 		waitMs?: number;
 	},
 ) {
+	// запуски одного контекста не попадают в другой
+	state.runs.clear();
+	state.waitMs = undefined;
 	const context = await browser.newContext({
 		viewport: { width: 1280, height: 960 },
 		reducedMotion: o.reduced ? "reduce" : "no-preference",
@@ -465,6 +502,8 @@ try {
 			" мс",
 		);
 	}
+	// сколько анимаций приносит одна рамка ожидания: по этой цене считается бюджет серии
+	const waitAnimations = await animations(page);
 	await shot(page, "09-waiting");
 	// занавес: кадр сразу после начала сдёргивания потока
 	await page
@@ -526,6 +565,98 @@ try {
 	await shot(page, "12b-lightbox-late");
 	await page.keyboard.press("Escape");
 	await pause(page, 400);
+
+	// ── несколько запусков сразу: рамки серии, потолок четыре ────────────
+	{
+		const generate = page.getByRole("button", { name: /Сгенерировать/ });
+		const frames = page.locator('[data-slot="result-frame"]');
+		const finished = (count: number) =>
+			page.waitForFunction(
+				(n) =>
+					document.querySelectorAll('[data-slot="result-frame"] img').length ===
+					n,
+				count,
+				{ timeout: 20000 },
+			);
+		// ожидание растянуто, чтобы после затухания волн кликов успеть замерить все четыре рамки
+		state.waitMs = 9000;
+		await page.fill("#prompt", "кот в короне");
+		await generate.click();
+		await pause(page, 300);
+		const stillOpen =
+			(await generate.isEnabled()) &&
+			(await page.getByRole("tab", { name: "Ультра" }).isEnabled());
+		check(
+			"несколько запусков: во время ожидания кнопка и вкладки доступны",
+			stillOpen ? 1 : 0,
+			stillOpen,
+		);
+		for (let i = 0; i < 3; i++) {
+			await generate.click();
+			await pause(page, 150);
+		}
+		// волны старта и «принято» затухают за три секунды, как в замере одной рамки
+		await pause(page, 3000);
+		const count = await frames.count();
+		check("несколько запусков: рамок серии", count, count === 4);
+		const blocked = await generate.isDisabled();
+		check(
+			"несколько запусков: при четырёх идущих кнопка неактивна",
+			blocked ? 1 : 0,
+			blocked,
+		);
+		const columns = await page.evaluate(
+			() =>
+				new Set(
+					[...document.querySelectorAll('[data-slot="result-frame"]')].map(
+						(frame) => Math.round(frame.getBoundingClientRect().left),
+					),
+				).size,
+		);
+		check("несколько запусков: рамки в две колонки", columns, columns === 2);
+		// каждая рамка ожидания стоит не больше, чем одна в прежнем бюджете
+		const seriesLayers = IDLE_LAYERS + 4 * (WAIT_LAYERS - IDLE_LAYERS);
+		check(
+			"несколько запусков: слоёв композитора",
+			layers,
+			layers <= seriesLayers,
+		);
+		if (layers > seriesLayers) console.log("  слои:", await describeLayers());
+		const seriesAnimations = await animations(page);
+		check(
+			"несколько запусков: активных анимаций (дрейф + по рамке)",
+			seriesAnimations,
+			seriesAnimations <= 1 + 4 * (waitAnimations - 1),
+		);
+		const rafSeries0 = await rafCount(page);
+		await pause(page, 1000);
+		check(
+			"несколько запусков: вызовов requestAnimationFrame за 1 с",
+			(await rafCount(page)) - rafSeries0,
+			(await rafCount(page)) === rafSeries0,
+		);
+		await shot(page, "12c-series-waiting");
+		state.waitMs = undefined;
+		await finished(4);
+		await pause(page, 1500);
+		await shot(page, "12d-series-done");
+		const reopened = await generate.isEnabled();
+		check(
+			"несколько запусков: после итога кнопка снова доступна",
+			reopened ? 1 : 0,
+			reopened,
+		);
+		// новый запуск при нуле идущих начинает серию заново
+		await generate.click();
+		await pause(page, 300);
+		const afterReset = await frames.count();
+		check(
+			"несколько запусков: новая серия начинается с одной рамки",
+			afterReset,
+			afterReset === 1,
+		);
+		await finished(1);
+	}
 
 	const raf1 = await rafCount(page);
 	await pause(page, 1000);

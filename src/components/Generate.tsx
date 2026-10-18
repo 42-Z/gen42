@@ -30,6 +30,20 @@ import {
 	type SpaceEngine,
 	ULTRA_MODEL,
 } from "@/lib/models";
+import {
+	addRun,
+	canStart,
+	dropRun,
+	mergeRuns,
+	parseSeriesIds,
+	type Run,
+	renameRun,
+	restoreRuns,
+	resultOf,
+	type ServerRecord,
+	seriesIds,
+	settleRun,
+} from "@/lib/series";
 import { impulse } from "@/lib/sheet/impulses";
 import { ULTRA_CLIENT_WAIT_MS } from "@/lib/ultra/constants";
 import {
@@ -38,6 +52,7 @@ import {
 	ULTRA_REASONING_LEVELS,
 	type UltraReasoning,
 } from "@/lib/ultra/reasoning";
+import { cn } from "@/lib/utils";
 import { ModelPicker } from "./ModelPicker";
 import { ResultFrame } from "./sheet/ResultFrame";
 import { useFlipList } from "./sheet/use-flip";
@@ -61,15 +76,15 @@ const REASONING_LABELS: Record<UltraReasoning, string> = {
 	max: "Максимальное",
 };
 
-/** Идущая генерация: по этому ключу она возобновляется после обновления страницы */
-const PENDING_KEY = "gen42-pending";
-/** Последняя показанная картинка: она не должна пропадать при обновлении */
-const RESULT_KEY = "gen42-result";
+/** Серия запусков: id рамок, по ним после обновления страницы возвращаются готовые и дожидаются идущие */
+const SERIES_KEY = "gen42-series";
+/** Ключи прежней версии (одна генерация): читаются один раз как затравка и удаляются */
+const LEGACY_KEYS = ["gen42-pending", "gen42-result"];
 const POLL_INTERVAL_MS = 2500;
-/** Дольше воркфлоу «Ультра» (до ~13–14 минут) и короче закрытия зависших на сервере: см. `ULTRA_CLIENT_WAIT_MS` */
+/** Дольше воркфлоу (худший прогон ~14 минут) и короче закрытия зависших на сервере: см. `ULTRA_CLIENT_WAIT_MS` */
 const POLL_TIMEOUT_MS = ULTRA_CLIENT_WAIT_MS;
 
-/** id генерации придумывает клиент — иначе после обновления её не найти */
+/** id запуска придумывает клиент — иначе после обновления его не найти */
 function newGenerationId(): string {
 	try {
 		return crypto.randomUUID();
@@ -78,36 +93,25 @@ function newGenerationId(): string {
 	}
 }
 
-function readStored(key: string): string | null {
+function readSeriesIds(): string[] {
 	try {
-		return localStorage.getItem(key);
+		const ids = parseSeriesIds(localStorage.getItem(SERIES_KEY));
+		for (const key of LEGACY_KEYS) {
+			const legacy = localStorage.getItem(key);
+			if (legacy) ids.push(legacy);
+			localStorage.removeItem(key);
+		}
+		return [...new Set(ids)];
 	} catch {
-		return null;
+		return [];
 	}
 }
 
-function rememberPending(id: string) {
+function writeSeriesIds(ids: string[]) {
 	try {
-		localStorage.setItem(PENDING_KEY, id);
+		localStorage.setItem(SERIES_KEY, JSON.stringify(ids));
 	} catch {
-		/* хранилище недоступно — генерация просто не переживёт обновление */
-	}
-}
-
-function forgetPending() {
-	try {
-		localStorage.removeItem(PENDING_KEY);
-	} catch {
-		/* нечего забывать */
-	}
-}
-
-function rememberResult(id: string) {
-	try {
-		localStorage.removeItem(PENDING_KEY);
-		localStorage.setItem(RESULT_KEY, id);
-	} catch {
-		/* хранилище недоступно — просто не запомнится */
+		/* хранилище недоступно — серия просто не переживёт обновление */
 	}
 }
 
@@ -133,13 +137,12 @@ function readStoredReasoning(): UltraReasoning {
 
 export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const [prompt, setPrompt] = useState("");
-	const [loading, setLoading] = useState(false);
-	// ожидание возобновлено после обновления страницы (рамка пропускает первую ступень)
-	const [resumed, setResumed] = useState(false);
-	const [result, setResult] = useState<any>(null);
-	const [resultPrompt, setResultPrompt] = useState("");
+	// запуски серии, у каждого своя рамка; ref — синхронный взгляд для асинхронных
+	// обработчиков (опрос, ответы сервера), состояние — для отрисовки
+	const [runs, setRuns] = useState<Run[]>([]);
+	const runsRef = useRef<Run[]>([]);
 	const [error, setError] = useState("");
-	const [seedCopied, setSeedCopied] = useState(false);
+	const [copiedRun, setCopiedRun] = useState<string | null>(null);
 	const [history, setHistory] = useState<any[]>([]);
 	const [selected, setSelected] = useState<number | null>(null);
 	const [models, setModels] = useState<PublicImageModel[]>([]);
@@ -149,12 +152,22 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 		useState<UltraReasoning>(readStoredReasoning);
 	const pollTimer = useRef<number | null>(null);
 	const galleryRef = useRef<HTMLDivElement>(null);
+	// запуск, чья картинка вошла в «Недавние» последней: из его рамки вылетает миниатюра
+	const lastSettled = useRef<string | null>(null);
 	useFlipList(galleryRef, history.map((img) => img.id).join(","), () =>
-		document.querySelector<HTMLElement>('[data-slot="result-frame"]'),
+		document.querySelector<HTMLElement>(
+			`[data-run="${lastSettled.current}"] [data-slot="result-frame"]`,
+		),
 	);
 	// асинхронные продолжения не должны жить дольше экрана: он снимается при
 	// переходе в админку
 	const aliveRef = useRef(true);
+
+	function commit(next: Run[]) {
+		runsRef.current = next;
+		setRuns(next);
+		writeSeriesIds(seriesIds(next));
+	}
 
 	// Новый интерфейс ищет канонический id `ultra`; `turbo` в каталоге нужен старым вкладкам.
 	const ultraModel = models.find((m) => m.id === "ultra");
@@ -190,10 +203,13 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 		aliveRef.current = true;
 		loadHistory();
 		loadModels();
-		resumeGeneration();
+		resumeRuns();
 		return () => {
 			aliveRef.current = false;
-			if (pollTimer.current !== null) clearTimeout(pollTimer.current);
+			if (pollTimer.current !== null) {
+				clearTimeout(pollTimer.current);
+				pollTimer.current = null;
+			}
 		};
 	}, []);
 
@@ -258,7 +274,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 		}
 	}
 
-	async function fetchGeneration(id: string): Promise<any | null> {
+	async function fetchGeneration(id: string): Promise<ServerRecord | null> {
 		try {
 			const res = await fetch(`/api/generations/${id}`);
 			if (!res.ok) return null;
@@ -268,134 +284,115 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 		}
 	}
 
-	async function fetchActiveGeneration(): Promise<any | null> {
+	async function fetchRunning(): Promise<ServerRecord[]> {
 		try {
-			const res = await fetch("/api/generations/active");
-			if (!res.ok) return null;
-			return await res.json();
+			const res = await fetch("/api/generations/running");
+			if (!res.ok) return [];
+			const data = await res.json();
+			return Array.isArray(data) ? data : [];
 		} catch {
-			return null;
+			return [];
 		}
 	}
 
-	function showResult(rec: any) {
-		setResult({
-			id: rec.id,
-			image_url: rec.image_url,
-			seed: rec.seed,
-			engine: rec.engine,
-			cost: rec.cost,
-			duration: rec.duration,
-		});
-		setResultPrompt(rec.prompt ?? "");
-	}
-
-	/** Итог генерации: картинка или ошибка вместо ожидания */
-	function settleGeneration(rec: any) {
-		setLoading(false);
-		if (rec.status === "completed") {
-			rememberResult(rec.id);
-			showResult(rec);
+	/** Итог запуска: картинка в его рамке или ошибка вместо ожидания */
+	function settleRecord(id: string, record: ServerRecord) {
+		if (record.status === "completed" && record.image_url) {
+			lastSettled.current = id;
+			commit(settleRun(runsRef.current, id, resultOf(record)));
 			refreshBalance();
 			loadHistory();
 			return;
 		}
-		forgetPending();
-		setError(rec.error || "Не удалось создать изображение, кредиты возвращены");
+		commit(dropRun(runsRef.current, id));
+		setError(
+			record.error || "Не удалось создать изображение, кредиты возвращены",
+		);
 		refreshBalance();
 	}
 
-	function pollGeneration(id: string, deadline: number) {
-		if (pollTimer.current !== null) clearTimeout(pollTimer.current);
-		pollTimer.current = window.setTimeout(async () => {
-			if (!aliveRef.current) return;
-			const rec = await fetchGeneration(id);
-			if (!aliveRef.current) return;
-			if (rec) {
-				if (rec.status === "running") {
-					if (Date.now() < deadline) {
-						pollGeneration(id, deadline);
-						return;
-					}
-					// сервер молчит дольше обычного — не держим экран в ожидании
-					forgetPending();
-					setLoading(false);
-					setError("Не удалось дождаться результата, обновите страницу");
-					return;
-				}
-				settleGeneration(rec);
-				return;
-			}
-			// запрос не прошёл — пробуем ещё, вдруг это сбой сети
-			if (Date.now() < deadline) {
-				pollGeneration(id, deadline);
-				return;
-			}
-			forgetPending();
-			setLoading(false);
-			setError("Не удалось получить результат, обновите страницу");
-		}, POLL_INTERVAL_MS);
+	/** Один цикл опроса на все идущие запуски; сам себя планирует, пока что-то идёт */
+	function schedulePoll() {
+		if (pollTimer.current !== null) return;
+		if (!runsRef.current.some((run) => run.status === "running")) return;
+		pollTimer.current = window.setTimeout(pollRuns, POLL_INTERVAL_MS);
 	}
 
-	function waitForGeneration(rec: any) {
+	async function pollRuns() {
+		pollTimer.current = null;
 		if (!aliveRef.current) return;
-		setPrompt(rec.prompt ?? "");
-		setResult(null);
-		setResultPrompt("");
-		setError("");
-		setSeedCopied(false);
-		setLoading(true);
-		pollGeneration(rec.id, Date.now() + POLL_TIMEOUT_MS);
+		const active = runsRef.current.filter((run) => run.status === "running");
+		const records = await Promise.all(
+			active.map((run) => fetchGeneration(run.id)),
+		);
+		if (!aliveRef.current) return;
+		active.forEach((run, index) => {
+			const record = records[index];
+			if (record && record.status !== "running") {
+				settleRecord(run.id, record);
+				return;
+			}
+			if (Date.now() < run.deadline) return;
+			// сервер молчит дольше обычного — не держим рамку в ожидании
+			commit(dropRun(runsRef.current, run.id));
+			setError(
+				record
+					? "Не удалось дождаться результата, обновите страницу"
+					: "Не удалось получить результат, обновите страницу",
+			);
+		});
+		schedulePoll();
 	}
 
 	/**
-	 * Обновление страницы не должно терять процесс: идущая генерация
-	 * (запомненная или из другой вкладки) продолжает ждаться здесь, а последняя
-	 * картинка возвращается на экран.
+	 * Обновление страницы не должно терять процесс: идущие запуски (свои из серии и
+	 * из других вкладок) продолжают ждаться, готовые возвращаются картинкой.
 	 */
-	async function resumeGeneration() {
-		const pendingId = readStored(PENDING_KEY);
-		if (pendingId) {
-			const rec = await fetchGeneration(pendingId);
-			if (rec?.status === "running") {
-				setResumed(true);
-				waitForGeneration(rec);
-				return;
-			}
-			forgetPending();
-			if (rec) {
-				settleGeneration(rec);
-				return;
-			}
+	async function resumeRuns() {
+		const ids = readSeriesIds();
+		const [running, known] = await Promise.all([
+			fetchRunning(),
+			Promise.all(ids.map(fetchGeneration)),
+		]);
+		if (!aliveRef.current) return;
+		const found = known.filter(
+			(record): record is ServerRecord => record !== null,
+		);
+		const failed = found.find((record) => record.status === "failed");
+		if (failed) {
+			setError(
+				failed.error || "Не удалось создать изображение, кредиты возвращены",
+			);
 		}
-
-		const active = await fetchActiveGeneration();
-		if (active) {
-			setResumed(true);
-			waitForGeneration(active);
-			return;
-		}
-
-		const lastId = readStored(RESULT_KEY);
-		if (lastId) {
-			const rec = await fetchGeneration(lastId);
-			if (rec?.status === "completed") showResult(rec);
-		}
+		const restored = restoreRuns(
+			[...running, ...found],
+			Date.now(),
+			POLL_TIMEOUT_MS,
+		);
+		// промпт идущей генерации возвращается в поле
+		const newest = restored.find((run) => run.status === "running");
+		if (newest) setPrompt((current) => current || newest.prompt);
+		commit(mergeRuns(runsRef.current, restored));
+		schedulePoll();
 	}
 
 	async function handleGenerate() {
-		if (!prompt.trim() || outOfCredits || loading) return;
+		if (!prompt.trim() || outOfCredits || !canStart(runsRef.current)) return;
 
-		// id придумывает клиент: так генерация находится после обновления страницы
+		// id придумывает клиент: так запуск находится после обновления страницы
 		const id = newGenerationId();
-		rememberPending(id);
-
-		setResumed(false);
-		setLoading(true);
 		setError("");
-		setResult(null);
-		setResultPrompt("");
-		setSeedCopied(false);
+		commit(
+			addRun(runsRef.current, {
+				id,
+				prompt,
+				status: "running",
+				resumed: false,
+				deadline: Date.now() + POLL_TIMEOUT_MS,
+				result: null,
+			}),
+		);
+		schedulePoll();
 
 		try {
 			const res = await fetch("/api/generate", {
@@ -424,38 +421,24 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 					: "Ошибка генерации";
 			const data = await res.json().catch(() => null);
 			if (!res.ok || !data) {
-				// сервер ответил — генерация завершена, возобновлять нечего
-				forgetPending();
 				throw new Error(data?.error || fallback);
 			}
 
-			// «Ультра» принимается в работу и отвечает сразу: результат приходит опросом
-			if (res.status === 202) {
-				const startedId = data.id ?? id;
-				if (startedId !== id) rememberPending(startedId);
-				waitForGeneration({ id: startedId, prompt });
-				return;
+			// сервер принимает запуск в работу и отвечает сразу; если клиентский id был
+			// занят, он выдал другой
+			if (data.id && data.id !== id) {
+				commit(renameRun(runsRef.current, id, data.id));
 			}
-
-			rememberResult(data.id ?? id);
-			setLoading(false);
-			setResult(data);
-			setResultPrompt(prompt);
 			refreshBalance();
-			loadHistory();
 		} catch (err: any) {
 			// обрыв связи или сбой ответа: строка на сервере — источник правды
-			const rec = await fetchGeneration(id);
-			if (rec?.status === "running") {
-				waitForGeneration(rec);
+			const record = await fetchGeneration(id);
+			if (record?.status === "running") return;
+			if (record) {
+				settleRecord(id, record);
 				return;
 			}
-			if (rec) {
-				settleGeneration(rec);
-				return;
-			}
-			forgetPending();
-			setLoading(false);
+			commit(dropRun(runsRef.current, id));
 			setError(err.message);
 			refreshBalance();
 		}
@@ -476,12 +459,16 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 		}
 	}
 
-	async function copySeed() {
-		if (result?.seed === null || result?.seed === undefined) return;
+	async function copySeed(run: Run) {
+		const seed = run.result?.seed;
+		if (seed === null || seed === undefined) return;
 		try {
-			await navigator.clipboard.writeText(String(result.seed));
-			setSeedCopied(true);
-			setTimeout(() => setSeedCopied(false), 1500);
+			await navigator.clipboard.writeText(String(seed));
+			setCopiedRun(run.id);
+			setTimeout(
+				() => setCopiedRun((current) => (current === run.id ? null : current)),
+				1500,
+			);
 		} catch {
 			/* буфер обмена недоступен */
 		}
@@ -506,11 +493,11 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 						className="mb-8 items-center"
 					>
 						<TabsList>
-							<TabsTrigger value="image" disabled={loading}>
+							<TabsTrigger value="image">
 								<IconPhoto />
 								Изображение
 							</TabsTrigger>
-							<TabsTrigger value="ultra" data-weight="0.6" disabled={loading}>
+							<TabsTrigger value="ultra" data-weight="0.6">
 								<IconBolt />
 								{ultraModel.label}
 							</TabsTrigger>
@@ -534,7 +521,6 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 									models={models}
 									value={engine}
 									onChange={setEngine}
-									disabled={loading}
 								/>
 							) : (
 								// ползунок рассуждения занимает место чипа модели: аддон встаёт
@@ -551,7 +537,6 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 										step={1}
 										value={[ULTRA_REASONING_LEVELS.indexOf(reasoning)]}
 										onValueChange={changeReasoning}
-										disabled={loading}
 										aria-label="Уровень рассуждения"
 										aria-valuetext={REASONING_LABELS[reasoning]}
 										className="w-24 sm:w-28"
@@ -564,7 +549,7 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 									size="icon-lg"
 									weight={Math.min(1, cost / 10)}
 									onClick={handleGenerate}
-									disabled={loading || !prompt.trim() || outOfCredits}
+									disabled={!prompt.trim() || outOfCredits || !canStart(runs)}
 									aria-label={
 										outOfCredits
 											? "Нет кредитов для генерации"
@@ -596,51 +581,67 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 				)}
 			</div>
 
-			{(loading || result || history.length === 0) && (
+			{(runs.length > 0 || history.length === 0) && (
 				<div className="animate-pop-in mt-10">
-					<ResultFrame
-						loading={loading}
-						resumed={resumed}
-						image={
-							result
-								? {
-										url: result.image_url,
-										alt:
-											resultPrompt || prompt || "Сгенерированное изображение",
-									}
-								: null
-						}
-					/>
-					{result && !loading && (
-						<div className="mt-4 flex items-center justify-end gap-2">
-							{result.seed !== null && result.seed !== undefined && (
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									onClick={copySeed}
-									title="Скопировать seed"
-									aria-label={`Скопировать seed ${result.seed}`}
-									className="tabular-nums"
-								>
-									{seedCopied ? (
-										<IconCheck className="size-3.5 text-primary" />
-									) : (
-										<IconCopy className="size-3.5" />
+					<div
+						className={cn(
+							"grid grid-cols-1 gap-4",
+							runs.length > 1 && "sm:grid-cols-2",
+						)}
+					>
+						{runs.length === 0 ? (
+							<ResultFrame loading={false} image={null} />
+						) : (
+							runs.map((run) => (
+								<div key={run.id} data-run={run.id}>
+									<ResultFrame
+										loading={run.status === "running"}
+										resumed={run.resumed}
+										image={
+											run.result
+												? {
+														url: run.result.image_url,
+														alt: run.prompt || "Сгенерированное изображение",
+													}
+												: null
+										}
+									/>
+									{run.result && (
+										<div className="mt-4 flex items-center justify-end gap-2">
+											{run.result.seed !== null && (
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={() => copySeed(run)}
+													title="Скопировать seed"
+													aria-label={`Скопировать seed ${run.result.seed}`}
+													className="tabular-nums"
+												>
+													{copiedRun === run.id ? (
+														<IconCheck className="size-3.5 text-primary" />
+													) : (
+														<IconCopy className="size-3.5" />
+													)}
+													{run.result.seed}
+												</Button>
+											)}
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() =>
+													downloadImage(run.result!.image_url, run.result!.seed)
+												}
+											>
+												<IconDownload className="size-4" />
+												Скачать
+											</Button>
+										</div>
 									)}
-									{result.seed}
-								</Button>
-							)}
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => downloadImage(result.image_url, result.seed)}
-							>
-								<IconDownload className="size-4" />
-								Скачать
-							</Button>
-						</div>
-					)}
+								</div>
+							))
+						)}
+					</div>
 				</div>
 			)}
 

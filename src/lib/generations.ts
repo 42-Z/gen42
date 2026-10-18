@@ -1,6 +1,10 @@
 import { deductCredits, refundCredits } from "./credits";
 import { type SqlExecutor, sql } from "./db";
 import { describeGenerationError } from "./generation-error";
+import {
+	MAX_RUNNING_GENERATIONS,
+	TooManyRunningError,
+} from "./generation-limits";
 
 /**
  * Дольше этого срока живой генерации не бывает: воркфлоу «Ультра» идёт до ~13–14 минут
@@ -82,13 +86,29 @@ export interface StartGenerationParams {
  * Строка `running` появляется до списания кредитов и основной работы:
  * обновление страницы не должно терять процесс — он находится по этой строке.
  * `cost` строки равен списанным кредитам и остаётся нулём, пока списания нет.
+ * Идущих у пользователя не больше `MAX_RUNNING_GENERATIONS`: подсчёт и вставка идут
+ * в одной транзакции под замком на пользователя, поэтому два одновременных запуска
+ * не проскакивают под потолок вместе (иначе бросает `TooManyRunningError`).
  * Возвращает фактический id записи.
  */
 export async function startGeneration(
 	params: StartGenerationParams,
 ): Promise<string> {
-	const insert = async (id: string): Promise<string | null> => {
-		const rows = await sql`
+	// зависшие закрываются первыми: иначе они занимали бы место под потолком
+	await resolveStaleGenerations(params.userId);
+
+	return sql.begin(async (tx) => {
+		await tx`SELECT pg_advisory_xact_lock(hashtext(${params.userId}))`;
+		const [counted] = await tx`
+      SELECT count(*)::int AS count FROM generations
+      WHERE user_id = ${params.userId} AND status = 'running'
+    `;
+		if (Number(counted?.count ?? 0) >= MAX_RUNNING_GENERATIONS) {
+			throw new TooManyRunningError();
+		}
+
+		const insert = async (id: string): Promise<string | null> => {
+			const rows = await tx`
       INSERT INTO generations
         (id, user_id, prompt, negative_prompt, model, width, height, steps,
          engine, cost, status)
@@ -99,17 +119,20 @@ export async function startGeneration(
       ON CONFLICT (id) DO NOTHING
       RETURNING id
     `;
-		return rows.length > 0 ? id : null;
-	};
+			return rows.length > 0 ? id : null;
+		};
 
-	const preferred =
-		params.id && CLIENT_ID_RE.test(params.id) ? await insert(params.id) : null;
-	if (preferred) return preferred;
-	const fallback = await insert(crypto.randomUUID());
-	if (!fallback) {
-		throw new Error("Не удалось записать генерацию");
-	}
-	return fallback;
+		const preferred =
+			params.id && CLIENT_ID_RE.test(params.id)
+				? await insert(params.id)
+				: null;
+		if (preferred) return preferred;
+		const fallback = await insert(crypto.randomUUID());
+		if (!fallback) {
+			throw new Error("Не удалось записать генерацию");
+		}
+		return fallback;
+	});
 }
 
 /**
@@ -286,4 +309,20 @@ export async function getActiveGeneration(
       LIMIT 1
     `;
 	return rows[0] ? toRecord(rows[0]) : null;
+}
+
+/** Все идущие генерации пользователя, свежие первыми (их не больше потолка) */
+export async function listRunningGenerations(
+	userId: string,
+): Promise<GenerationRecord[]> {
+	await resolveStaleGenerations(userId);
+	const rows = await sql`
+      SELECT id, user_id, prompt, engine, model, seed, width, height, steps,
+             cost, image_key, status, error_message, duration_ms, created_at
+      FROM generations
+      WHERE user_id = ${userId} AND status = 'running'
+      ORDER BY created_at DESC
+      LIMIT ${MAX_RUNNING_GENERATIONS}
+    `;
+	return rows.map(toRecord);
 }
