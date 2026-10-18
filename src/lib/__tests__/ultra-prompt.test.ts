@@ -268,6 +268,52 @@ describe("инструкция агента «Ультра»", () => {
 		expect(blues.length).toBeLessThanOrEqual(2);
 	});
 
+	test("золото и белый: краски замысла, а не наполнитель и не чит-код", () => {
+		// замер 38 промптов: золото в 35, золотая цепь в 18, цепь из вещей темы с кулоном 42 в 28,
+		// господствующая семья цвета золотая или бело-серебряная у 23; золото приходило из самой
+		// инструкции (металл племени, цепь на каждом, примеры)
+		expect(system).toContain("**Золото и белый.**");
+		expect(system).toContain("не чит-код на хорошую картинку");
+		expect(system).toContain(
+			"лазеры, залпы и прожекторы чаще цветные, чем белые",
+		);
+		expect(system).toContain("У света есть цвет, и он из замысла кадра");
+		expect(system).toContain(
+			"золото, серебро и хром только когда они в цветовом замысле",
+		);
+		expect(system).toContain("Вещей «для роскоши» нет");
+		expect(system).toContain(
+			"не лежат, не стоят и не висят в кадре «для роскоши»",
+		);
+		expect(system).toContain(
+			"Навалить побольше и подставить золото не заменяет идею",
+		);
+		expect(system).toContain("вещь без дела в сюжете пустоту не закрывает");
+		expect(system).toContain("на каждом по набору это штамп");
+		// металл племени больше не назван золотом по умолчанию
+		expect(system).not.toContain(
+			"Металл и блеск у племени это золото, хром, бриллианты",
+		);
+		expect(system).not.toContain("золотые цепи с кулоном 42");
+		// примеры не учат золоту и белому свету: палитры почти без них
+		const examples = system.slice(
+			indexIn(system, "# Примеры"),
+			indexIn(system, "# Самопроверка"),
+		);
+		const palettes = [...examples.matchAll(/([a-z ,-]+) palette/g)].map(
+			(match) => match[1] ?? "",
+		);
+		expect(
+			palettes.filter((p) => /\bgold\b|\bwhite\b/.test(p)).length,
+		).toBeLessThanOrEqual(1);
+		expect(
+			examples.match(/\bgold(?:en)?\b/gi)?.length ?? 0,
+		).toBeLessThanOrEqual(2);
+		expect(examples).not.toMatch(
+			/white (?:flash|floodlights?|spotlights?|beams?|light)/i,
+		);
+	});
+
 	test("варианты розыгрыша различаются видом, а холод не тянется от темы", () => {
 		// идея не несёт место и цвет: иначе выпавшая «снежная» идея красит весь кадр
 		expect(system).toContain(
@@ -651,9 +697,19 @@ describe("инструкция агента «Ультра»", () => {
 		const withShades = outputs.filter((output) =>
 			/shades|sunglasses|aviators/i.test(output),
 		);
-		const withChain = outputs.filter((output) => /gold chain/i.test(output));
 		expect(withShades.length).toBeGreaterThanOrEqual(4);
-		expect(withChain.length).toBeGreaterThanOrEqual(3);
+		// цепь есть, но золотая цепь у каждого героя стала шаблоном «gold chain of
+		// tiny <вещи темы> with a 42 pendant» (замер: золотая цепь в 18 из 38
+		// промптов), поэтому в примерах она одна и не с кулоном из звеньев-вещей темы
+		const withChain = outputs.filter((output) => /\bchains?\b/i.test(output));
+		const withGoldChain = outputs.filter((output) =>
+			/gold chain/i.test(output),
+		);
+		expect(withChain.length).toBeGreaterThanOrEqual(1);
+		expect(withGoldChain.length).toBeLessThanOrEqual(1);
+		expect(examples).not.toMatch(
+			/chain of [\w-]+ [\w-]+ links[^.]{0,40}42 pendant/i,
+		);
 		expect(examples).toMatch(/42 (as wide as|across the chest|on the back)/);
 		// латунь и бархат не должны стать умолчанием в примерах
 		for (const word of ["brass", "velvet", "porcelain", "terrazzo"]) {
