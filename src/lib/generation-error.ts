@@ -2,10 +2,10 @@ import { InsufficientCreditsError } from "./credits";
 import { KeyExhaustedError, QueueTimeoutError } from "./hf";
 import { AllKeysExhaustedError } from "./keys";
 import {
-	TURBO_ERROR_CODES,
-	TURBO_PUBLIC_ERROR,
-	TurboError,
-} from "./turbo/errors";
+	ULTRA_ERROR_CODES,
+	ULTRA_PUBLIC_ERROR,
+	UltraError,
+} from "./ultra/errors";
 
 const MAX_ERROR_LENGTH = 2000;
 
@@ -25,7 +25,7 @@ export function describeGenerationError(error: unknown): string {
 		reason = `key_exhausted (${error.status})`;
 	} else if (error instanceof QueueTimeoutError) {
 		reason = "queue_timeout";
-	} else if (error instanceof TurboError) {
+	} else if (error instanceof UltraError) {
 		reason = error.code;
 	} else {
 		reason = "error";
@@ -47,8 +47,8 @@ export function publicGenerationError(errorMessage: string | null): string {
 	if (code === "interrupted") {
 		return "Генерация была прервана, кредиты возвращены";
 	}
-	if (code && (TURBO_ERROR_CODES as readonly string[]).includes(code)) {
-		return TURBO_PUBLIC_ERROR;
+	if (code && (ULTRA_ERROR_CODES as readonly string[]).includes(code)) {
+		return ULTRA_PUBLIC_ERROR;
 	}
 	return "Ошибка генерации";
 }

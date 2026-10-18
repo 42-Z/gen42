@@ -94,7 +94,8 @@ async function mockApi(
 			return json([
 				{ id: "krea", label: "Krea 2", cost: 1 },
 				{ id: "ideogram", label: "Ideogram 4", cost: 3 },
-				{ id: "turbo", label: "Турбо", cost: 10 },
+				{ id: "ultra", label: "Ультра", cost: 10 },
+				{ id: "turbo", label: "Ультра", cost: 10 },
 			]);
 		if (p === "/api/generations") return json(state.history);
 		if (p === "/api/generations/active") return json({ error: "none" }, 404);
@@ -419,7 +420,7 @@ try {
 	await shot(page, "05-erasing");
 	await pause(page, 900);
 
-	await page.getByRole("tab", { name: "Турбо" }).click();
+	await page.getByRole("tab", { name: "Ультра" }).click();
 	await pause(page, 170);
 	await shot(page, "06-tab-mid");
 	await pause(page, 900);
@@ -435,6 +436,18 @@ try {
 
 	await page.getByRole("tab", { name: "Изображение" }).click();
 	await pause(page, 900);
+	await page.evaluate(() => {
+		const band = document.querySelector<HTMLElement>('[data-flash="band"]');
+		if (!band) throw new Error("Полоса вспышки не найдена");
+		const state = { count: 0 };
+		(window as Window & { __uiCheckFlash?: typeof state }).__uiCheckFlash =
+			state;
+		const animate = band.animate.bind(band);
+		band.animate = (keyframes, options) => {
+			state.count += 1;
+			return animate(keyframes, options);
+		};
+	});
 	await page.getByRole("button", { name: /Сгенерировать/ }).click();
 	await pause(page, 400);
 	await shot(page, "08-frame-grows");
@@ -471,18 +484,21 @@ try {
 	await pause(page, 200);
 	await shot(page, "10-curtain");
 	// вспышка на пике «выдоха»: полоса и логотип оживают один раз после занавеса
-	const flashed = await page
+	await page
 		.waitForFunction(
 			() =>
-				(
-					document.querySelector('[data-flash="band"]') as HTMLElement | null
-				)?.getAnimations().length,
+				(window as Window & { __uiCheckFlash?: { count: number } })
+					.__uiCheckFlash?.count,
 			undefined,
 			{ timeout: 12000 },
 		)
-		.then(() => true)
-		.catch(() => false);
-	check("вспышка: полоса шапки ожила", flashed ? 1 : 0, flashed);
+		.catch(() => undefined);
+	const flashCount = await page.evaluate(
+		() =>
+			(window as Window & { __uiCheckFlash?: { count: number } }).__uiCheckFlash
+				?.count ?? 0,
+	);
+	check("вспышка: полоса шапки ожила", flashCount, flashCount > 0);
 	await pause(page, 250);
 	await shot(page, "10b-flash");
 	await pause(page, 1800);

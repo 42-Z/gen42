@@ -34,7 +34,7 @@ describe("волна", () => {
 		expect(waveGain(1200)).toBeCloseTo(0.25, 5);
 	});
 
-	test("вес по цене: Krea 1 < Ideogram 3 < Турбо 10 = 1", () => {
+	test("вес по цене: Krea 1 < Ideogram 3 < «Ультра» 10 = 1", () => {
 		expect(weightForCost(1)).toBeCloseTo(0.37, 5);
 		expect(weightForCost(3)).toBeCloseTo(0.51, 5);
 		expect(weightForCost(10)).toBe(1);
