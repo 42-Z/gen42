@@ -126,7 +126,8 @@ describe("runAttempt", () => {
 		);
 	});
 
-	test("прочая ошибка после выбора ключа: error с ключом, квота обновляется", async () => {
+	test("прочая ошибка после выбора ключа: error с ключом, квота обновляется, этап в журнале", async () => {
+		const log = spyOn(console, "error").mockImplementation(() => {});
 		const deps = makeDeps({
 			download: mock(async () => {
 				throw new Error("Не удалось скачать изображение: 500");
@@ -142,6 +143,10 @@ describe("runAttempt", () => {
 			message: "Не удалось скачать изображение: 500",
 		});
 		expect(deps.refreshQuota).toHaveBeenCalledWith(KEY);
+		expect(
+			log.mock.calls.some((c) => String(c[0]).includes("скачивание")),
+		).toBe(true);
+		log.mockRestore();
 	});
 
 	test("сбой обновления квоты не отменяет уже сохранённую картинку", async () => {
@@ -159,6 +164,7 @@ describe("runAttempt", () => {
 	});
 
 	test("ошибка до выбора ключа: error без ключа, квота не трогается", async () => {
+		const log = spyOn(console, "error").mockImplementation(() => {});
 		const deps = makeDeps({
 			getAvailableKey: mock(async () => {
 				throw new Error("база недоступна");
@@ -174,5 +180,9 @@ describe("runAttempt", () => {
 			message: "база недоступна",
 		});
 		expect(deps.refreshQuota).not.toHaveBeenCalled();
+		expect(
+			log.mock.calls.some((c) => String(c[0]).includes("выбор ключа")),
+		).toBe(true);
+		log.mockRestore();
 	});
 });

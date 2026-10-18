@@ -34,6 +34,8 @@ export async function runAttempt(
 ): Promise<AttemptOutcome> {
 	const startedAt = deps.now();
 	let key: HfKey | null = null;
+	/** Где оборвалась попытка: по тексту непредвиденной ошибки этого не понять, а в журнал нужно */
+	let stage = "выбор ключа";
 
 	/** Квота нужна для выбора следующего ключа, но сбой её обновления не отменяет исход попытки */
 	const refreshQuota = async (used: HfKey, lastError?: string) => {
@@ -47,6 +49,7 @@ export async function runAttempt(
 
 	try {
 		key = await deps.getAvailableKey({ excludeIds: input.excludeKeyIds });
+		stage = "Space";
 		const result = await deps.generateImage(
 			{
 				engine: input.engine,
@@ -60,8 +63,10 @@ export async function runAttempt(
 			},
 			key.key,
 		);
+		stage = "скачивание";
 		const { bytes, contentType } = await deps.download(result.imageUrl);
 		const imageKey = `generations/${input.userId}/${deps.now()}.${imageExtension(contentType)}`;
+		stage = "хранилище";
 		await deps.store(imageKey, bytes, contentType);
 		await refreshQuota(key);
 		return {
@@ -94,6 +99,7 @@ export async function runAttempt(
 				message: error.message,
 			};
 		}
+		console.error(`Попытка Space оборвалась на этапе «${stage}»:`, error);
 		if (key) await refreshQuota(key);
 		return {
 			ok: false,
