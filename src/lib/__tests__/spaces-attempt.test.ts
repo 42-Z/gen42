@@ -184,6 +184,7 @@ describe("runAttempt", () => {
 			message: "база недоступна",
 		});
 		expect(deps.refreshQuota).not.toHaveBeenCalled();
+		expect(deps.generateImage).not.toHaveBeenCalled();
 		expect(
 			log.mock.calls.some((c) => String(c[0]).includes("выбор ключа")),
 		).toBe(true);

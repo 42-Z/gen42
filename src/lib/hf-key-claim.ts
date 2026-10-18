@@ -4,13 +4,22 @@ import { AllKeysExhaustedError, type ApiKeyRow, rankHfKeys } from "./keys";
 
 const STALE_INTERVAL = `${GENERATION_STALE_MS / 1000} seconds`;
 
+/** Строка запуска уже закрыта (ленивое закрытие или другой закрывающий), кредиты возвращены: ключ брать нельзя */
+export class GenerationClosedError extends Error {
+	constructor(generationId: string) {
+		super(`Запуск ${generationId} уже закрыт`);
+	}
+}
+
 /**
  * Выбирает ключ HF для попытки Space с учётом запусков, которые уже идут, и закрепляет его
  * за строкой запуска (`generations.api_key_id`). Следующие запуски по этой записи видят,
  * сколько работы уже на ключе. Выбор и запись идут в одной транзакции под общим замком:
  * два запуска, стартовавшие одновременно, не берут один и тот же остаток квоты. Строка,
  * зависшая дольше `GENERATION_STALE_MS`, ключ не занимает. Бросает
- * `AllKeysExhaustedError`, если подходящих ключей нет.
+ * `AllKeysExhaustedError`, если подходящих ключей нет, и `GenerationClosedError`, если
+ * запуск уже закрыт: иначе попытка потратила бы прогон ZeroGPU и сохранила картинку
+ * после возврата кредитов.
  */
 export async function claimHfKey(params: {
 	generationId: string;
@@ -38,10 +47,14 @@ export async function claimHfKey(params: {
 		if (!key) {
 			throw new AllKeysExhaustedError();
 		}
-		await tx`
+		const claimed = await tx`
       UPDATE generations SET api_key_id = ${key.id}
       WHERE id = ${generationId} AND status = 'running'
+      RETURNING id
     `;
+		if (claimed.length === 0) {
+			throw new GenerationClosedError(generationId);
+		}
 		return key;
 	});
 }

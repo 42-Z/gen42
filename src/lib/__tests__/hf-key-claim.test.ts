@@ -19,6 +19,10 @@ mock.module("../db", () => ({ sql: mockSql }));
 
 const { claimHfKey } = await import("../hf-key-claim");
 const { AllKeysExhaustedError } = await import("../keys");
+const { GenerationClosedError } = await import("../hf-key-claim");
+
+/** Ответ записи ключа в строку, пока запуск идёт: `RETURNING id` отдаёт её */
+const ownRow = { "UPDATE generations": [{ id: "gen-1" }] };
 
 function keyRow(overrides: Record<string, unknown> = {}) {
 	return {
@@ -60,6 +64,7 @@ describe("claimHfKey", () => {
 		responses = {
 			"FROM api_keys": [keyRow({ id: "k1" })],
 			"GROUP BY api_key_id": [],
+			...ownRow,
 		};
 		await claimHfKey({ generationId: "gen-1", excludeIds: [] });
 
@@ -82,6 +87,7 @@ describe("claimHfKey", () => {
 				keyRow({ id: "k2", hf_current: 240 }),
 			],
 			"GROUP BY api_key_id": [{ api_key_id: "k1", busy: 1 }],
+			...ownRow,
 		};
 		const key = await claimHfKey({ generationId: "gen-1", excludeIds: [] });
 		expect(key.id).toBe("k2");
@@ -94,6 +100,7 @@ describe("claimHfKey", () => {
 				keyRow({ id: "k2", hf_current: 250 }),
 			],
 			"GROUP BY api_key_id": [],
+			...ownRow,
 		};
 		const key = await claimHfKey({ generationId: "gen-1", excludeIds: [] });
 		expect(key.id).toBe("k2");
@@ -103,6 +110,7 @@ describe("claimHfKey", () => {
 		responses = {
 			"FROM api_keys": [keyRow({ id: "k1" })],
 			"GROUP BY api_key_id": [],
+			...ownRow,
 		};
 		await claimHfKey({ generationId: "gen-1", excludeIds: [] });
 
@@ -116,6 +124,7 @@ describe("claimHfKey", () => {
 		responses = {
 			"FROM api_keys": [keyRow({ id: "k1" })],
 			"GROUP BY api_key_id": [],
+			...ownRow,
 		};
 		await claimHfKey({ generationId: "gen-1", excludeIds: [] });
 
@@ -128,6 +137,7 @@ describe("claimHfKey", () => {
 		responses = {
 			"FROM api_keys": [keyRow({ id: "k1" })],
 			"GROUP BY api_key_id": [],
+			...ownRow,
 		};
 		await claimHfKey({ generationId: "gen-1", excludeIds: [] });
 
@@ -142,6 +152,7 @@ describe("claimHfKey", () => {
 				keyRow({ id: "k2", hf_current: 100 }),
 			],
 			"GROUP BY api_key_id": [],
+			...ownRow,
 		};
 		const key = await claimHfKey({
 			generationId: "gen-1",
@@ -154,10 +165,22 @@ describe("claimHfKey", () => {
 		responses = {
 			"FROM api_keys": [keyRow({ id: "k1", hf_runs_remaining: 0 })],
 			"GROUP BY api_key_id": [],
+			...ownRow,
 		};
 		await expect(
 			claimHfKey({ generationId: "gen-1", excludeIds: [] }),
 		).rejects.toThrow(AllKeysExhaustedError);
 		expect(queries().some((q) => q.includes("UPDATE generations"))).toBe(false);
+	});
+
+	test("запуск уже закрыт: ключ не отдаётся, попытка не тратит прогон", async () => {
+		responses = {
+			"FROM api_keys": [keyRow({ id: "k1" })],
+			"GROUP BY api_key_id": [],
+			"UPDATE generations": [],
+		};
+		await expect(
+			claimHfKey({ generationId: "gen-1", excludeIds: [] }),
+		).rejects.toThrow(GenerationClosedError);
 	});
 });
