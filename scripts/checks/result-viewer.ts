@@ -78,15 +78,8 @@ export async function checkResultViewer(
 		}
 		if (p === "/api/generations/viewer-new")
 			return json({ ...record, id: "viewer-new", preview_url: "/slow.png" });
-		if (/^\/api\/generations\/[^/]+\/download$/.test(p)) {
-			return route.fulfill({
-				body: Buffer.from(downloadBytes),
-				headers: {
-					"Content-Type": "image/png",
-					"Content-Disposition": 'attachment; filename="gen42-original.png"',
-				},
-			});
-		}
+		if (/^\/api\/generations\/[^/]+\/download$/.test(p))
+			return route.continue();
 		if (p === "/original.png") {
 			originalRequests++;
 			return route.fulfill({
