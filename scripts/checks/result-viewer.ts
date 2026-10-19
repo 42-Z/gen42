@@ -132,13 +132,37 @@ export async function checkResultViewer(
 			);
 		});
 		// Регрессия: старый просмотр содержал только картинку и навигацию.
-		await dialog
-			.getByText(record.prompt, { exact: true })
-			.waitFor({ timeout: 3000 });
+		const promptText = dialog.getByText(record.prompt, { exact: true });
+		await promptText.waitFor({ timeout: 3000 });
+		assert.ok(
+			Number(
+				await promptText.evaluate((element) =>
+					getComputedStyle(element).fontSize.replace("px", ""),
+				),
+			) >= 16,
+			"исходный промпт получает типографический акцент",
+		);
+		assert.ok(
+			Number(
+				await dialog
+					.getByText("2:03", { exact: true })
+					.evaluate((element) =>
+						getComputedStyle(element).fontSize.replace("px", ""),
+					),
+			) >= 24,
+			"время выделено как главный показатель",
+		);
 		assert.match(await dialog.innerText(), /1536\s*×\s*1024/);
 		assert.match(await dialog.innerText(), /2:03/);
 		assert.match(await dialog.innerText(), /gpt-image-2/);
 		assert.match(await dialog.innerText(), /Очень высокое/);
+		assert.equal(
+			await dialog
+				.getByRole("button", { name: "Скачать", exact: true })
+				.getAttribute("data-variant"),
+			"default",
+			"скачивание — главная action-кнопка просмотра",
+		);
 		assert.equal(
 			await dialog
 				.getByRole("button", { name: /Предыдущее|Следующее/ })
@@ -175,7 +199,7 @@ export async function checkResultViewer(
 		);
 		assert.deepEqual(downloadFixture.bytes, [...downloadBytes]);
 		const download = page.waitForEvent("download");
-		await dialog.getByRole("link", { name: "Скачать", exact: true }).click();
+		await dialog.getByRole("button", { name: "Скачать", exact: true }).click();
 		const file = await download;
 		assert.equal(file.suggestedFilename(), "gen42-original.png");
 		const downloaded = await Bun.file((await file.path())!).bytes();
