@@ -16,8 +16,8 @@ const SHOTS = path.join(OUT, "shots");
 const ROOT = path.resolve(SITE);
 const COST_BUDGET_MS = 4;
 const IDLE_LAYERS = 8;
-/** 11 — рамка ожидания; 12 — её фазовый слой спектра */
-const WAIT_LAYERS = 12;
+/** 11 — рамка ожидания; 15 — её фазовое поле из трёх мягких пятен */
+const WAIT_LAYERS = 15;
 /** Отрисовка кадров по трассировке (мс). Headless Chromium рисует программно, без GPU, — худший случай */
 const IDLE_DRAW_MS_PER_3S = 150;
 const WAIT_DRAW_MS_PER_1_2S = 400;
@@ -538,7 +538,7 @@ try {
 		check(`стадии: ${phase}`, shown === phase ? 1 : 0, shown === phase);
 		const veiled = await page.evaluate(
 			(name) =>
-				[...document.querySelectorAll(".frame-phase")].some(
+				[...document.querySelectorAll(".frame-fluid")].some(
 					(el) =>
 						el.getAttribute("data-phase") === name &&
 						!el.hasAttribute("data-leaving"),

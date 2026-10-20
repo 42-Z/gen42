@@ -288,8 +288,12 @@ export function ResultFrame({
 						data-phase={veil.phase}
 						data-leaving={veil.leaving ? "true" : undefined}
 						aria-hidden="true"
-						className="frame-phase"
-					/>
+						className="frame-fluid"
+					>
+						<i className="frame-blob" />
+						<i className="frame-blob" />
+						<i className="frame-blob" />
+					</i>
 				))}
 			</i>
 		</div>
