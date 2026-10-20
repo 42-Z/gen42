@@ -163,6 +163,22 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- Стадия прогона «Ультры» для ожидания на странице; у остальных движков NULL
+ALTER TABLE generations ADD COLUMN IF NOT EXISTS phase VARCHAR(12);
+ALTER TABLE generations ADD COLUMN IF NOT EXISTS phase_at TIMESTAMPTZ;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'generations_phase_check'
+      AND conrelid = 'generations'::regclass
+  ) THEN
+    ALTER TABLE generations
+      ADD CONSTRAINT generations_phase_check
+      CHECK (phase IN ('prepare', 'thinking', 'library', 'review', 'draw')) NOT VALID;
+  END IF;
+END $$;
+
 DO $$ BEGIN
   IF EXISTS (
     SELECT 1 FROM pg_constraint

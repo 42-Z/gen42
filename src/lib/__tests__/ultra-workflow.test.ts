@@ -108,6 +108,24 @@ describe("ultraWorkflow: успех", () => {
 
 		expect(model.doGenerateCalls[0]?.reasoning).toBe("high");
 	});
+
+	test("стадии идут по воркфлоу: подготовка, думает, проверка, рисование", async () => {
+		const model = new MockLanguageModelV4({
+			doGenerate: [toolCalls({ id: "1", name: "generateImage", input: good })],
+		});
+		const runtime = makeRuntime({ agentModel: () => model });
+		setUltraRuntime(runtime);
+
+		await ultraWorkflow(INPUT);
+
+		expect(runtime.setPhase.mock.calls.map((call) => call[1])).toEqual([
+			"prepare",
+			"thinking",
+			"thinking",
+			"review",
+			"draw",
+		]);
+	});
 });
 
 describe("ultraWorkflow: сбои возвращают кредиты", () => {

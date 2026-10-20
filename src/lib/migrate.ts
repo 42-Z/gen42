@@ -7,5 +7,8 @@ await sql.unsafe(script);
 await sql.unsafe(
 	"ALTER TABLE generations VALIDATE CONSTRAINT generations_reasoning_check",
 );
+await sql.unsafe(
+	"ALTER TABLE generations VALIDATE CONSTRAINT generations_phase_check",
+);
 console.log("✅ Миграции применены");
 process.exit(0);

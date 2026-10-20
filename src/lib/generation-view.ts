@@ -1,4 +1,5 @@
 import { IMAGE_ENGINE_LABELS, type ImageEngine } from "./models";
+import type { UltraPhase } from "./ultra/phase";
 import type { UltraReasoning } from "./ultra/reasoning";
 
 /** Общие сведения для истории, свежего результата и восстановленной серии. */
@@ -9,6 +10,9 @@ export interface GenerationInfo {
 	height?: number;
 	steps?: number;
 	reasoning?: UltraReasoning | null;
+	/** Стадия идущего прогона «Ультры» и время её смены (ISO) */
+	phase?: UltraPhase | null;
+	phase_at?: string | null;
 	duration?: number | null;
 	preview_url?: string | null;
 	thumb_url?: string | null;

@@ -4,6 +4,7 @@ import {
 	completeGeneration,
 	type FailGenerationParams,
 	failGeneration,
+	setGenerationPhase,
 } from "../generations";
 import { listObjects, readObject, uploadImage } from "../storage";
 import { storeThumb } from "../thumbnails";
@@ -17,6 +18,7 @@ import {
 import { editImage } from "./codex-images";
 import { Library } from "./library";
 import type { EditFn } from "./ops";
+import type { UltraPhase } from "./phase";
 
 /**
  * Всё, что шагам воркфлоу нужно от внешнего мира. Шаги берут окружение через
@@ -31,6 +33,8 @@ export interface UltraRuntime {
 	storeImage(key: string, png: Uint8Array): Promise<void>;
 	completeGeneration(params: CompleteGenerationParams): Promise<boolean>;
 	failGeneration(params: FailGenerationParams): Promise<boolean>;
+	/** Стадия прогона для анимации ожидания; сбой не роняет генерацию */
+	setPhase(id: string, phase: UltraPhase): Promise<void>;
 	recordCodexError(message: string): Promise<void>;
 	now(): number;
 }
@@ -55,6 +59,7 @@ function createDefaultRuntime(): UltraRuntime {
 		},
 		completeGeneration,
 		failGeneration,
+		setPhase: setGenerationPhase,
 		recordCodexError: async (message) => {
 			await recordCodexError(message);
 		},

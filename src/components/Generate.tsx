@@ -43,6 +43,7 @@ import {
 	resultOf,
 	type ServerRecord,
 	seriesIds,
+	setRunPhase,
 	settleRun,
 } from "@/lib/series";
 import { impulse } from "@/lib/sheet/impulses";
@@ -306,6 +307,20 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 			active.map((run) => fetchGeneration(run.id)),
 		);
 		if (!aliveRef.current) return;
+		// сначала стадии всех идущих одним обновлением, потом итоги: settleRecord
+		// читает runsRef и должен видеть уже обновлённую серию
+		let withPhases = runsRef.current;
+		active.forEach((run, index) => {
+			const record = records[index];
+			if (record?.status !== "running") return;
+			withPhases = setRunPhase(
+				withPhases,
+				run.id,
+				record.phase ?? null,
+				record.phase_at ?? null,
+			);
+		});
+		if (withPhases !== runsRef.current) commit(withPhases);
 		active.forEach((run, index) => {
 			const record = records[index];
 			if (record && record.status !== "running") {
@@ -370,6 +385,8 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 				resumed: false,
 				deadline: Date.now() + POLL_TIMEOUT_MS,
 				result: null,
+				phase: null,
+				phaseAt: null,
 			}),
 		);
 		schedulePoll();
@@ -553,6 +570,8 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 									<ResultFrame
 										loading={run.status === "running"}
 										resumed={run.resumed}
+										phase={run.phase}
+										phaseAt={run.phaseAt}
 										image={
 											run.result
 												? {

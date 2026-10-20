@@ -9,14 +9,23 @@ import { makeRuntime, text } from "./helpers/ultra-fakes";
 afterEach(() => setUltraRuntime(null));
 
 describe("CodexAgentModel: сериализация", () => {
-	test("в журнал уходит только modelId, восстановление создаёт модель заново", () => {
-		const model = new CodexAgentModel("gpt-6-luna");
+	test("в журнал уходят modelId и id генерации, модель восстанавливается заново", () => {
+		const model = new CodexAgentModel("gpt-6-luna", "gen-1");
 		const data = CodexAgentModel[WORKFLOW_SERIALIZE](model);
-		expect(data).toEqual({ modelId: "gpt-6-luna" });
+		expect(data).toEqual({ modelId: "gpt-6-luna", generationId: "gen-1" });
 		const restored = CodexAgentModel[WORKFLOW_DESERIALIZE](data);
 		expect(restored).toBeInstanceOf(CodexAgentModel);
 		expect(restored.modelId).toBe("gpt-6-luna");
+		expect(restored.generationId).toBe("gen-1");
 		expect(restored.specificationVersion).toBe("v4");
+	});
+
+	test("старая запись без id генерации читается", () => {
+		const restored = CodexAgentModel[WORKFLOW_DESERIALIZE]({
+			modelId: "gpt-6-luna",
+		});
+		expect(restored.modelId).toBe("gpt-6-luna");
+		expect(restored.generationId).toBeUndefined();
 	});
 });
 
@@ -38,6 +47,32 @@ describe("CodexAgentModel: вызов", () => {
 		expect(requestedModel).toBe("gpt-6-luna");
 		expect(inner.doGenerateCalls).toHaveLength(1);
 		expect(result.content).toEqual([{ type: "text", text: "привет" }]);
+	});
+
+	test("перед вызовом модели отмечает стадию «думает»", async () => {
+		const runtime = makeRuntime({
+			agentModel: () =>
+				new MockLanguageModelV4({ doGenerate: [text("привет")] }),
+		});
+		setUltraRuntime(runtime);
+
+		await new CodexAgentModel("gpt-6-luna", "gen-1").doGenerate({
+			prompt: [],
+		});
+
+		expect(runtime.setPhase).toHaveBeenCalledWith("gen-1", "thinking");
+	});
+
+	test("без id генерации стадия не пишется", async () => {
+		const runtime = makeRuntime({
+			agentModel: () =>
+				new MockLanguageModelV4({ doGenerate: [text("привет")] }),
+		});
+		setUltraRuntime(runtime);
+
+		await new CodexAgentModel("gpt-6-luna").doGenerate({ prompt: [] });
+
+		expect(runtime.setPhase).not.toHaveBeenCalled();
 	});
 
 	test("мёртвый вход: код codex_auth_required едет в тексте ошибки", async () => {

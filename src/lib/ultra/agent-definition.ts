@@ -88,9 +88,13 @@ export function createUltraAgent(params: {
 	random?: () => number;
 	/** Уровень рассуждения: выбирает пользователь; без него (старые запуски) `high` */
 	reasoning?: UltraReasoning | undefined;
+	/** id строки `generations`: модель отмечает им стадию «думает» */
+	generationId?: string;
 }) {
 	return new WorkflowAgent({
-		model: params.model ?? new CodexAgentModel(ULTRA_AGENT_MODEL),
+		model:
+			params.model ??
+			new CodexAgentModel(ULTRA_AGENT_MODEL, params.generationId),
 		instructions: params.system,
 		tools: createUltraTools(params.executors, params.random),
 		reasoning: params.reasoning ?? ULTRA_DEFAULT_REASONING,

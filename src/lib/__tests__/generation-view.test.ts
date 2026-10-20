@@ -21,6 +21,8 @@ const record = {
 	cost: 10,
 	imageKey: "generations/u1/image.png",
 	status: "completed",
+	phase: null,
+	phaseAt: null,
 	errorMessage: null,
 	durationMs: 123456,
 	createdAt: "2026-10-18T10:00:00Z",
@@ -55,6 +57,25 @@ describe("данные просмотра", () => {
 		expect(data.image_url).toBeNull();
 		expect(data.preview_url).toBeNull();
 		expect(data.thumb_url).toBeNull();
+	});
+	test("стадия отдаётся только идущему запуску", () => {
+		const running = generationJson(
+			{
+				...record,
+				status: "running",
+				phase: "draw",
+				phaseAt: "2026-10-18T10:00:05.000Z",
+			},
+			null,
+		);
+		expect(running).toMatchObject({
+			phase: "draw",
+			phase_at: "2026-10-18T10:00:05.000Z",
+		});
+		expect(generationJson(record, null)).toMatchObject({
+			phase: null,
+			phase_at: null,
+		});
 	});
 });
 

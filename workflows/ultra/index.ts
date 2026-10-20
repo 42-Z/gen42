@@ -38,14 +38,16 @@ export async function ultraWorkflow(
 	const startedAt = Date.now();
 	let accepted: AcceptedImage | null = null;
 	try {
-		const prepared = await prepareStep({ prompt: input.prompt });
+		const id = input.id;
+		const prepared = await prepareStep({ id, prompt: input.prompt });
 		const agent = createUltraAgent({
 			system: prepared.system,
 			reasoning: input.reasoning,
+			generationId: id,
 			executors: {
-				listFolder: listFolderStep,
-				readFile: readFileStep,
-				checkImage: checkImageStep,
+				listFolder: (args) => listFolderStep({ id, ...args }),
+				readFile: (args) => readFileStep({ id, ...args }),
+				checkImage: (args) => checkImageStep({ id, ...args }),
 			},
 		});
 		// span агентского цикла здесь невозможен: flow-бандл Workflow не принимает
@@ -60,6 +62,7 @@ export async function ultraWorkflow(
 		}
 
 		const drawn = await drawStep({
+			id,
 			userId: input.userId,
 			prompt: accepted.prompt,
 			images: accepted.images,

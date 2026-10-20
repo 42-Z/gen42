@@ -16,7 +16,8 @@ const SHOTS = path.join(OUT, "shots");
 const ROOT = path.resolve(SITE);
 const COST_BUDGET_MS = 4;
 const IDLE_LAYERS = 8;
-const WAIT_LAYERS = 11;
+/** 11 — рамка ожидания; 12 — её фазовый слой спектра */
+const WAIT_LAYERS = 12;
 /** Отрисовка кадров по трассировке (мс). Headless Chromium рисует программно, без GPU, — худший случай */
 const IDLE_DRAW_MS_PER_3S = 150;
 const WAIT_DRAW_MS_PER_1_2S = 400;
@@ -106,6 +107,8 @@ async function mockApi(
 						status: "running",
 						prompt: run.prompt,
 						created_at: new Date(run.startedAt).toISOString(),
+						phase: state.phase ?? null,
+						phase_at: state.phase ? (state.phaseAt ?? null) : null,
 					}
 				: {
 						...REC,
@@ -195,6 +198,10 @@ const state: {
 	runs: Map<string, { startedAt: number; prompt: string }>;
 	/** Сценарий может растянуть ожидание на время замеров (перекрывает `waitMs` контекста) */
 	waitMs?: number;
+	/** Стадия, которую подставной API отдаёт идущему запуску */
+	phase?: string | null;
+	/** Время смены стадии (ISO), чтобы страница не считала её застрявшей */
+	phaseAt?: string;
 } = { runs: new Map() };
 
 const rows: Array<{ name: string; value: string; ok: boolean }> = [];
@@ -297,6 +304,8 @@ async function open(
 	// запуски одного контекста не попадают в другой
 	state.runs.clear();
 	state.waitMs = undefined;
+	state.phase = null;
+	state.phaseAt = undefined;
 	const context = await browser.newContext({
 		viewport: { width: 1280, height: 960 },
 		reducedMotion: o.reduced ? "reduce" : "no-preference",
@@ -488,6 +497,9 @@ try {
 		};
 	});
 	await page.getByRole("button", { name: /Сгенерировать/ }).click();
+	// стадии проверяются на этом же запуске: ожидание растянуто, чтобы рамка не
+	// успела закрыться до конца сценария
+	state.waitMs = 60_000;
 	await pause(page, 400);
 	await shot(page, "08-frame-grows");
 	// волны старта и «принято» к этому моменту затухли: считаем слои ожидания
@@ -507,6 +519,85 @@ try {
 	// сколько анимаций приносит одна рамка ожидания: по этой цене считается бюджет серии
 	const waitAnimations = await animations(page);
 	await shot(page, "09-waiting");
+
+	// ── стадии «Ультры»: подставной API отдаёт их по одной ─────────────
+	for (const phase of [
+		"prepare",
+		"thinking",
+		"library",
+		"review",
+		"draw",
+	] as const) {
+		state.phase = phase;
+		state.phaseAt = new Date().toISOString();
+		await pause(page, 2600);
+		const shown = await page
+			.locator('[data-slot="result-frame"]')
+			.first()
+			.getAttribute("data-phase");
+		check(`стадии: ${phase}`, shown === phase ? 1 : 0, shown === phase);
+		const veiled = await page.evaluate(
+			(name) =>
+				[...document.querySelectorAll(".frame-phase")].some(
+					(el) =>
+						el.getAttribute("data-phase") === name &&
+						!el.hasAttribute("data-leaving"),
+				),
+			phase,
+		);
+		check(`стадии: слой ${phase}`, veiled ? 1 : 0, veiled);
+		await shot(page, `09b-phase-${phase}`);
+		if (phase === "draw") {
+			const t = await measureLoad(browser, page, 1200);
+			console.log("  рисование, нагрузка за 1,2 с, мс:", JSON.stringify(t));
+			check(
+				"стадии: отрисовка кадров за 1,2 с",
+				t.draw,
+				t.draw <= WAIT_DRAW_MS_PER_1_2S,
+				" мс",
+			);
+			check("стадии: слоёв композитора", layers, layers <= WAIT_LAYERS);
+		}
+	}
+	{
+		// край рамки не должен обнажаться на крайних кадрах движения слоя
+		const gap = await page.evaluate(() => {
+			const flow = document.querySelector<HTMLElement>(".frame-flow");
+			const layer = flow?.querySelector<HTMLElement>(":scope > .sheet-layer");
+			const anim = layer?.getAnimations()[0] as CSSAnimation | undefined;
+			if (!flow || !layer || !anim) return Number.NaN;
+			const before = anim.currentTime;
+			anim.pause();
+			const timing = (anim.effect as KeyframeEffect | null)?.getTiming();
+			const duration = Number(timing?.duration ?? 0);
+			let worst = 0;
+			for (const at of [0, duration / 2, duration]) {
+				anim.currentTime = at;
+				const frameRect = flow.getBoundingClientRect();
+				const layerRect = layer.getBoundingClientRect();
+				worst = Math.max(
+					worst,
+					layerRect.left - frameRect.left,
+					frameRect.right - layerRect.right,
+					layerRect.top - frameRect.top,
+					frameRect.bottom - layerRect.bottom,
+				);
+			}
+			anim.play();
+			if (typeof before === "number") anim.currentTime = before;
+			return worst;
+		});
+		check(
+			"ожидание: слой не обнажает край",
+			gap,
+			Number.isFinite(gap) && gap <= 0.5,
+			" px",
+		);
+	}
+	state.phase = null;
+	state.phaseAt = undefined;
+	state.waitMs = 0;
+
 	// занавес: кадр сразу после начала сдёргивания потока
 	await page
 		.waitForFunction(
