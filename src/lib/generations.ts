@@ -5,6 +5,7 @@ import {
 	MAX_RUNNING_GENERATIONS,
 	TooManyRunningError,
 } from "./generation-limits";
+import type { UltraReasoning } from "./ultra/reasoning";
 
 /**
  * Дольше этого срока живой генерации не бывает: воркфлоу «Ультра» идёт до ~13–14 минут
@@ -37,6 +38,7 @@ export interface GenerationRecord {
 	prompt: string;
 	engine: string;
 	model: string;
+	reasoning: UltraReasoning | null;
 	seed: number | null;
 	width: number;
 	height: number;
@@ -56,6 +58,7 @@ function toRecord(row: any): GenerationRecord {
 		prompt: row.prompt,
 		engine: row.engine,
 		model: row.model,
+		reasoning: row.reasoning,
 		seed: row.seed,
 		width: row.width,
 		height: row.height,
@@ -77,6 +80,7 @@ export interface StartGenerationParams {
 	negativePrompt?: string | null;
 	engine: string;
 	model: string;
+	reasoning?: UltraReasoning | null;
 	width: number;
 	height: number;
 	steps: number;
@@ -111,11 +115,12 @@ export async function startGeneration(
 			const rows = await tx`
       INSERT INTO generations
         (id, user_id, prompt, negative_prompt, model, width, height, steps,
-         engine, cost, status)
+         engine, cost, status, reasoning)
       VALUES
         (${id}, ${params.userId}, ${params.prompt},
          ${params.negativePrompt ?? null}, ${params.model}, ${params.width},
-         ${params.height}, ${params.steps}, ${params.engine}, 0, 'running')
+         ${params.height}, ${params.steps}, ${params.engine}, 0, 'running',
+         ${params.reasoning ?? null})
       ON CONFLICT (id) DO NOTHING
       RETURNING id
     `;
@@ -287,7 +292,7 @@ export async function getGeneration(
 ): Promise<GenerationRecord | null> {
 	await resolveStaleGenerations(userId);
 	const rows = await sql`
-      SELECT id, user_id, prompt, engine, model, seed, width, height, steps,
+      SELECT id, user_id, prompt, engine, model, reasoning, seed, width, height, steps,
              cost, image_key, status, error_message, duration_ms, created_at
       FROM generations
       WHERE id = ${id} AND user_id = ${userId}
@@ -301,7 +306,7 @@ export async function getActiveGeneration(
 ): Promise<GenerationRecord | null> {
 	await resolveStaleGenerations(userId);
 	const rows = await sql`
-      SELECT id, user_id, prompt, engine, model, seed, width, height, steps,
+      SELECT id, user_id, prompt, engine, model, reasoning, seed, width, height, steps,
              cost, image_key, status, error_message, duration_ms, created_at
       FROM generations
       WHERE user_id = ${userId} AND status = 'running'
@@ -317,7 +322,7 @@ export async function listRunningGenerations(
 ): Promise<GenerationRecord[]> {
 	await resolveStaleGenerations(userId);
 	const rows = await sql`
-      SELECT id, user_id, prompt, engine, model, seed, width, height, steps,
+      SELECT id, user_id, prompt, engine, model, reasoning, seed, width, height, steps,
              cost, image_key, status, error_message, duration_ms, created_at
       FROM generations
       WHERE user_id = ${userId} AND status = 'running'

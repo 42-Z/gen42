@@ -1,7 +1,7 @@
 import { auth } from "../lib/auth";
 import { getCredits } from "../lib/credits";
 import { sql } from "../lib/db";
-import { publicGenerationError } from "../lib/generation-error";
+import { generationJson as serializeGeneration } from "../lib/generation-json";
 import { TOO_MANY_REQUESTS_ERROR } from "../lib/generation-limits";
 import {
 	type GenerationRecord,
@@ -9,6 +9,7 @@ import {
 	getGeneration,
 	listRunningGenerations,
 } from "../lib/generations";
+import { imageExtension, normalizeContentType } from "../lib/image-format";
 import {
 	getImageModel,
 	publicImageModels,
@@ -19,33 +20,35 @@ import { parseSpaceRequest } from "../lib/spaces/request";
 import { spaceStartDeps } from "../lib/spaces/start-deps";
 import { startRun } from "../lib/start-run";
 import { getImageUrl } from "../lib/storage";
-import { getOrCreateThumb } from "../lib/thumbnails";
+import { getOrCreatePreview, getOrCreateThumb } from "../lib/thumbnails";
 import { isUltraAvailable } from "../lib/ultra/codex-auth";
 import { parseUltraReasoning } from "../lib/ultra/reasoning";
 import { startUltra } from "../lib/ultra/start";
 import { startUltraDeps } from "../lib/ultra/start-deps";
+import { generationAsset } from "./generation-assets";
 
 /** Запись истории для клиента: картинка пресайнится только для завершённых */
 async function generationJson(record: GenerationRecord) {
-	return {
-		id: record.id,
-		status: record.status,
-		prompt: record.prompt,
-		engine: record.engine,
-		model: record.model,
-		seed: record.seed,
-		cost: record.cost,
-		image_url:
-			record.status === "completed" && record.imageKey
-				? await getImageUrl(record.imageKey)
-				: null,
-		error:
-			record.status === "failed"
-				? publicGenerationError(record.errorMessage)
-				: null,
-		duration: record.durationMs,
-		created_at: record.createdAt,
-	};
+	return serializeGeneration(
+		record,
+		record.status === "completed" && record.imageKey
+			? await getImageUrl(record.imageKey)
+			: null,
+	);
+}
+
+const assetAuth = {
+	userId: async (req: Request) =>
+		(await auth.api.getSession({ headers: req.headers }))?.user.id ?? null,
+	record: getGeneration,
+};
+
+function webpResponse(bytes: Uint8Array | null): Response | null {
+	return bytes
+		? new Response(new Blob([new Uint8Array(bytes)]), {
+				headers: { "Content-Type": "image/webp" },
+			})
+		: null;
 }
 
 export const generateRoutes = {
@@ -128,53 +131,58 @@ export const generateRoutes = {
 				return Response.json({ error: "Unauthorized" }, { status: 401 });
 			}
 
-			const rows = await sql`
-        SELECT id, prompt, model, seed, image_key, created_at
+			const rows = await sql<GenerationRecord[]>`
+        SELECT id, user_id AS "userId", prompt, engine, model, seed, width, height, steps,
+               reasoning, cost, image_key AS "imageKey", status, error_message AS "errorMessage",
+               duration_ms AS "durationMs", created_at AS "createdAt"
         FROM generations
         WHERE user_id = ${session.user.id} AND status = 'completed'
+          AND image_key IS NOT NULL
         ORDER BY created_at DESC
         LIMIT 50
       `;
 
-			const withUrls = await Promise.all(
-				rows.map(async (row: any) => ({
-					...row,
-					image_url: row.image_key ? await getImageUrl(row.image_key) : null,
-					// стабильный адрес превью: браузер кеширует его, в отличие от каждый раз новой подписи S3
-					thumb_url: row.image_key ? `/api/generations/${row.id}/thumb` : null,
-				})),
-			);
+			const withUrls = await Promise.all(rows.map(generationJson));
 
 			return Response.json(withUrls);
 		},
 	},
 
 	"/api/generations/:id/thumb": {
-		// уменьшенная копия для сетки галереи; содержимое записи не меняется, поэтому кеш вечный
-		GET: async (req: Request) => {
-			const session = await auth.api.getSession({ headers: req.headers });
-			if (!session) {
-				return Response.json({ error: "Unauthorized" }, { status: 401 });
-			}
-			const { id } = (req as any).params;
-			const record = await getGeneration(session.user.id, id);
-			if (record?.status !== "completed" || !record.imageKey) {
-				return Response.json({ error: "Не найдено" }, { status: 404 });
-			}
-			const thumb = await getOrCreateThumb(record.imageKey).catch((error) => {
-				console.error("Thumbnail error:", error);
-				return null;
-			});
-			if (!thumb) {
-				return Response.json({ error: "Не найдено" }, { status: 404 });
-			}
-			return new Response(new Blob([new Uint8Array(thumb)]), {
-				headers: {
-					"Content-Type": "image/webp",
-					"Cache-Control": "private, max-age=31536000, immutable",
+		GET: (req: Request) =>
+			generationAsset(req, (req as any).params.id, {
+				...assetAuth,
+				load: async (key) => webpResponse(await getOrCreateThumb(key)),
+			}),
+	},
+
+	"/api/generations/:id/preview": {
+		GET: (req: Request) =>
+			generationAsset(req, (req as any).params.id, {
+				...assetAuth,
+				load: async (key) => webpResponse(await getOrCreatePreview(key)),
+			}),
+	},
+
+	"/api/generations/:id/download": {
+		GET: (req: Request) =>
+			generationAsset(req, (req as any).params.id, {
+				...assetAuth,
+				load: async (key) => {
+					// Свежая подпись и поток, а не копия в памяти браузера. Оригинал не перекодируется.
+					const original = await fetch(await getImageUrl(key));
+					if (!original.ok) return null;
+					const type = normalizeContentType(
+						original.headers.get("content-type"),
+					);
+					return new Response(original.body, {
+						headers: {
+							"Content-Type": type,
+							"Content-Disposition": `attachment; filename="gen42-${encodeURIComponent((req as any).params.id)}.${imageExtension(type)}"`,
+						},
+					});
 				},
-			});
-		},
+			}),
 	},
 
 	"/api/generations/active": {

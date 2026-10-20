@@ -1,9 +1,10 @@
 import { MAX_RUNNING_GENERATIONS } from "./generation-limits";
+import type { GenerationInfo } from "./generation-view";
 
 /** Сколько рамок серии держит страница; готовые сверх предела остаются только в «Недавних» */
 export const MAX_SERIES_RUNS = 8;
 
-export interface RunResult {
+export interface RunResult extends GenerationInfo {
 	image_url: string;
 	seed: number | null;
 }
@@ -21,7 +22,7 @@ export interface Run {
 }
 
 /** Запись генерации в форме `generationJson` сервера (нужные странице поля) */
-export interface ServerRecord {
+export interface ServerRecord extends GenerationInfo {
 	id: string;
 	status: "running" | "completed" | "failed";
 	prompt: string;
@@ -78,9 +79,13 @@ export function renameRun(runs: Run[], from: string, to: string): Run[] {
 }
 
 export function resultOf(
-	record: Pick<ServerRecord, "image_url" | "seed">,
+	record: Pick<ServerRecord, "image_url" | "seed"> & GenerationInfo,
 ): RunResult {
-	return { image_url: record.image_url ?? "", seed: record.seed ?? null };
+	return {
+		...record,
+		image_url: record.image_url ?? "",
+		seed: record.seed ?? null,
+	};
 }
 
 /**

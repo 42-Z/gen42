@@ -263,5 +263,12 @@
 		[data-sheet][data-impulse]:hover > .sheet-layer {
 			translate: none;
 		}
+
+		[data-slot="dialog-overlay"],
+		[data-slot="dialog-content"],
+		[data-slot="dialog-content"] * {
+			animation: none !important;
+			transition: none !important;
+		}
 	}
 }

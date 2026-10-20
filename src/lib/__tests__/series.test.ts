@@ -9,6 +9,7 @@ import {
 	type Run,
 	renameRun,
 	restoreRuns,
+	resultOf,
 	runningCount,
 	type ServerRecord,
 	seriesIds,
@@ -63,6 +64,31 @@ describe("потолок", () => {
 });
 
 describe("серия", () => {
+	test("свежий результат и восстановленная рамка сохраняют данные просмотра", () => {
+		const full = record("a", {
+			preview_url: "/api/generations/a/preview",
+			engine: "ultra",
+			model: "gpt-image-2",
+			width: 1536,
+			height: 1024,
+			duration: 93000,
+			reasoning: "max",
+		});
+		for (const result of [
+			resultOf(full),
+			restoreRuns([full], 0, 1)[0]?.result,
+		]) {
+			expect(result).toMatchObject({
+				preview_url: "/api/generations/a/preview",
+				engine: "ultra",
+				model: "gpt-image-2",
+				width: 1536,
+				height: 1024,
+				duration: 93000,
+				reasoning: "max",
+			});
+		}
+	});
 	test("запуск при нуле идущих начинает серию заново", () => {
 		expect(addRun([done("a"), done("b")], run("c")).map((r) => r.id)).toEqual([
 			"c",

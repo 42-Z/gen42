@@ -63,23 +63,27 @@ function Button({
 		/** Вес импульса по цене действия, 0..1 */
 		weight?: number;
 	}) {
-	const Comp = asChild ? Slot.Root : "button";
 	const sheet = asChild ? undefined : WINDOW[variant ?? "default"];
+	const sharedProps = {
+		"data-slot": "button",
+		"data-variant": variant,
+		"data-size": size,
+		"data-impulse": "tap",
+		"data-weight": weight ?? (variant === "default" ? 0.5 : 0.25),
+		...(sheet ? { "data-sheet": sheet } : {}),
+		className: cn(buttonVariants({ variant, size, className })),
+		...props,
+	};
+
+	if (asChild) {
+		return <Slot.Root {...sharedProps}>{children}</Slot.Root>;
+	}
 
 	return (
-		<Comp
-			data-slot="button"
-			data-variant={variant}
-			data-size={size}
-			data-impulse="tap"
-			data-weight={weight ?? (variant === "default" ? 0.5 : 0.25)}
-			{...(sheet ? { "data-sheet": sheet } : {})}
-			className={cn(buttonVariants({ variant, size, className }))}
-			{...props}
-		>
+		<button {...sharedProps}>
 			{sheet ? <SheetLayer /> : null}
 			{children}
-		</Comp>
+		</button>
 	);
 }
 

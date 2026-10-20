@@ -442,6 +442,8 @@ try {
 	}
 	await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
 	const cost = [...samples].sort((a, b) => a - b)[2]!;
+	if (process.env.TRACE_DEBUG)
+		console.log("  реакция, выборки при ×4, мс:", samples);
 	check(
 		"реакция на событие при замедлении ×4 (медиана из 5)",
 		cost,

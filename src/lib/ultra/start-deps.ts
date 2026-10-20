@@ -18,6 +18,7 @@ export const startUltraDeps: StartUltraDeps = {
 			prompt: record.prompt,
 			engine: "ultra",
 			model: CODEX_IMAGE_MODEL,
+			reasoning: record.reasoning,
 			width: 1024,
 			height: 1024,
 			steps: 0,
