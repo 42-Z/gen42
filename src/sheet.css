@@ -132,49 +132,50 @@
 	}
 
 	/* Фазовый слой ожидания: у каждой стадии прогона своя маска и своя подпись
-	   движения. Цвета — «хребет» листа, поэтому полоса отличается от базового
-	   спектра. Слой живёт только пока идёт ожидание; смена стадии — перекрёстное
-	   затухание (data-leaving), чтобы переключение не выглядело рывком. */
+	   движения. Маски мягкие и крупные, без чётких краёв: слой читается как
+	   вязкое цветовое поле, а не как фигура. Живёт только пока идёт ожидание;
+	   смена стадии — перекрёстное затухание (data-leaving), чтобы переключение
+	   не выглядело рывком. */
 	.frame-phase {
 		position: absolute;
-		inset: -50%;
+		inset: -80%;
 		pointer-events: none;
 		opacity: var(--phase-alpha, 0.4);
-		background-image: var(--sheet-ridge);
-		background-size: 900px 900px;
-		background-position: 260px 140px;
+		background-image: var(--sheet-spectrum);
+		background-size: 600px 600px;
+		background-position: 180px 100px;
 		-webkit-mask-image: var(--phase-mask);
 		mask-image: var(--phase-mask);
 	}
 
 	.frame-phase[data-phase="prepare"] {
-		--phase-alpha: 0.75;
-		--phase-mask: linear-gradient(0deg, transparent 38%, #000 44%, #000 56%, transparent 62%);
-		animation: phase-in 500ms linear forwards, phase-settle 9s steps(18) infinite alternate;
+		--phase-alpha: 0.52;
+		--phase-mask: linear-gradient(0deg, transparent 0%, #000 28%, #000 54%, transparent 82%);
+		animation: phase-in 500ms linear forwards, phase-settle 14s steps(28) infinite alternate;
 	}
 
 	.frame-phase[data-phase="thinking"] {
-		--phase-alpha: 0.7;
-		--phase-mask: radial-gradient(30% 42% at 50% 50%, #000 0%, transparent 70%);
-		animation: phase-in 500ms linear forwards, phase-think 14s steps(28) infinite alternate;
+		--phase-alpha: 0.64;
+		--phase-mask: radial-gradient(65% 85% at 50% 50%, #000 0%, transparent 100%);
+		animation: phase-in 500ms linear forwards, phase-think 20s steps(40) infinite alternate;
 	}
 
 	.frame-phase[data-phase="library"] {
-		--phase-alpha: 0.85;
-		--phase-mask: repeating-linear-gradient(90deg, transparent 0 8%, #000 8% 13%, transparent 13% 21%);
-		animation: phase-in 500ms linear forwards, phase-read 3.6s steps(18) infinite alternate;
+		--phase-alpha: 0.74;
+		--phase-mask: repeating-linear-gradient(90deg, transparent 0 4%, #000 18%, #000 32%, transparent 46% 50%);
+		animation: phase-in 500ms linear forwards, phase-read 10s steps(30) infinite alternate;
 	}
 
 	.frame-phase[data-phase="review"] {
-		--phase-alpha: 0.8;
-		--phase-mask: radial-gradient(circle at 50% 50%, transparent 18%, #000 19% 23%, transparent 24%);
-		animation: phase-in 500ms linear forwards, phase-check 5.2s steps(13) infinite alternate;
+		--phase-alpha: 0.6;
+		--phase-mask: radial-gradient(circle at 50% 50%, transparent 0%, transparent 12%, #000 34%, #000 46%, transparent 78%);
+		animation: phase-in 500ms linear forwards, phase-check 10s steps(20) infinite alternate;
 	}
 
 	.frame-phase[data-phase="draw"] {
-		--phase-alpha: 0.9;
-		--phase-mask: linear-gradient(115deg, transparent 35%, #000 43%, #000 57%, transparent 65%);
-		animation: phase-in 500ms linear forwards, phase-draw 8s steps(24) infinite alternate;
+		--phase-alpha: 0.8;
+		--phase-mask: linear-gradient(115deg, transparent 0%, #000 24%, #000 48%, transparent 85%);
+		animation: phase-in 500ms linear forwards, phase-draw 14s steps(28) infinite alternate;
 	}
 
 	.frame-phase[data-leaving="true"] {
@@ -201,46 +202,46 @@
 
 	@keyframes phase-settle {
 		from {
-			transform: translate(0, 5%) scale(1.04);
+			transform: translate(0, 5%) scale(1);
 		}
 		to {
-			transform: translate(0, -5%) scale(1.04);
+			transform: translate(0, -5%) scale(1.1);
 		}
 	}
 
 	@keyframes phase-think {
 		from {
-			transform: translate(-2%, -1%) scale(1.02);
+			transform: translate(-2%, -1%) scale(0.92);
 		}
 		to {
-			transform: translate(2%, 1%) scale(1.12);
+			transform: translate(2%, 1%) scale(1.2);
 		}
 	}
 
 	@keyframes phase-read {
 		from {
-			transform: translate(-18%, 0);
+			transform: translate(-12%, 0);
 		}
 		to {
-			transform: translate(18%, 0);
+			transform: translate(12%, 0);
 		}
 	}
 
 	@keyframes phase-check {
 		from {
-			transform: scale(0.8);
+			transform: translate(-3%, 2%) scale(0.78);
 		}
 		to {
-			transform: scale(1.2);
+			transform: translate(3%, -2%) scale(1.22);
 		}
 	}
 
 	@keyframes phase-draw {
 		from {
-			transform: translate(-14%, -5%) scale(1.02);
+			transform: translate(-10%, -4%) scale(1.02);
 		}
 		to {
-			transform: translate(14%, 5%) scale(1.1);
+			transform: translate(10%, 4%) scale(1.08);
 		}
 	}
 
