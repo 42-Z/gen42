@@ -13,6 +13,7 @@ import {
 	runningCount,
 	type ServerRecord,
 	seriesIds,
+	setRunPhase,
 	settleRun,
 } from "../series";
 
@@ -23,6 +24,8 @@ const run = (id: string, over: Partial<Run> = {}): Run => ({
 	resumed: false,
 	deadline: 1_000,
 	result: null,
+	phase: null,
+	phaseAt: null,
 	...over,
 });
 const done = (id: string): Run =>
@@ -170,8 +173,41 @@ describe("восстановление после обновления стра�
 				resumed: true,
 				deadline: 910_000,
 				result: null,
+				phase: null,
+				phaseAt: null,
 			},
 		]);
+	});
+
+	test("стадия идущего запуска переживает восстановление", () => {
+		const restored = restoreRuns(
+			[
+				record("a", {
+					status: "running",
+					image_url: null,
+					phase: "draw",
+					phase_at: "2026-10-18T10:00:05.000Z",
+				}),
+			],
+			0,
+			1,
+		);
+		expect(restored[0]).toMatchObject({
+			phase: "draw",
+			phaseAt: "2026-10-18T10:00:05.000Z",
+		});
+	});
+
+	test("стадия сравнивается по времени: тот же объект без изменений", () => {
+		const runs = [run("a"), run("b")];
+		expect(setRunPhase(runs, "a", null, null)).toBe(runs);
+		const next = setRunPhase(runs, "a", "thinking", "2026-10-18T10:00:00Z");
+		expect(next).not.toBe(runs);
+		expect(next[0]).toMatchObject({
+			phase: "thinking",
+			phaseAt: "2026-10-18T10:00:00Z",
+		});
+		expect(next[1]).toBe(runs[1]!);
 	});
 
 	test("готовые возвращаются картинкой, неуспешные выпадают", () => {

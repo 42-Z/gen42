@@ -102,7 +102,9 @@
 		opacity: 1;
 	}
 
-	/* рамка ожидания: поток спектра поверх картинки, сдёргивается занавесом */
+	/* рамка ожидания: поток спектра поверх картинки, сдёргивается занавесом.
+	   Слой больше рамки на 96 px с каждой стороны: сдвиг ±4 % (≈38 px) и
+	   масштаб не могут обнажить край — квадрат больше не «съезжает». */
 	.frame-flow {
 		position: absolute;
 		inset: 0;
@@ -115,15 +117,331 @@
 	}
 
 	.frame-flow[data-on="true"] > .sheet-layer {
-		animation: frame-drift 6s steps(15) infinite alternate;
+		inset: -96px;
+		opacity: 0.4;
+		animation: frame-drift 24s steps(48) infinite alternate;
 	}
 
 	@keyframes frame-drift {
 		from {
-			transform: translate(-8%, 0);
+			transform: translate(-4%, -2%) scale(1.04);
 		}
 		to {
-			transform: translate(8%, 0);
+			transform: translate(4%, 2%) scale(1.08);
+		}
+	}
+
+	/* Фазовое поле ожидания: три крупных мягких пятна спектра. Каждое пятно —
+	   радиальная маска без края, поэтому фигур не видно: пятна перетекают друг
+	   в друга, как вязкая жидкость. У стадии своя расстановка и своя хореография.
+	   Смена стадии — перекрёстное затухание (data-leaving). */
+	.frame-fluid {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+		animation: phase-in 500ms linear forwards;
+
+		/* Библиотека силуэтов: каждый — союз четырёх мягких долей, без
+		   сплошного ядра, поэтому круг не читается. */
+		--shape-wide:
+			radial-gradient(ellipse closest-side at 20% 48%, #000 0%, #000 18%, transparent 100%),
+			radial-gradient(ellipse closest-side at 44% 32%, #000 0%, #000 16%, transparent 100%),
+			radial-gradient(ellipse closest-side at 72% 54%, #000 0%, #000 16%, transparent 100%),
+			radial-gradient(ellipse closest-side at 48% 74%, #000 0%, #000 14%, transparent 100%);
+		--shape-chain:
+			radial-gradient(ellipse closest-side at 12% 74%, #000 0%, #000 18%, transparent 100%),
+			radial-gradient(ellipse closest-side at 38% 56%, #000 0%, #000 16%, transparent 100%),
+			radial-gradient(ellipse closest-side at 64% 36%, #000 0%, #000 16%, transparent 100%),
+			radial-gradient(ellipse closest-side at 86% 16%, #000 0%, #000 14%, transparent 100%);
+		--shape-crescent:
+			radial-gradient(ellipse closest-side at 26% 26%, #000 0%, #000 18%, transparent 100%),
+			radial-gradient(ellipse closest-side at 58% 20%, #000 0%, #000 16%, transparent 100%),
+			radial-gradient(ellipse closest-side at 74% 50%, #000 0%, #000 16%, transparent 100%),
+			radial-gradient(ellipse closest-side at 44% 70%, #000 0%, #000 14%, transparent 100%);
+		--shape-knot:
+			radial-gradient(ellipse closest-side at 36% 38%, #000 0%, #000 18%, transparent 100%),
+			radial-gradient(ellipse closest-side at 64% 38%, #000 0%, #000 16%, transparent 100%),
+			radial-gradient(ellipse closest-side at 64% 64%, #000 0%, #000 16%, transparent 100%),
+			radial-gradient(ellipse closest-side at 36% 64%, #000 0%, #000 14%, transparent 100%);
+		--shape-streak:
+			radial-gradient(ellipse closest-side at 8% 66%, #000 0%, #000 18%, transparent 100%),
+			radial-gradient(ellipse closest-side at 36% 52%, #000 0%, #000 16%, transparent 100%),
+			radial-gradient(ellipse closest-side at 64% 36%, #000 0%, #000 16%, transparent 100%),
+			radial-gradient(ellipse closest-side at 90% 20%, #000 0%, #000 14%, transparent 100%);
+		--shape-cloud:
+			radial-gradient(ellipse closest-side at 28% 30%, #000 0%, #000 18%, transparent 100%),
+			radial-gradient(ellipse closest-side at 64% 30%, #000 0%, #000 16%, transparent 100%),
+			radial-gradient(ellipse closest-side at 46% 56%, #000 0%, #000 16%, transparent 100%),
+			radial-gradient(ellipse closest-side at 68% 72%, #000 0%, #000 14%, transparent 100%);
+	}
+
+	.frame-fluid[data-leaving="true"] {
+		animation: phase-out 350ms linear forwards;
+	}
+
+	.frame-blob {
+		position: absolute;
+		display: block;
+		background-image: var(--sheet-spectrum);
+		background-size: 700px 700px;
+		-webkit-mask-image: var(--blob-mask);
+		mask-image: var(--blob-mask);
+		opacity: var(--blob-alpha, 0.5);
+	}
+
+	.frame-blob:nth-child(1) {
+		background-position: 0 0;
+	}
+
+	.frame-blob:nth-child(2) {
+		background-position: 220px 80px;
+	}
+
+	.frame-blob:nth-child(3) {
+		background-position: 120px 300px;
+	}
+
+	.frame-fluid[data-phase="prepare"] .frame-blob:nth-child(1) {
+		left: -8%;
+		top: -20%;
+		width: 88%;
+		height: 76%;
+		--blob-alpha: 0.58;
+		--blob-mask: var(--shape-wide);
+		animation: fluid-settle 14s steps(28) infinite alternate;
+	}
+
+	.frame-fluid[data-phase="prepare"] .frame-blob:nth-child(2) {
+		left: 26%;
+		top: 20%;
+		width: 54%;
+		height: 58%;
+		--blob-alpha: 0.46;
+		--blob-mask: var(--shape-cloud);
+		animation: fluid-breathe 12s steps(24) infinite alternate;
+	}
+
+	.frame-fluid[data-phase="prepare"] .frame-blob:nth-child(3) {
+		left: 2%;
+		top: 58%;
+		width: 42%;
+		height: 45%;
+		--blob-alpha: 0.34;
+		--blob-mask: var(--shape-knot);
+		animation: fluid-pulse 10s steps(20) infinite alternate;
+	}
+
+	.frame-fluid[data-phase="thinking"] .frame-blob:nth-child(1) {
+		left: -10%;
+		top: -6%;
+		width: 77%;
+		height: 83%;
+		--blob-alpha: 0.7;
+		--blob-mask: var(--shape-cloud);
+		animation: fluid-breathe 22s steps(44) infinite alternate;
+	}
+
+	.frame-fluid[data-phase="thinking"] .frame-blob:nth-child(2) {
+		left: 36%;
+		top: 14%;
+		width: 61%;
+		height: 70%;
+		--blob-alpha: 0.52;
+		--blob-mask: var(--shape-crescent);
+		animation: fluid-orbit 18s steps(36) infinite alternate;
+	}
+
+	.frame-fluid[data-phase="thinking"] .frame-blob:nth-child(3) {
+		left: 6%;
+		top: 44%;
+		width: 46%;
+		height: 51%;
+		--blob-alpha: 0.38;
+		--blob-mask: var(--shape-knot);
+		animation: fluid-pulse 16s steps(32) infinite alternate;
+	}
+
+	.frame-fluid[data-phase="library"] .frame-blob:nth-child(1) {
+		left: -22%;
+		top: 2%;
+		width: 69%;
+		height: 78%;
+		--blob-alpha: 0.62;
+		--blob-mask: var(--shape-chain);
+		animation: fluid-stream 12s steps(30) infinite alternate;
+	}
+
+	.frame-fluid[data-phase="library"] .frame-blob:nth-child(2) {
+		left: 38%;
+		top: -6%;
+		width: 62%;
+		height: 85%;
+		--blob-alpha: 0.52;
+		--blob-mask: var(--shape-streak);
+		animation: fluid-stream 15s steps(36) infinite alternate;
+		animation-delay: -5s;
+	}
+
+	.frame-fluid[data-phase="library"] .frame-blob:nth-child(3) {
+		left: 12%;
+		top: 52%;
+		width: 45%;
+		height: 50%;
+		--blob-alpha: 0.36;
+		--blob-mask: var(--shape-knot);
+		animation: fluid-stream 10s steps(24) infinite alternate;
+		animation-delay: -2s;
+	}
+
+	.frame-fluid[data-phase="review"] .frame-blob:nth-child(1) {
+		left: 2%;
+		top: 0;
+		width: 77%;
+		height: 80%;
+		--blob-alpha: 0.58;
+		--blob-mask: var(--shape-knot);
+		animation: fluid-in 14s steps(28) infinite alternate;
+	}
+
+	.frame-fluid[data-phase="review"] .frame-blob:nth-child(2) {
+		left: 22%;
+		top: 18%;
+		width: 50%;
+		height: 56%;
+		--blob-alpha: 0.5;
+		--blob-mask: var(--shape-crescent);
+		animation: fluid-out 12s steps(24) infinite alternate;
+	}
+
+	.frame-fluid[data-phase="review"] .frame-blob:nth-child(3) {
+		left: 34%;
+		top: 30%;
+		width: 34%;
+		height: 38%;
+		--blob-alpha: 0.4;
+		--blob-mask: var(--shape-cloud);
+		animation: fluid-in 10s steps(20) infinite alternate;
+	}
+
+	.frame-fluid[data-phase="draw"] .frame-blob:nth-child(1) {
+		left: -18%;
+		top: -8%;
+		width: 77%;
+		height: 72%;
+		--blob-alpha: 0.7;
+		--blob-mask: var(--shape-streak);
+		animation: fluid-sweep 14s steps(28) infinite alternate;
+	}
+
+	.frame-fluid[data-phase="draw"] .frame-blob:nth-child(2) {
+		left: 28%;
+		top: 16%;
+		width: 58%;
+		height: 66%;
+		--blob-alpha: 0.54;
+		--blob-mask: var(--shape-chain);
+		animation: fluid-sweep 12s steps(24) infinite alternate;
+		animation-delay: -4s;
+	}
+
+	.frame-fluid[data-phase="draw"] .frame-blob:nth-child(3) {
+		left: 8%;
+		top: 52%;
+		width: 45%;
+		height: 50%;
+		--blob-alpha: 0.38;
+		--blob-mask: var(--shape-cloud);
+		animation: fluid-sweep 16s steps(32) infinite alternate;
+		animation-delay: -7s;
+	}
+
+	@keyframes phase-in {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	@keyframes phase-out {
+		from {
+			opacity: 1;
+		}
+		to {
+			opacity: 0;
+		}
+	}
+
+	@keyframes fluid-settle {
+		from {
+			transform: translate(0, -7%) rotate(-12deg) scale(0.96, 0.92);
+		}
+		to {
+			transform: translate(0, 7%) rotate(8deg) scale(1.04, 1.1);
+		}
+	}
+
+	@keyframes fluid-breathe {
+		from {
+			transform: translate(-2%, -1%) rotate(-4deg) scale(0.9);
+		}
+		to {
+			transform: translate(2%, 1%) rotate(4deg) scale(1.18);
+		}
+	}
+
+	@keyframes fluid-pulse {
+		from {
+			transform: rotate(-6deg) scale(0.88, 0.92);
+		}
+		to {
+			transform: rotate(6deg) scale(1.14, 1.08);
+		}
+	}
+
+	@keyframes fluid-orbit {
+		from {
+			transform: translate(-6%, 4%) rotate(5deg) scale(1.05, 0.98);
+		}
+		to {
+			transform: translate(6%, -4%) rotate(-8deg) scale(0.95, 1.04);
+		}
+	}
+
+	@keyframes fluid-stream {
+		from {
+			transform: translateX(-12%) rotate(2deg);
+		}
+		to {
+			transform: translateX(12%) rotate(-2deg);
+		}
+	}
+
+	@keyframes fluid-in {
+		from {
+			transform: translate(-7%, -5%) rotate(-10deg) scale(1.15, 1.05);
+		}
+		to {
+			transform: translate(7%, 5%) rotate(12deg) scale(0.82, 0.9);
+		}
+	}
+
+	@keyframes fluid-out {
+		from {
+			transform: translate(7%, 5%) rotate(12deg) scale(0.82, 0.9);
+		}
+		to {
+			transform: translate(-7%, -5%) rotate(-10deg) scale(1.15, 1.05);
+		}
+	}
+
+	@keyframes fluid-sweep {
+		from {
+			transform: translate(-12%, -7%) rotate(-15deg) scale(1.02, 1.08);
+		}
+		to {
+			transform: translate(12%, 7%) rotate(15deg) scale(1.12, 0.96);
 		}
 	}
 
@@ -250,8 +568,14 @@
 		[data-slot="select-content"] [data-slot="select-item"],
 		[data-slot="table-body"] > [data-slot="table-row"],
 		[data-loading="true"] > .sheet-layer,
-		.frame-flow[data-on="true"] > .sheet-layer {
+		.frame-flow[data-on="true"] > .sheet-layer,
+		.frame-fluid[data-phase],
+		.frame-fluid[data-phase] .frame-blob {
 			animation: none;
+		}
+
+		.frame-fluid[data-phase] {
+			opacity: 0.55;
 		}
 
 		.sheet-layer,

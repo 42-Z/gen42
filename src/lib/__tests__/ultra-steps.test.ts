@@ -44,6 +44,32 @@ describe("шаги чтения", () => {
 			await checkImageStep({ prompt: "x", images: ["пятерка/нет.png"] }),
 		).toMatchObject({ ok: false, retryable: true });
 	});
+
+	test("стадии отмечаются по шагам: подготовка, чтение, проверка", async () => {
+		const runtime = makeRuntime();
+		setUltraRuntime(runtime);
+		await prepareStep({ id: "gen-1", prompt: "пятёрка" });
+		await listFolderStep({ id: "gen-1", path: "пятерка" });
+		await readFileStep({ id: "gen-1", path: "пятерка/a.png" });
+		await checkImageStep({
+			id: "gen-1",
+			prompt: "x",
+			images: ["пятерка/нет.png"],
+		});
+		expect(runtime.setPhase.mock.calls.map((call) => call[1])).toEqual([
+			"prepare",
+			"thinking",
+			"library",
+			"thinking",
+			"library",
+			"thinking",
+			"review",
+			"thinking",
+		]);
+		expect(
+			runtime.setPhase.mock.calls.every((call) => call[0] === "gen-1"),
+		).toBe(true);
+	});
 });
 
 describe("drawStep", () => {

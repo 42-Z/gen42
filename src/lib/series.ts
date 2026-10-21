@@ -1,5 +1,6 @@
 import { MAX_RUNNING_GENERATIONS } from "./generation-limits";
 import type { GenerationInfo } from "./generation-view";
+import type { UltraPhase } from "./ultra/phase";
 
 /** Сколько рамок серии держит страница; готовые сверх предела остаются только в «Недавних» */
 export const MAX_SERIES_RUNS = 8;
@@ -19,6 +20,10 @@ export interface Run {
 	/** Когда страница перестаёт ждать (мс, `Date.now()`) */
 	deadline: number;
 	result: RunResult | null;
+	/** Стадия «Ультры» для анимации ожидания; у остальных движков null */
+	phase: UltraPhase | null;
+	/** Время смены стадии (ISO): по нему видно, не застряла ли она */
+	phaseAt: string | null;
 }
 
 /** Запись генерации в форме `generationJson` сервера (нужные странице поля) */
@@ -69,6 +74,27 @@ export function settleRun(runs: Run[], id: string, result: RunResult): Run[] {
 	);
 }
 
+/**
+ * Стадия идущего запуска из опроса. Возвращает тот же массив, если ничего не
+ * изменилось: опрос каждые 2,5 с не должен перерисовывать серию зря.
+ */
+export function setRunPhase(
+	runs: Run[],
+	id: string,
+	phase: UltraPhase | null,
+	phaseAt: string | null,
+): Run[] {
+	let changed = false;
+	const next = runs.map((run) => {
+		if (run.id !== id || (run.phase === phase && run.phaseAt === phaseAt)) {
+			return run;
+		}
+		changed = true;
+		return { ...run, phase, phaseAt };
+	});
+	return changed ? next : runs;
+}
+
 export function dropRun(runs: Run[], id: string): Run[] {
 	return runs.filter((run) => run.id !== id);
 }
@@ -117,6 +143,8 @@ export function restoreRuns(
 						resumed: true,
 						deadline: now + waitMs,
 						result: null,
+						phase: record.phase ?? null,
+						phaseAt: record.phase_at ?? null,
 					},
 				];
 			}
@@ -129,6 +157,8 @@ export function restoreRuns(
 						resumed: false,
 						deadline: now,
 						result: resultOf(record),
+						phase: null,
+						phaseAt: null,
 					},
 				];
 			}

@@ -5,6 +5,7 @@ import {
 	MAX_RUNNING_GENERATIONS,
 	TooManyRunningError,
 } from "./generation-limits";
+import { parseUltraPhase, type UltraPhase } from "./ultra/phase";
 import type { UltraReasoning } from "./ultra/reasoning";
 
 /**
@@ -46,6 +47,10 @@ export interface GenerationRecord {
 	cost: number;
 	imageKey: string | null;
 	status: "running" | "completed" | "failed";
+	/** Стадия «Ультры»; у остальных движков и закрытых записей null */
+	phase: UltraPhase | null;
+	/** Когда стадия сменилась: страница отличает свежую стадию от застрявшей */
+	phaseAt: string | null;
 	errorMessage: string | null;
 	durationMs: number | null;
 	createdAt: string;
@@ -66,6 +71,8 @@ function toRecord(row: any): GenerationRecord {
 		cost: row.cost,
 		imageKey: row.image_key,
 		status: row.status,
+		phase: parseUltraPhase(row.phase),
+		phaseAt: row.phase_at ?? null,
 		errorMessage: row.error_message,
 		durationMs: row.duration_ms,
 		createdAt: row.created_at,
@@ -141,6 +148,30 @@ export async function startGeneration(
 }
 
 /**
+ * Стадия прогона «Ультры» для ожидания на странице. Запись только пока строка
+ * `running`: после завершения или сбоя стадия не нужна. Сбой стадии не должен
+ * ломать генерацию — она нужна только для анимации, поэтому ошибка логируется
+ * и глотается.
+ */
+export async function setGenerationPhase(
+	id: string,
+	phase: UltraPhase,
+): Promise<void> {
+	try {
+		await sql`
+      UPDATE generations
+      SET phase = ${phase}, phase_at = NOW()
+      WHERE id = ${id} AND status = 'running'
+    `;
+	} catch (error) {
+		console.error(
+			`Не удалось записать стадию ${phase} генерации ${id}:`,
+			error,
+		);
+	}
+}
+
+/**
  * Списание за генерацию одной транзакцией с отметкой на строке: `cost > 0` на
  * строке ⇔ кредиты реально списаны — не бывает списания без записи или записи
  * без списания. Бросает `InsufficientCreditsError` при нехватке кредитов.
@@ -203,6 +234,7 @@ export async function completeGeneration(
       SET status = 'completed', image_key = ${params.imageKey},
           seed = ${params.seed ?? null}, width = ${params.width},
           height = ${params.height},
+          phase = NULL, phase_at = NULL,
           enhanced_prompt = ${params.enhancedPrompt ?? null},
           duration_ms = ${params.durationMs}, api_key_id = ${params.apiKeyId ?? null},
           llm_key_id = ${params.llmKeyId ?? null}, llm_model = ${params.llmModel ?? null},
@@ -248,7 +280,8 @@ export async function failGeneration(
 		const closed = (await tx`
       UPDATE generations
       SET status = 'failed', error_message = ${describeGenerationError(params.error)},
-          seed = ${seed}, enhanced_prompt = ${params.enhancedPrompt ?? null},
+          seed = ${seed}, phase = NULL, phase_at = NULL,
+          enhanced_prompt = ${params.enhancedPrompt ?? null},
           duration_ms = ${params.durationMs}, api_key_id = ${params.apiKeyId ?? null},
           llm_key_id = ${params.llmKeyId ?? null}, llm_model = ${params.llmModel ?? null},
           llm_tokens = ${params.llmTokens ?? null}, enhance_ms = ${params.enhanceMs ?? null},
@@ -272,7 +305,8 @@ async function resolveStaleGenerations(userId: string): Promise<void> {
 		await sql.begin(async (tx) => {
 			const closed = (await tx`
         UPDATE generations
-        SET status = 'failed', error_message = ${INTERRUPTED_MESSAGE}
+        SET status = 'failed', error_message = ${INTERRUPTED_MESSAGE},
+            phase = NULL, phase_at = NULL
         WHERE user_id = ${userId} AND status = 'running'
           AND created_at < NOW() - ${STALE_INTERVAL}::interval
         RETURNING id, user_id, cost
@@ -293,7 +327,7 @@ export async function getGeneration(
 	await resolveStaleGenerations(userId);
 	const rows = await sql`
       SELECT id, user_id, prompt, engine, model, reasoning, seed, width, height, steps,
-             cost, image_key, status, error_message, duration_ms, created_at
+             cost, image_key, status, phase, phase_at, error_message, duration_ms, created_at
       FROM generations
       WHERE id = ${id} AND user_id = ${userId}
     `;
@@ -307,7 +341,7 @@ export async function getActiveGeneration(
 	await resolveStaleGenerations(userId);
 	const rows = await sql`
       SELECT id, user_id, prompt, engine, model, reasoning, seed, width, height, steps,
-             cost, image_key, status, error_message, duration_ms, created_at
+             cost, image_key, status, phase, phase_at, error_message, duration_ms, created_at
       FROM generations
       WHERE user_id = ${userId} AND status = 'running'
       ORDER BY created_at DESC
@@ -323,7 +357,7 @@ export async function listRunningGenerations(
 	await resolveStaleGenerations(userId);
 	const rows = await sql`
       SELECT id, user_id, prompt, engine, model, reasoning, seed, width, height, steps,
-             cost, image_key, status, error_message, duration_ms, created_at
+             cost, image_key, status, phase, phase_at, error_message, duration_ms, created_at
       FROM generations
       WHERE user_id = ${userId} AND status = 'running'
       ORDER BY created_at DESC

@@ -19,6 +19,9 @@ export function generationJson(
 		height: record.height,
 		steps: record.steps,
 		reasoning: record.reasoning ?? null,
+		// стадия нужна только идущему запуску: после итога анимация ожидания кончилась
+		phase: record.status === "running" ? (record.phase ?? null) : null,
+		phase_at: record.status === "running" ? (record.phaseAt ?? null) : null,
 		cost: record.cost,
 		image_url: completed ? originalUrl : null,
 		preview_url: completed ? `${base}/preview` : null,

@@ -15,6 +15,7 @@ import {
 	drawImage,
 	readForAgent,
 } from "../../src/lib/ultra/ops";
+import type { UltraPhase } from "../../src/lib/ultra/phase";
 import { parseImageSize } from "../../src/lib/ultra/size";
 import type { CheckImageOutput } from "../../src/lib/ultra/tool-defs";
 import { getUltraRuntime } from "../../src/lib/ultra/workflow-runtime";
@@ -25,41 +26,66 @@ import { getUltraRuntime } from "../../src/lib/ultra/workflow-runtime";
  * результаты только сериализуемые (строки, числа, простые объекты).
  */
 
-export async function prepareStep(input: { prompt: string }): Promise<{
+/** Стадия для страницы; без id (eval, тесты) ничего не пишется */
+function markPhase(id: string | undefined, phase: UltraPhase): Promise<void> {
+	return id ? getUltraRuntime().setPhase(id, phase) : Promise.resolve();
+}
+
+export async function prepareStep(input: {
+	id?: string;
+	prompt: string;
+}): Promise<{
 	system: string;
 	message: string;
 	systemVersion: string;
 }> {
 	"use step";
+	await markPhase(input.id, "prepare");
 	const tree = await getUltraRuntime().library.describeTree();
-	return {
+	const prepared = {
 		system: buildUltraSystem(tree),
 		message: buildAgentMessage(input.prompt),
 		// хеш инструкции без дерева: по нему сравниваются итерации
 		systemVersion: systemVersionOf(buildUltraSystem("")),
 	};
+	// дальше цикл агента: первый вызов модели всё равно поставит «думает»
+	await markPhase(input.id, "thinking");
+	return prepared;
 }
 
 export async function listFolderStep(input: {
+	id?: string;
 	path: string;
 }): Promise<ListFolderResult> {
 	"use step";
-	return getUltraRuntime().library.listFolder(input.path);
+	await markPhase(input.id, "library");
+	const result = await getUltraRuntime().library.listFolder(input.path);
+	await markPhase(input.id, "thinking");
+	return result;
 }
 
 export async function readFileStep(input: {
+	id?: string;
 	path: string;
 }): Promise<ReadFileResult> {
 	"use step";
-	return readForAgent(getUltraRuntime().library, input.path);
+	await markPhase(input.id, "library");
+	const result = await readForAgent(getUltraRuntime().library, input.path);
+	await markPhase(input.id, "thinking");
+	return result;
 }
 
 export async function checkImageStep(input: {
+	id?: string;
 	prompt: string;
 	images: string[];
 }): Promise<CheckImageOutput> {
 	"use step";
-	return checkImageArguments(getUltraRuntime().library, input);
+	await markPhase(input.id, "review");
+	const result = await checkImageArguments(getUltraRuntime().library, input);
+	// отказ значит, что агент будет исправлять аргументы и думать дальше
+	if (!result.ok) await markPhase(input.id, "thinking");
+	return result;
 }
 
 export type DrawStepResult =
@@ -78,11 +104,13 @@ export type DrawStepResult =
  * повтор потратил бы лимит подписки второй раз.
  */
 export async function drawStep(input: {
+	id?: string;
 	userId: string;
 	prompt: string;
 	images: string[];
 }): Promise<DrawStepResult> {
 	"use step";
+	await markPhase(input.id, "draw");
 	const runtime = getUltraRuntime();
 	let drawn: Awaited<ReturnType<typeof drawImage>>;
 	try {

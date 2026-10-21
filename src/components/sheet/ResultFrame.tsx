@@ -6,6 +6,11 @@ import { flash } from "@/lib/sheet/flash";
 import { impulse } from "@/lib/sheet/impulses";
 import { SPRINGS, springLinear } from "@/lib/sheet/springs";
 import { remeasure } from "@/lib/sheet/windows";
+import {
+	GENERATION_STATUS_LABEL,
+	ULTRA_PHASE_LABELS,
+	type UltraPhase,
+} from "@/lib/ultra/phase";
 import { cn } from "@/lib/utils";
 import { SheetLayer } from "./SheetLayer";
 
@@ -13,6 +18,10 @@ interface ResultFrameProps {
 	loading: boolean;
 	/** Генерация возобновлена после обновления страницы: первая ступень давно пройдена */
 	resumed?: boolean;
+	/** Стадия «Ультры»: от неё зависит движение спектра */
+	phase?: UltraPhase | null;
+	/** Когда стадия сменилась (ISO): застрявшая короткая стадия гаснет в «думает» */
+	phaseAt?: string | null;
 	image: {
 		url: string;
 		originalUrl?: string | null;
@@ -25,14 +34,28 @@ interface ResultFrameProps {
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+/** Короткие стадии живут меньше, чем успевает прийти следующий опрос */
+const TRANSIENT_PHASE_MS = 8000;
+
+const TRANSIENT_PHASES = new Set<UltraPhase>(["prepare", "library", "review"]);
+
+interface Veil {
+	phase: UltraPhase;
+	key: number;
+	leaving?: boolean;
+}
+
 /**
  * Рамка будущей картинки. Ожидание — две ступени яркости потока спектра (запрос
- * отправлен → принят), затем дыхание; без слов и цифр. Готово — занавес
- * сдёргивается влево, картинка проявляется, волна уходит по странице («выдох»).
+ * отправлен → принят), затем движение спектра по стадии прогона; без слов и
+ * цифр. Готово — занавес сдёргивается влево, картинка проявляется, волна уходит
+ * по странице («выдох»).
  */
 export function ResultFrame({
 	loading,
 	resumed = false,
+	phase = null,
+	phaseAt = null,
 	image,
 	className,
 }: ResultFrameProps) {
@@ -40,8 +63,10 @@ export function ResultFrame({
 	const flow = useRef<HTMLElement>(null);
 	const pic = useRef<HTMLImageElement>(null);
 	const was = useRef(false);
-	const breath = useRef<Animation | null>(null);
 	const timer = useRef<number | null>(null);
+	const veilSeq = useRef(0);
+	const [visualPhase, setVisualPhase] = useState<UltraPhase | null>(null);
+	const [veils, setVeils] = useState<Veil[]>([]);
 	const [useOriginal, setUseOriginal] = useState(false);
 	const [imageReady, setImageReady] = useState(false);
 	const [imageFailed, setImageFailed] = useState(false);
@@ -84,6 +109,50 @@ export function ResultFrame({
 		if (current?.complete && current.naturalWidth > 0) markImageReady(current);
 	}, [src, markImageReady]);
 
+	// Короткая стадия не должна висеть до следующего опроса: если она не
+	// обновилась за TRANSIENT_PHASE_MS, агент уже думает над прочитанным.
+	useEffect(() => {
+		if (!phase) {
+			setVisualPhase(null);
+			return;
+		}
+		const started = phaseAt ? Date.parse(phaseAt) : Number.NaN;
+		const age = Number.isFinite(started)
+			? Math.max(0, Date.now() - started)
+			: 0;
+		if (TRANSIENT_PHASES.has(phase) && age >= TRANSIENT_PHASE_MS) {
+			setVisualPhase("thinking");
+			return;
+		}
+		setVisualPhase(phase);
+		if (!TRANSIENT_PHASES.has(phase)) return;
+		const hold = window.setTimeout(
+			() => setVisualPhase("thinking"),
+			TRANSIENT_PHASE_MS - age,
+		);
+		return () => window.clearTimeout(hold);
+	}, [phase, phaseAt]);
+
+	// Смена стадии: старый слой спектра гаснет, новый приходит на его место —
+	// так переключение не выглядит рывком.
+	useEffect(() => {
+		if (!loading || !visualPhase) {
+			setVeils((current) => (current.length > 0 ? [] : current));
+			return;
+		}
+		const key = ++veilSeq.current;
+		setVeils((current) => [
+			...current
+				.filter((veil) => !veil.leaving)
+				.map((veil) => ({ ...veil, leaving: true })),
+			{ phase: visualPhase, key },
+		]);
+		const done = window.setTimeout(() => {
+			setVeils((current) => current.filter((veil) => veil.key === key));
+		}, 400);
+		return () => window.clearTimeout(done);
+	}, [loading, visualPhase]);
+
 	useEffect(() => {
 		const fl = flow.current;
 		const fr = frame.current;
@@ -97,37 +166,22 @@ export function ResultFrame({
 			remeasure(fr);
 			fl.dataset.on = "true";
 			const settle = (announce: boolean) => {
-				fl.style.opacity = "0.4";
+				// Дальше движение делает фазовый слой; мигание прозрачностью убрано.
+				fl.style.opacity = "0.6";
 				if (announce) {
 					impulse({ source: fr, sign: 1, weight: 0.3, mass: "heavy" });
 				}
-				if (!reduced()) {
-					breath.current = fl.animate([{ opacity: 0.4 }, { opacity: 0.55 }], {
-						duration: 2000,
-						direction: "alternate",
-						iterations: Number.POSITIVE_INFINITY,
-						// ступенчатое дыхание: кадр рисуется только при заметном изменении яркости
-						easing: "steps(6)",
-					});
-				}
 			};
-			if (resumed) {
-				// после обновления страницы запрос давно принят: сразу вторая ступень
+			if (resumed || phase) {
+				// после обновления или при уже известной стадии запрос давно принят
 				settle(false);
 			} else {
 				fl.style.opacity = "0.25";
 				timer.current = window.setTimeout(() => settle(true), 800);
 			}
-			// бесконечное дыхание не должно пережить рамку (переход в админку во время генерации)
-			return () => {
-				clearTimer();
-				breath.current?.cancel();
-				breath.current = null;
-			};
+			return clearTimer;
 		}
 		clearTimer();
-		breath.current?.cancel();
-		breath.current = null;
 		const finish = () => {
 			fl.style.opacity = "0";
 			fl.dataset.on = "false";
@@ -172,13 +226,14 @@ export function ResultFrame({
 			() => finish(),
 		);
 		return clearTimer;
-	}, [loading, resumed, imageUrl, originalUrl, imageReady]);
+	}, [loading, resumed, phase, imageUrl, originalUrl, imageReady]);
 
 	return (
 		<div
 			ref={frame}
 			data-slot="result-frame"
 			data-sheet="dark"
+			data-phase={visualPhase ?? undefined}
 			aria-busy={loading || (Boolean(image) && !imageReady)}
 			{...(image
 				? {}
@@ -186,7 +241,9 @@ export function ResultFrame({
 					? {
 							role: "status",
 							"aria-busy": true,
-							"aria-label": "Идёт генерация",
+							"aria-label": visualPhase
+								? ULTRA_PHASE_LABELS[visualPhase]
+								: GENERATION_STATUS_LABEL,
 						}
 					: { role: "img", "aria-label": "Пустой холст" })}
 			className={cn(
@@ -225,6 +282,19 @@ export function ResultFrame({
 				className="frame-flow"
 			>
 				<SheetLayer />
+				{veils.map((veil) => (
+					<i
+						key={veil.key}
+						data-phase={veil.phase}
+						data-leaving={veil.leaving ? "true" : undefined}
+						aria-hidden="true"
+						className="frame-fluid"
+					>
+						<i className="frame-blob" />
+						<i className="frame-blob" />
+						<i className="frame-blob" />
+					</i>
+				))}
 			</i>
 		</div>
 	);
