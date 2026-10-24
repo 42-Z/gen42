@@ -1,18 +1,18 @@
+import {
+	extensionOf,
+	type FileKind,
+	imageMediaType,
+	kindOf,
+} from "./file-kind";
+
+export { type FileKind, imageMediaType, kindOf };
+
 export const LIBRARY_PREFIX = "library/";
 export const DESCRIPTIONS_FILE = "описания.txt";
 /** Сколько входных изображений принимает одна генерация */
 export const MAX_INPUT_IMAGES = 10;
 
 const CACHE_TTL_MS = 60_000;
-
-const IMAGE_MEDIA_TYPES: Record<string, string> = {
-	png: "image/png",
-	jpg: "image/jpeg",
-	jpeg: "image/jpeg",
-	webp: "image/webp",
-};
-
-export type FileKind = "image" | "text";
 
 export interface LibraryFile {
 	name: string;
@@ -30,7 +30,13 @@ export type ListFolderResult =
 	| { ok: false; error: string; folders: string[] };
 
 export type ReadFileResult =
-	| { ok: true; kind: "text"; path: string; text: string }
+	| {
+			ok: true;
+			kind: "text";
+			path: string;
+			text: string;
+			truncated?: boolean;
+	  }
 	| {
 			ok: true;
 			kind: "image";
@@ -54,20 +60,14 @@ type LoadResult =
 	| { ok: true; folder: string; name: string; bytes: Uint8Array }
 	| { ok: false; error: string; nearest: string[] };
 
-function extensionOf(name: string): string {
-	const dot = name.lastIndexOf(".");
-	return dot < 0 ? "" : name.slice(dot + 1).toLowerCase();
+/** Файл во внутреннем индексе: имя для агента и настоящий ключ в хранилище */
+interface IndexedFile extends LibraryFile {
+	key: string;
 }
 
-export function kindOf(name: string): FileKind | null {
-	const ext = extensionOf(name);
-	if (ext in IMAGE_MEDIA_TYPES) return "image";
-	if (ext === "txt") return "text";
-	return null;
-}
-
-export function imageMediaType(name: string): string | null {
-	return IMAGE_MEDIA_TYPES[extensionOf(name)] ?? null;
+interface AttachmentSource {
+	folder: string;
+	prefix: string;
 }
 
 function distance(a: string, b: string): number {
@@ -142,37 +142,79 @@ const PATH_HINT = "Путь — «папка/файл», например «эм
  * только чтение. О том, где и как всё лежит, агент не знает.
  */
 export class Library {
-	private cache: { at: number; folders: Map<string, LibraryFile[]> } | null =
+	private cache: { at: number; folders: Map<string, IndexedFile[]> } | null =
 		null;
 
 	constructor(
 		private readonly storage: LibraryStorage,
 		private readonly now: () => number = Date.now,
+		private readonly attachments: AttachmentSource | null = null,
 	) {}
 
-	private async folders(): Promise<Map<string, LibraryFile[]>> {
+	/**
+	 * Библиотека с папкой вложений этого запуска. Новый экземпляр, а не
+	 * изменение общего: кэш дерева не переносит файлы одного пользователя в
+	 * другой запуск.
+	 */
+	withAttachments(prefix: string, folder: string): Library {
+		return new Library(this.storage, this.now, { folder, prefix });
+	}
+
+	private async folders(): Promise<Map<string, IndexedFile[]>> {
 		if (this.cache && this.now() - this.cache.at < CACHE_TTL_MS) {
 			return this.cache.folders;
 		}
-		const objects = await this.storage.list(LIBRARY_PREFIX);
-		const folders = new Map<string, LibraryFile[]>();
-		for (const { key } of objects) {
+		const [libraryObjects, attachmentObjects] = await Promise.all([
+			this.storage.list(LIBRARY_PREFIX),
+			this.attachments
+				? this.storage.list(this.attachments.prefix)
+				: Promise.resolve([]),
+		]);
+		const folders = new Map<string, Map<string, IndexedFile>>();
+		const add = (folder: string, file: IndexedFile) => {
+			const files = folders.get(folder) ?? new Map<string, IndexedFile>();
+			folders.set(folder, files);
+			files.set(file.name, file);
+		};
+
+		for (const { key } of libraryObjects) {
 			const parts = key
 				.slice(LIBRARY_PREFIX.length)
 				.normalize("NFC")
 				.split("/");
 			if (parts.length !== 2 || !parts[0] || !parts[1]) continue;
 			const [folder, name] = parts as [string, string];
-			const files = folders.get(folder) ?? [];
-			folders.set(folder, files);
 			const kind = kindOf(name);
-			if (kind) files.push({ name, kind });
+			if (kind) add(folder, { name, kind, key });
 		}
-		for (const files of folders.values()) {
-			files.sort((a, b) => a.name.localeCompare(b.name));
+		if (this.attachments) {
+			const { folder, prefix } = this.attachments;
+			for (const { key } of attachmentObjects) {
+				const name = key.slice(prefix.length).normalize("NFC");
+				if (!name || name.includes("/")) continue;
+				const kind = kindOf(name);
+				if (kind) add(folder, { name, kind, key });
+			}
 		}
-		this.cache = { at: this.now(), folders };
-		return folders;
+
+		const indexed = new Map<string, IndexedFile[]>();
+		for (const [folder, files] of folders) {
+			indexed.set(
+				folder,
+				[...files.values()].sort((a, b) => a.name.localeCompare(b.name)),
+			);
+		}
+		this.cache = { at: this.now(), folders: indexed };
+		return indexed;
+	}
+
+	/** Папка вложений стоит первой: её файлы важнее общей библиотеки */
+	private folderNames(folders: Map<string, IndexedFile[]>): string[] {
+		return [...folders.keys()].sort((a, b) => {
+			if (a === this.attachments?.folder) return -1;
+			if (b === this.attachments?.folder) return 1;
+			return a.localeCompare(b);
+		});
 	}
 
 	/**
@@ -181,13 +223,15 @@ export class Library {
 	 */
 	async describeTree(): Promise<string> {
 		const folders = await this.folders();
-		return [...folders.keys()]
-			.sort((a, b) => a.localeCompare(b))
+		return this.folderNames(folders)
 			.map((folder) => {
 				const files = folders.get(folder)!;
 				const images = files.filter((file) => file.kind === "image").length;
 				const texts = files.filter(
-					(file) => file.kind === "text" && file.name !== DESCRIPTIONS_FILE,
+					(file) =>
+						file.kind === "text" &&
+						(folder === this.attachments?.folder ||
+							file.name !== DESCRIPTIONS_FILE),
 				).length;
 				const parts: string[] = [];
 				if (images > 0) parts.push(pluralImages(images));
@@ -205,10 +249,18 @@ export class Library {
 			return {
 				ok: false,
 				error: `Папки «${path}» нет. Папки библиотеки перечислены в поле folders`,
-				folders: [...folders.keys()].sort((a, b) => a.localeCompare(b)),
+				folders: this.folderNames(folders),
 			};
 		}
-		return { ok: true, path: name, files };
+		// ключи хранилища агенту не нужны: он видит только имя и тип
+		return {
+			ok: true,
+			path: name,
+			files: files.map(({ name: fileName, kind }) => ({
+				name: fileName,
+				kind,
+			})),
+		};
 	}
 
 	private async load(path: string): Promise<LoadResult> {
@@ -225,19 +277,19 @@ export class Library {
 				nearest: closestNames(parsed.folder, [...folders.keys()]),
 			};
 		}
-		if (!files.some((file) => file.name === parsed.name)) {
+		const file = files.find((candidate) => candidate.name === parsed.name);
+		if (!file) {
 			return {
 				ok: false,
 				error: `Файла «${parsed.name}» нет в папке «${parsed.folder}»`,
 				nearest: closestNames(
 					parsed.name,
-					files.map((file) => file.name),
+					files.map((candidate) => candidate.name),
 				),
 			};
 		}
-		const bytes = await this.storage.read(
-			`${LIBRARY_PREFIX}${parsed.folder}/${parsed.name}`,
-		);
+		// ключ уже указывает в нужный источник: общая библиотека или вложения
+		const bytes = await this.storage.read(file.key);
 		if (!bytes) {
 			return {
 				ok: false,
@@ -262,7 +314,8 @@ export class Library {
 				base64: Buffer.from(loaded.bytes).toString("base64"),
 			};
 		}
-		if (extensionOf(loaded.name) === "txt") {
+		const extension = extensionOf(loaded.name);
+		if (extension === "txt" || extension === "md") {
 			return {
 				ok: true,
 				kind: "text",
