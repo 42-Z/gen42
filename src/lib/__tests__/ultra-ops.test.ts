@@ -5,6 +5,7 @@ beforeAll(() => {
 	process.env.BRAINTRUST_API_KEY = "test-key-not-real";
 });
 
+import { MAX_TEXT_CHARS } from "../ultra/attachments";
 import { CodexImageError } from "../ultra/codex-images";
 import { Library } from "../ultra/library";
 import {
@@ -50,6 +51,21 @@ describe("readForAgent", () => {
 		expect(await readForAgent(library, "пятерка/нет.png")).toMatchObject({
 			ok: false,
 		});
+	});
+
+	test("длинный текст обрезается для агента и получает пометку", async () => {
+		const long = "а".repeat(MAX_TEXT_CHARS + 1);
+		const storage = {
+			list: async () => [{ key: "library/песни/song.txt", size: long.length }],
+			read: async () => new TextEncoder().encode(long),
+		};
+		const result = await readForAgent(new Library(storage), "песни/song.txt");
+		expect(result.ok).toBe(true);
+		if (result.ok && result.kind === "text") {
+			expect(result.truncated).toBe(true);
+			expect(result.text).toContain("текст обрезан");
+			expect(result.text.startsWith("а".repeat(MAX_TEXT_CHARS))).toBe(true);
+		}
 	});
 });
 
