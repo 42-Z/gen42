@@ -158,9 +158,9 @@
 |---|---|---|
 | Тело запроса к функции Vercel ограничено 4,5 МБ | подтверждено документацией | https://vercel.com/docs/functions/limitations |
 | Neon Object Storage поддерживает presigned PUT | подтверждено документацией | https://neon.com/docs/storage/objects |
-| Neon Object Storage поддерживает CORS (`Get/Put/DeleteBucketCors`, `OPTIONS`) | подтверждено документацией | https://neon.com/docs/storage/s3-compatibility |
-| Bun S3 умеет `presign` с `method: "PUT"` | подтверждено типами пакета | `node_modules/bun-types/s3.d.ts`, Bun docs |
-| Браузерный `PUT` на 10 МБ в dev-бакет проходит после настройки CORS | **не проверено**, проверяется живым прогоном | — |
-| Разовые команды настройки CORS (curl SigV4 или консоль Neon) | **не проверено**, выбрать при реализации | — |
+| Neon Object Storage поддерживает CORS (`OPTIONS` и правило) | подтверждено живой проверкой | `GET ?cors` и `OPTIONS` на dev/prod-бакете, 2026-10-24 |
+| Bun S3 умеет `presign` с `method: "PUT"` | подтверждено типами пакета и живой загрузкой | `node_modules/bun-types/s3.d.ts`; presigned PUT в dev-бакет — 200, чтение и удаление — успешно |
+| `PutBucketCors` через S3 API Neon beta | **опровергнуто** живой проверкой: возвращает `NoSuchBucket`; правило уже стоит на dev и prod, менять его — через Neon Console | curl с `--aws-sigv4`, 2026-10-24 |
+| Браузерный `PUT` на 10 МБ в dev-бакет | **не проверено**: preflight 200, серверный presigned PUT 200; браузерный PUT проверить на dev | — |
 | HEIC/AVIF на Linux не декодируются Bun.Image | подтверждено типами Bun.Image (системный кодек только macOS/Windows) | `node_modules/bun-types/bun.d.ts` |
 | Порог 120 000 символов для текста | решение по объёму контекста, не замер | — |
