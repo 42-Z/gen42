@@ -5,10 +5,13 @@ import {
 	IconCoins,
 	IconCopy,
 	IconDownload,
+	IconFileText,
 	IconHistory,
+	IconPaperclip,
 	IconPhoto,
 	IconPhotoOff,
 	IconSparkles,
+	IconX,
 } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -16,8 +19,10 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import {
 	InputGroup,
 	InputGroupAddon,
+	InputGroupButton,
 	InputGroupTextarea,
 } from "@/components/ui/input-group";
+import { SheetLayer } from "@/components/sheet/SheetLayer";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -46,7 +51,17 @@ import {
 	setRunPhase,
 	settleRun,
 } from "@/lib/series";
+import { uploadAttachment } from "@/lib/attachment-client";
 import { impulse } from "@/lib/sheet/impulses";
+import {
+	ATTACHMENT_BAD_TYPE_ERROR,
+	ATTACHMENT_EMPTY_ERROR,
+	ATTACHMENT_TOO_BIG_ERROR,
+	ATTACHMENT_TOO_MANY_ERROR,
+	MAX_ATTACHMENTS,
+	MAX_ATTACHMENT_BYTES,
+	MAX_ATTACHMENT_TEXT_BYTES,
+} from "@/lib/ultra/attachments";
 import { ULTRA_CLIENT_WAIT_MS } from "@/lib/ultra/constants";
 import {
 	parseUltraReasoning,
@@ -87,6 +102,30 @@ function newGenerationId(): string {
 	} catch {
 		return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 	}
+}
+
+interface LocalAttachment {
+	id: string;
+	file: File;
+	previewUrl: string | null;
+}
+
+const ATTACHMENT_NAME_RE = /\.(png|jpe?g|webp|txt|md)$/i;
+
+function attachmentProblem(attachments: LocalAttachment[]): string | null {
+	if (attachments.length > MAX_ATTACHMENTS) return ATTACHMENT_TOO_MANY_ERROR;
+	for (const { file } of attachments) {
+		if (!ATTACHMENT_NAME_RE.test(file.name)) return ATTACHMENT_BAD_TYPE_ERROR;
+		if (file.size <= 0) return ATTACHMENT_EMPTY_ERROR;
+		const text = /\.(txt|md)$/i.test(file.name);
+		if (text && file.size > MAX_ATTACHMENT_TEXT_BYTES) {
+			return ATTACHMENT_TOO_BIG_ERROR;
+		}
+		if (!text && file.size > MAX_ATTACHMENT_BYTES) {
+			return ATTACHMENT_TOO_BIG_ERROR;
+		}
+	}
+	return null;
 }
 
 function readSeriesIds(): string[] {
@@ -146,6 +185,12 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	const [mode, setMode] = useState<Mode>(readStoredMode);
 	const [reasoning, setReasoning] =
 		useState<UltraReasoning>(readStoredReasoning);
+	// вложения живут до запуска: в хранилище они уходят отдельными запросами
+	const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
+	const [uploading, setUploading] = useState(false);
+	const fileInputRef = useRef<HTMLInputElement>(null);
+	const attachmentsRef = useRef<LocalAttachment[]>([]);
+	attachmentsRef.current = attachments;
 	const pollTimer = useRef<number | null>(null);
 	const galleryRef = useRef<HTMLDivElement>(null);
 	// запуск, чья картинка вошла в «Недавние» последней: из его рамки вылетает миниатюра
@@ -215,6 +260,16 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 		if (source) impulse({ source, sign: -1, weight: 0.3, mass: "medium" });
 	}, [error]);
 
+	// адреса миниатюр живут, пока экран не уйдёт вместе с вложениями
+	useEffect(
+		() => () => {
+			for (const attachment of attachmentsRef.current) {
+				if (attachment.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
+			}
+		},
+		[],
+	);
+
 	async function loadModels() {
 		try {
 			const res = await fetch("/api/models");
@@ -253,6 +308,39 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 		} catch {
 			/* баланс обновится при следующей загрузке */
 		}
+	}
+
+	function addAttachments(files: FileList | null) {
+		if (!files || files.length === 0) return;
+		const next = Array.from(files).map((file) => {
+			const image =
+				file.type.startsWith("image/") ||
+				/\.(png|jpe?g|webp)$/i.test(file.name);
+			return {
+				id: newGenerationId(),
+				file,
+				previewUrl: image ? URL.createObjectURL(file) : null,
+			};
+		});
+		setAttachments((current) => [...current, ...next]);
+		if (fileInputRef.current) fileInputRef.current.value = "";
+	}
+
+	function removeAttachment(id: string) {
+		setAttachments((current) => {
+			const target = current.find((attachment) => attachment.id === id);
+			if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+			return current.filter((attachment) => attachment.id !== id);
+		});
+	}
+
+	function clearAttachments() {
+		setAttachments((current) => {
+			for (const attachment of current) {
+				if (attachment.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
+			}
+			return [];
+		});
 	}
 
 	async function fetchGeneration(id: string): Promise<ServerRecord | null> {
@@ -372,11 +460,42 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 	}
 
 	async function handleGenerate() {
-		if (!prompt.trim() || outOfCredits || !canStart(runsRef.current)) return;
+		if (
+			!prompt.trim() ||
+			outOfCredits ||
+			!canStart(runsRef.current) ||
+			uploading
+		)
+			return;
+
+		const useAttachments = activeMode === "ultra" && attachments.length > 0;
+		if (useAttachments) {
+			const problem = attachmentProblem(attachments);
+			if (problem) {
+				setError(problem);
+				return;
+			}
+		}
 
 		// id придумывает клиент: так запуск находится после обновления страницы
 		const id = newGenerationId();
 		setError("");
+
+		// файлы уходят до запуска: если вложение не принято, кредиты не тратятся
+		if (useAttachments) {
+			setUploading(true);
+			try {
+				for (const attachment of attachmentsRef.current) {
+					await uploadAttachment(attachment.file, id);
+				}
+			} catch (err: any) {
+				setUploading(false);
+				setError(err.message);
+				return;
+			}
+			setUploading(false);
+		}
+
 		commit(
 			addRun(runsRef.current, {
 				id,
@@ -397,7 +516,13 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(
 					activeMode === "ultra"
-						? { prompt, engine: "ultra", id, reasoning }
+						? {
+								prompt,
+								engine: "ultra",
+								id,
+								reasoning,
+								...(useAttachments ? { attachmentScope: id } : {}),
+							}
 						: {
 								prompt,
 								engine,
@@ -426,11 +551,15 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 			if (data.id && data.id !== id) {
 				commit(renameRun(runsRef.current, id, data.id));
 			}
+			if (useAttachments) clearAttachments();
 			refreshBalance();
 		} catch (err: any) {
 			// обрыв связи или сбой ответа: строка на сервере — источник правды
 			const record = await fetchGeneration(id);
-			if (record?.status === "running") return;
+			if (record?.status === "running") {
+				if (useAttachments) clearAttachments();
+				return;
+			}
 			if (record) {
 				settleRecord(id, record);
 				return;
@@ -478,6 +607,51 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 					</Tabs>
 				)}
 				<div className="flex flex-col gap-2">
+					{activeMode === "ultra" && attachments.length > 0 && (
+						<div
+							role="group"
+							className="flex flex-wrap gap-2"
+							aria-label="Вложения"
+						>
+							{attachments.map((attachment) => (
+								<div
+									key={attachment.id}
+									data-sheet="ring"
+									className="relative size-14 overflow-hidden rounded-[14px] border border-border/60 bg-secondary/60"
+								>
+									<SheetLayer />
+									{attachment.previewUrl ? (
+										<img
+											src={attachment.previewUrl}
+											alt=""
+											className="size-full object-cover"
+										/>
+									) : (
+										<span className="flex size-full items-center justify-center text-muted-foreground">
+											<IconFileText aria-hidden="true" className="size-5" />
+										</span>
+									)}
+									{uploading && (
+										<span
+											aria-hidden="true"
+											className="absolute inset-0 bg-background/50"
+										/>
+									)}
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon-xs"
+										onClick={() => removeAttachment(attachment.id)}
+										disabled={uploading}
+										aria-label={`Убрать вложение ${attachment.file.name}`}
+										className="absolute right-0.5 top-0.5 rounded-full bg-background/80"
+									>
+										<IconX />
+									</Button>
+								</div>
+							))}
+						</div>
+					)}
 					<InputGroup>
 						<InputGroupTextarea
 							id="prompt"
@@ -514,6 +688,23 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 										aria-valuetext={ULTRA_REASONING_LABELS[reasoning]}
 										className="w-24 sm:w-28"
 									/>
+									<InputGroupButton
+										type="button"
+										size="icon-sm"
+										onClick={() => fileInputRef.current?.click()}
+										disabled={uploading}
+										aria-label="Приложить файлы"
+									>
+										<IconPaperclip />
+									</InputGroupButton>
+									<input
+										ref={fileInputRef}
+										type="file"
+										multiple
+										accept=".png,.jpg,.jpeg,.webp,.txt,.md,image/png,image/jpeg,image/webp,text/plain,text/markdown"
+										className="hidden"
+										onChange={(event) => addAttachments(event.target.files)}
+									/>
 								</span>
 							)}
 							<span className="relative">
@@ -521,8 +712,14 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 									type="button"
 									size="icon-lg"
 									weight={Math.min(1, cost / 10)}
+									data-loading={uploading ? "true" : undefined}
 									onClick={handleGenerate}
-									disabled={!prompt.trim() || outOfCredits || !canStart(runs)}
+									disabled={
+										!prompt.trim() ||
+										outOfCredits ||
+										!canStart(runs) ||
+										uploading
+									}
 									aria-label={
 										outOfCredits
 											? "Нет кредитов для генерации"
