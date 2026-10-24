@@ -6,7 +6,7 @@ import {
 	failGeneration,
 	setGenerationPhase,
 } from "../generations";
-import { listObjects, readObject, uploadImage } from "../storage";
+import { deleteImage, listObjects, readObject, uploadImage } from "../storage";
 import { storeThumb } from "../thumbnails";
 import { initTracing } from "../tracing";
 import {
@@ -35,6 +35,8 @@ export interface UltraRuntime {
 	failGeneration(params: FailGenerationParams): Promise<boolean>;
 	/** Стадия прогона для анимации ожидания; сбой не роняет генерацию */
 	setPhase(id: string, phase: UltraPhase): Promise<void>;
+	/** Удаляет все объекты папки вложений запуска */
+	deleteAttachmentPrefix(prefix: string): Promise<void>;
 	recordCodexError(message: string): Promise<void>;
 	now(): number;
 }
@@ -60,6 +62,12 @@ function createDefaultRuntime(): UltraRuntime {
 		completeGeneration,
 		failGeneration,
 		setPhase: setGenerationPhase,
+		deleteAttachmentPrefix: async (prefix) => {
+			const objects = await listObjects(prefix);
+			for (const { key } of objects) {
+				await deleteImage(key);
+			}
+		},
 		recordCodexError: async (message) => {
 			await recordCodexError(message);
 		},

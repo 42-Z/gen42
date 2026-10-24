@@ -81,6 +81,7 @@ function defaultRuntime() {
 		completeGeneration: mock(async (_params: unknown) => true),
 		failGeneration: mock(async (_params: unknown) => true),
 		setPhase: mock(async (_id: string, _phase: string) => {}),
+		deleteAttachmentPrefix: mock(async (_prefix: string) => {}),
 		recordCodexError: mock(async (_message: string) => {}),
 		now: () => 1_700_000_000_000,
 	};

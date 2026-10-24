@@ -93,6 +93,10 @@ export async function ultraWorkflow(
 
 		await completeStep({
 			id: input.id,
+			userId: input.userId,
+			...(input.attachmentScope
+				? { attachmentScope: input.attachmentScope }
+				: {}),
 			enhancedPrompt: drawn.prompt,
 			imageKey: drawn.key,
 			size: drawn.size,
@@ -105,6 +109,10 @@ export async function ultraWorkflow(
 	} catch (error) {
 		await failStep({
 			id: input.id,
+			userId: input.userId,
+			...(input.attachmentScope
+				? { attachmentScope: input.attachmentScope }
+				: {}),
 			failure: toFailure(error, {
 				prompt: accepted?.prompt ?? null,
 				inputImages: accepted?.images ?? [],

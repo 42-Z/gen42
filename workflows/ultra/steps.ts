@@ -53,6 +53,20 @@ function libraryFor(input: {
 		: library;
 }
 
+function deleteAttachmentScope(input: {
+	userId?: string;
+	attachmentScope?: string;
+}): Promise<void> {
+	if (!input.userId || !input.attachmentScope) return Promise.resolve();
+	return getUltraRuntime()
+		.deleteAttachmentPrefix(
+			attachmentsPrefix(input.userId, input.attachmentScope),
+		)
+		.catch((error) => {
+			console.error("Не удалось удалить вложения:", error);
+		});
+}
+
 export async function prepareStep(input: {
 	id?: string;
 	userId?: string;
@@ -190,6 +204,8 @@ drawStep.maxRetries = 0;
 
 export interface CompleteStepInput {
 	id: string;
+	userId?: string;
+	attachmentScope?: string;
 	enhancedPrompt: string;
 	imageKey: string;
 	size: string | null;
@@ -201,23 +217,27 @@ export interface CompleteStepInput {
 
 export async function completeStep(input: CompleteStepInput): Promise<void> {
 	"use step";
-	const closed = await getUltraRuntime().completeGeneration({
-		id: input.id,
-		imageKey: input.imageKey,
-		seed: null,
-		...parseImageSize(input.size),
-		enhancedPrompt: input.enhancedPrompt,
-		durationMs: input.durationMs,
-		llmModel: ULTRA_AGENT_MODEL,
-		llmTokens: input.tokens,
-		enhanceMs: input.durationMs,
-		styleVersion: input.systemVersion,
-		inputImages: input.inputImages,
-	});
-	if (!closed) {
-		console.error(
-			`Генерация ${input.id} уже закрыта, картинка ${input.imageKey} осталась без записи`,
-		);
+	try {
+		const closed = await getUltraRuntime().completeGeneration({
+			id: input.id,
+			imageKey: input.imageKey,
+			seed: null,
+			...parseImageSize(input.size),
+			enhancedPrompt: input.enhancedPrompt,
+			durationMs: input.durationMs,
+			llmModel: ULTRA_AGENT_MODEL,
+			llmTokens: input.tokens,
+			enhanceMs: input.durationMs,
+			styleVersion: input.systemVersion,
+			inputImages: input.inputImages,
+		});
+		if (!closed) {
+			console.error(
+				`Генерация ${input.id} уже закрыта, картинка ${input.imageKey} осталась без записи`,
+			);
+		}
+	} finally {
+		await deleteAttachmentScope(input);
 	}
 }
 
@@ -228,29 +248,35 @@ export async function completeStep(input: CompleteStepInput): Promise<void> {
  */
 export async function failStep(input: {
 	id: string;
+	userId?: string;
+	attachmentScope?: string;
 	failure: UltraFailure;
 	durationMs: number;
 }): Promise<void> {
 	"use step";
 	const runtime = getUltraRuntime();
 	const { failure } = input;
-	console.error(
-		`Ultra error (${ULTRA_AGENT_MODEL}): ${failure.code}: ${failure.message}`,
-	);
-	await runtime.failGeneration({
-		id: input.id,
-		error: new UltraError(failure.code, failure.message),
-		enhancedPrompt: failure.prompt,
-		durationMs: input.durationMs,
-		llmModel: ULTRA_AGENT_MODEL,
-		inputImages: failure.inputImages,
-	});
-	if (failure.code === "codex_auth_required") {
-		// пометка входа мёртвым скрывает «Ультра» до «Проверить» или нового входа в админке
-		try {
-			await runtime.recordCodexError(`${failure.code}: ${failure.message}`);
-		} catch (error) {
-			console.error("Не удалось пометить вход Codex:", error);
+	try {
+		console.error(
+			`Ultra error (${ULTRA_AGENT_MODEL}): ${failure.code}: ${failure.message}`,
+		);
+		await runtime.failGeneration({
+			id: input.id,
+			error: new UltraError(failure.code, failure.message),
+			enhancedPrompt: failure.prompt,
+			durationMs: input.durationMs,
+			llmModel: ULTRA_AGENT_MODEL,
+			inputImages: failure.inputImages,
+		});
+		if (failure.code === "codex_auth_required") {
+			// пометка входа мёртвым скрывает «Ультра» до «Проверить» или нового входа в админке
+			try {
+				await runtime.recordCodexError(`${failure.code}: ${failure.message}`);
+			} catch (error) {
+				console.error("Не удалось пометить вход Codex:", error);
+			}
 		}
+	} finally {
+		await deleteAttachmentScope(input);
 	}
 }

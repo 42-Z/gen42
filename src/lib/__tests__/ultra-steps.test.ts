@@ -225,6 +225,44 @@ describe("completeStep", () => {
 	});
 });
 
+describe("уборка вложений", () => {
+	test("completeStep и failStep удаляют папку вложений", async () => {
+		const runtime = makeRuntime();
+		setUltraRuntime(runtime);
+		await completeStep({
+			id: "gen-1",
+			userId: "u1",
+			attachmentScope: "scope-01",
+			enhancedPrompt: "x",
+			imageKey: "generations/u1/1.png",
+			size: "1024x1536",
+			inputImages: [],
+			tokens: null,
+			durationMs: 1,
+			systemVersion: "v",
+		});
+		expect(runtime.deleteAttachmentPrefix).toHaveBeenCalledWith(
+			"attachments/u1/scope-01/",
+		);
+		runtime.deleteAttachmentPrefix.mockClear();
+		await failStep({
+			id: "gen-1",
+			userId: "u1",
+			attachmentScope: "scope-01",
+			failure: {
+				code: "agent_failed",
+				message: "x",
+				prompt: null,
+				inputImages: [],
+			},
+			durationMs: 1,
+		});
+		expect(runtime.deleteAttachmentPrefix).toHaveBeenCalledWith(
+			"attachments/u1/scope-01/",
+		);
+	});
+});
+
 describe("failStep", () => {
 	const failure = {
 		code: "generation_rejected" as const,
