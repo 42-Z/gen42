@@ -1,6 +1,7 @@
 import { auth } from "../lib/auth";
 import { getCredits } from "../lib/credits";
 import { sql } from "../lib/db";
+import { isClientId } from "../lib/generation-id";
 import { generationJson as serializeGeneration } from "../lib/generation-json";
 import { TOO_MANY_REQUESTS_ERROR } from "../lib/generation-limits";
 import {
@@ -97,12 +98,25 @@ export const generateRoutes = {
 						{ status: 400 },
 					);
 				}
+				// папка вложений приходит от клиента; без неё агент видит только библиотеку
+				if (
+					body.attachmentScope !== undefined &&
+					!isClientId(body.attachmentScope)
+				) {
+					return Response.json(
+						{ error: "Некорректная папка вложений" },
+						{ status: 400 },
+					);
+				}
 				const outcome = await startUltra(
 					{
 						userId: session.user.id,
 						prompt,
 						reasoning,
 						...(typeof body.id === "string" ? { id: body.id } : {}),
+						...(isClientId(body.attachmentScope)
+							? { attachmentScope: body.attachmentScope }
+							: {}),
 					},
 					startUltraDeps,
 				);

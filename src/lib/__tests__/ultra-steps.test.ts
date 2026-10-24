@@ -10,8 +10,14 @@ import {
 } from "../../../workflows/ultra/steps";
 import { describeGenerationError } from "../generation-error";
 import { CodexImageError } from "../ultra/codex-images";
+import { Library } from "../ultra/library";
 import { setUltraRuntime } from "../ultra/workflow-runtime";
-import { makeRuntime, RESULT_PNG } from "./helpers/ultra-fakes";
+import {
+	libraryStorage,
+	makeRuntime,
+	RESULT_PNG,
+	TINY_PNG,
+} from "./helpers/ultra-fakes";
 
 beforeEach(() => {
 	// трассировка требует ключ (без него работа невозможна) — в тестах ключ-заглушка
@@ -28,6 +34,42 @@ describe("шаги чтения", () => {
 		expect(prepared.system).toContain("пятерка/");
 		expect(prepared.message).toContain("пятёрка на троне");
 		expect(prepared.systemVersion).toMatch(/^[0-9a-f]{16}$/);
+	});
+
+	test("вложения запуска попадают в дерево и проверяются как входные изображения", async () => {
+		const storage = libraryStorage({
+			"attachments/u1/scope-01/ref.png": TINY_PNG,
+		});
+		setUltraRuntime(makeRuntime({ library: new Library(storage) }));
+
+		const prepared = await prepareStep({
+			id: "gen-1",
+			userId: "u1",
+			attachmentScope: "scope-01",
+			prompt: "нарисуй по фото",
+		});
+		expect(prepared.system).toContain("вложения/ — 1 изображение");
+
+		const folder = await listFolderStep({
+			id: "gen-1",
+			userId: "u1",
+			attachmentScope: "scope-01",
+			path: "вложения",
+		});
+		expect(folder).toMatchObject({
+			ok: true,
+			files: [{ name: "ref.png", kind: "image" }],
+		});
+
+		expect(
+			await checkImageStep({
+				id: "gen-1",
+				userId: "u1",
+				attachmentScope: "scope-01",
+				prompt: "x",
+				images: ["вложения/ref.png"],
+			}),
+		).toEqual({ ok: true });
 	});
 
 	test("listFolderStep, readFileStep, checkImageStep работают через библиотеку", async () => {

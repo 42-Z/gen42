@@ -9,6 +9,7 @@ export interface StartUltraDeps {
 		userId: string;
 		prompt: string;
 		reasoning: UltraReasoning;
+		attachmentScope?: string;
 	}): Promise<string>;
 	/** Списание за генерацию; бросает InsufficientCreditsError при нехватке */
 	chargeCredits(params: {
@@ -21,6 +22,7 @@ export interface StartUltraDeps {
 		userId: string;
 		prompt: string;
 		reasoning: UltraReasoning;
+		attachmentScope?: string;
 	}): Promise<void>;
 	/** Закрывает строку и возвращает кредиты одной транзакцией */
 	failRecord(params: {
@@ -44,6 +46,7 @@ export function startUltra(
 		prompt: string;
 		id?: string;
 		reasoning?: UltraReasoning;
+		attachmentScope?: string;
 	},
 	deps: StartUltraDeps,
 ): Promise<StartUltraOutcome> {
@@ -60,10 +63,21 @@ export function startUltra(
 					userId,
 					prompt,
 					reasoning,
+					...(input.attachmentScope
+						? { attachmentScope: input.attachmentScope }
+						: {}),
 				}),
 			chargeCredits: (params) => deps.chargeCredits(params),
 			startWorkflow: (id) =>
-				deps.startWorkflow({ id, userId, prompt, reasoning }),
+				deps.startWorkflow({
+					id,
+					userId,
+					prompt,
+					reasoning,
+					...(input.attachmentScope
+						? { attachmentScope: input.attachmentScope }
+						: {}),
+				}),
 			failRecord: (params) => deps.failRecord(params),
 			now: () => deps.now(),
 		},

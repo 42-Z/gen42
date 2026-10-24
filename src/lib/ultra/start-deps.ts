@@ -19,6 +19,7 @@ export const startUltraDeps: StartUltraDeps = {
 			engine: "ultra",
 			model: CODEX_IMAGE_MODEL,
 			reasoning: record.reasoning,
+			attachmentScope: record.attachmentScope ?? null,
 			width: 1024,
 			height: 1024,
 			steps: 0,

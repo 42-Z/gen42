@@ -22,6 +22,8 @@ export interface UltraWorkflowInput {
 	prompt: string;
 	/** Нет у прогонов, запущенных до выбора уровня: агент берёт `high` */
 	reasoning?: UltraReasoning;
+	/** Папка файлов, приложенных пользователем к этому запуску */
+	attachmentScope?: string;
 }
 
 /**
@@ -39,15 +41,25 @@ export async function ultraWorkflow(
 	let accepted: AcceptedImage | null = null;
 	try {
 		const id = input.id;
-		const prepared = await prepareStep({ id, prompt: input.prompt });
+		const attachments = {
+			id,
+			userId: input.userId,
+			...(input.attachmentScope
+				? { attachmentScope: input.attachmentScope }
+				: {}),
+		};
+		const prepared = await prepareStep({
+			...attachments,
+			prompt: input.prompt,
+		});
 		const agent = createUltraAgent({
 			system: prepared.system,
 			reasoning: input.reasoning,
 			generationId: id,
 			executors: {
-				listFolder: (args) => listFolderStep({ id, ...args }),
-				readFile: (args) => readFileStep({ id, ...args }),
-				checkImage: (args) => checkImageStep({ id, ...args }),
+				listFolder: (args) => listFolderStep({ ...attachments, ...args }),
+				readFile: (args) => readFileStep({ ...attachments, ...args }),
+				checkImage: (args) => checkImageStep({ ...attachments, ...args }),
 			},
 		});
 		// span агентского цикла здесь невозможен: flow-бандл Workflow не принимает
@@ -64,6 +76,9 @@ export async function ultraWorkflow(
 		const drawn = await drawStep({
 			id,
 			userId: input.userId,
+			...(input.attachmentScope
+				? { attachmentScope: input.attachmentScope }
+				: {}),
 			prompt: accepted.prompt,
 			images: accepted.images,
 		});

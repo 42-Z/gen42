@@ -24,10 +24,13 @@ export const usage = {
 };
 
 /** Библиотека в памяти: папка «пятерка» с картинкой и описаниями */
-export function libraryStorage(): LibraryStorage {
+export function libraryStorage(
+	extra: Record<string, Uint8Array> = {},
+): LibraryStorage {
 	const objects: Record<string, Uint8Array> = {
 		"library/пятерка/a.png": TINY_PNG,
 		"library/пятерка/описания.txt": new TextEncoder().encode("a.png — первая"),
+		...extra,
 	};
 	return {
 		list: async (prefix) =>

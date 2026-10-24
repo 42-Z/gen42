@@ -148,6 +148,9 @@ CREATE INDEX IF NOT EXISTS idx_generations_status ON generations(status);
 -- Режим «Ультра»: движок ultra, входные изображения агента, вход подписки Codex
 ALTER TABLE generations ADD COLUMN IF NOT EXISTS input_images TEXT[];
 
+-- Папка вложений, которую пользователь приложил к запуску «Ультры»
+ALTER TABLE generations ADD COLUMN IF NOT EXISTS attachment_scope VARCHAR(64);
+
 -- Уровень рассуждения новых запусков; у прежних записей остаётся NULL
 ALTER TABLE generations ADD COLUMN IF NOT EXISTS reasoning VARCHAR(10);
 

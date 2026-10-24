@@ -6,7 +6,12 @@ import {
 } from "../../src/lib/ultra/constants";
 import { UltraError } from "../../src/lib/ultra/errors";
 import { toFailure, type UltraFailure } from "../../src/lib/ultra/failure";
+import {
+	ATTACHMENTS_FOLDER,
+	attachmentsPrefix,
+} from "../../src/lib/ultra/attachments";
 import type {
+	Library,
 	ListFolderResult,
 	ReadFileResult,
 } from "../../src/lib/ultra/library";
@@ -31,8 +36,27 @@ function markPhase(id: string | undefined, phase: UltraPhase): Promise<void> {
 	return id ? getUltraRuntime().setPhase(id, phase) : Promise.resolve();
 }
 
+/**
+ * Библиотека шага: к общей добавляется папка вложений этого запуска. Пустой
+ * scope значит, что пользователь ничего не прикладывал.
+ */
+function libraryFor(input: {
+	userId?: string;
+	attachmentScope?: string;
+}): Library {
+	const library = getUltraRuntime().library;
+	return input.userId && input.attachmentScope
+		? library.withAttachments(
+				attachmentsPrefix(input.userId, input.attachmentScope),
+				ATTACHMENTS_FOLDER,
+			)
+		: library;
+}
+
 export async function prepareStep(input: {
 	id?: string;
+	userId?: string;
+	attachmentScope?: string;
 	prompt: string;
 }): Promise<{
 	system: string;
@@ -41,7 +65,7 @@ export async function prepareStep(input: {
 }> {
 	"use step";
 	await markPhase(input.id, "prepare");
-	const tree = await getUltraRuntime().library.describeTree();
+	const tree = await libraryFor(input).describeTree();
 	const prepared = {
 		system: buildUltraSystem(tree),
 		message: buildAgentMessage(input.prompt),
@@ -55,34 +79,40 @@ export async function prepareStep(input: {
 
 export async function listFolderStep(input: {
 	id?: string;
+	userId?: string;
+	attachmentScope?: string;
 	path: string;
 }): Promise<ListFolderResult> {
 	"use step";
 	await markPhase(input.id, "library");
-	const result = await getUltraRuntime().library.listFolder(input.path);
+	const result = await libraryFor(input).listFolder(input.path);
 	await markPhase(input.id, "thinking");
 	return result;
 }
 
 export async function readFileStep(input: {
 	id?: string;
+	userId?: string;
+	attachmentScope?: string;
 	path: string;
 }): Promise<ReadFileResult> {
 	"use step";
 	await markPhase(input.id, "library");
-	const result = await readForAgent(getUltraRuntime().library, input.path);
+	const result = await readForAgent(libraryFor(input), input.path);
 	await markPhase(input.id, "thinking");
 	return result;
 }
 
 export async function checkImageStep(input: {
 	id?: string;
+	userId?: string;
+	attachmentScope?: string;
 	prompt: string;
 	images: string[];
 }): Promise<CheckImageOutput> {
 	"use step";
 	await markPhase(input.id, "review");
-	const result = await checkImageArguments(getUltraRuntime().library, input);
+	const result = await checkImageArguments(libraryFor(input), input);
 	// отказ значит, что агент будет исправлять аргументы и думать дальше
 	if (!result.ok) await markPhase(input.id, "thinking");
 	return result;
@@ -106,6 +136,7 @@ export type DrawStepResult =
 export async function drawStep(input: {
 	id?: string;
 	userId: string;
+	attachmentScope?: string;
 	prompt: string;
 	images: string[];
 }): Promise<DrawStepResult> {
@@ -115,7 +146,7 @@ export async function drawStep(input: {
 	let drawn: Awaited<ReturnType<typeof drawImage>>;
 	try {
 		drawn = await drawImage(
-			{ library: runtime.library, edit: runtime.edit },
+			{ library: libraryFor(input), edit: runtime.edit },
 			{
 				prompt: input.prompt,
 				images: input.images,
