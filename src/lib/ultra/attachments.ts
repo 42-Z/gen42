@@ -1,4 +1,4 @@
-import { kindOf, type FileKind } from "./file-kind";
+import { type FileKind, kindOf } from "./file-kind";
 
 export const ATTACHMENTS_PREFIX = "attachments/";
 export const ATTACHMENTS_FOLDER = "вложения";
@@ -36,10 +36,14 @@ export function attachmentKindOf(name: string): FileKind | null {
  * расширением. Хранилище и агент видят одно и то же имя.
  */
 export function sanitizeAttachmentName(raw: string): string {
-	const clean = raw
-		.normalize("NFC")
+	const withoutControls = Array.from(raw.normalize("NFC"))
+		.filter((char) => {
+			const code = char.codePointAt(0) ?? 0;
+			return code > 0x1f && code !== 0x7f;
+		})
+		.join("");
+	const clean = withoutControls
 		.replace(/[\\/]+/g, "-")
-		.replace(/[\u0000-\u001f\u007f]/g, "")
 		.replace(/\s+/g, " ")
 		.trim();
 	if (!clean || clean === "." || clean === "..") return "attachment";

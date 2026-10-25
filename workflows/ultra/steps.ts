@@ -1,15 +1,15 @@
 import { buildUltraSystem } from "../../src/lib/prompts/ultra.system";
 import { buildAgentMessage, systemVersionOf } from "../../src/lib/ultra/agent";
 import {
+	ATTACHMENTS_FOLDER,
+	attachmentsPrefix,
+} from "../../src/lib/ultra/attachments";
+import {
 	ULTRA_AGENT_MODEL,
 	ULTRA_DRAW_TIMEOUT_MS,
 } from "../../src/lib/ultra/constants";
 import { UltraError } from "../../src/lib/ultra/errors";
 import { toFailure, type UltraFailure } from "../../src/lib/ultra/failure";
-import {
-	ATTACHMENTS_FOLDER,
-	attachmentsPrefix,
-} from "../../src/lib/ultra/attachments";
 import type {
 	Library,
 	ListFolderResult,

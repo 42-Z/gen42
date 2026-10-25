@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
+	type AttachmentStorage,
+	cleanupAttachments,
+	completeAttachment,
+	signAttachment,
+} from "../ultra/attachment-upload";
+import {
 	ATTACHMENT_BAD_TEXT_ERROR,
 	ATTACHMENT_FOREIGN_ERROR,
 	ATTACHMENT_FORMAT_MISMATCH_ERROR,
@@ -8,12 +14,6 @@ import {
 	MAX_ATTACHMENT_BYTES,
 	MAX_ATTACHMENTS,
 } from "../ultra/attachments";
-import {
-	type AttachmentStorage,
-	cleanupAttachments,
-	completeAttachment,
-	signAttachment,
-} from "../ultra/attachment-upload";
 import { TINY_PNG } from "./helpers/ultra-fakes";
 
 function makeStorage(initial: Record<string, Uint8Array> = {}) {

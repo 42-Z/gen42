@@ -14,6 +14,7 @@ import {
 	IconX,
 } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
+import { SheetLayer } from "@/components/sheet/SheetLayer";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -22,9 +23,9 @@ import {
 	InputGroupButton,
 	InputGroupTextarea,
 } from "@/components/ui/input-group";
-import { SheetLayer } from "@/components/sheet/SheetLayer";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { uploadAttachment } from "@/lib/attachment-client";
 import {
 	type GenerationView,
 	ULTRA_REASONING_LABELS,
@@ -51,16 +52,15 @@ import {
 	setRunPhase,
 	settleRun,
 } from "@/lib/series";
-import { uploadAttachment } from "@/lib/attachment-client";
 import { impulse } from "@/lib/sheet/impulses";
 import {
 	ATTACHMENT_BAD_TYPE_ERROR,
 	ATTACHMENT_EMPTY_ERROR,
 	ATTACHMENT_TOO_BIG_ERROR,
 	ATTACHMENT_TOO_MANY_ERROR,
-	MAX_ATTACHMENTS,
 	MAX_ATTACHMENT_BYTES,
 	MAX_ATTACHMENT_TEXT_BYTES,
+	MAX_ATTACHMENTS,
 } from "@/lib/ultra/attachments";
 import { ULTRA_CLIENT_WAIT_MS } from "@/lib/ultra/constants";
 import {
