@@ -690,10 +690,13 @@ export function Generate({ balance, onBalanceChange }: GenerateProps) {
 									/>
 									<InputGroupButton
 										type="button"
+										variant="outline"
 										size="icon-sm"
+										weight={0.3}
 										onClick={() => fileInputRef.current?.click()}
 										disabled={uploading}
 										aria-label="Приложить файлы"
+										className="size-9 rounded-full border-primary/40 bg-primary/10 text-primary hover:border-primary/70 hover:bg-primary/15"
 									>
 										<IconPaperclip />
 									</InputGroupButton>
