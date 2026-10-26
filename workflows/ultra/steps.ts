@@ -1,12 +1,17 @@
 import { buildUltraSystem } from "../../src/lib/prompts/ultra.system";
 import { buildAgentMessage, systemVersionOf } from "../../src/lib/ultra/agent";
 import {
+	ATTACHMENTS_FOLDER,
+	attachmentsPrefix,
+} from "../../src/lib/ultra/attachments";
+import {
 	ULTRA_AGENT_MODEL,
 	ULTRA_DRAW_TIMEOUT_MS,
 } from "../../src/lib/ultra/constants";
 import { UltraError } from "../../src/lib/ultra/errors";
 import { toFailure, type UltraFailure } from "../../src/lib/ultra/failure";
 import type {
+	Library,
 	ListFolderResult,
 	ReadFileResult,
 } from "../../src/lib/ultra/library";
@@ -31,8 +36,41 @@ function markPhase(id: string | undefined, phase: UltraPhase): Promise<void> {
 	return id ? getUltraRuntime().setPhase(id, phase) : Promise.resolve();
 }
 
+/**
+ * Библиотека шага: к общей добавляется папка вложений этого запуска. Пустой
+ * scope значит, что пользователь ничего не прикладывал.
+ */
+function libraryFor(input: {
+	userId?: string;
+	attachmentScope?: string;
+}): Library {
+	const library = getUltraRuntime().library;
+	return input.userId && input.attachmentScope
+		? library.withAttachments(
+				attachmentsPrefix(input.userId, input.attachmentScope),
+				ATTACHMENTS_FOLDER,
+			)
+		: library;
+}
+
+function deleteAttachmentScope(input: {
+	userId?: string;
+	attachmentScope?: string;
+}): Promise<void> {
+	if (!input.userId || !input.attachmentScope) return Promise.resolve();
+	return getUltraRuntime()
+		.deleteAttachmentPrefix(
+			attachmentsPrefix(input.userId, input.attachmentScope),
+		)
+		.catch((error) => {
+			console.error("Не удалось удалить вложения:", error);
+		});
+}
+
 export async function prepareStep(input: {
 	id?: string;
+	userId?: string;
+	attachmentScope?: string;
 	prompt: string;
 }): Promise<{
 	system: string;
@@ -41,7 +79,7 @@ export async function prepareStep(input: {
 }> {
 	"use step";
 	await markPhase(input.id, "prepare");
-	const tree = await getUltraRuntime().library.describeTree();
+	const tree = await libraryFor(input).describeTree();
 	const prepared = {
 		system: buildUltraSystem(tree),
 		message: buildAgentMessage(input.prompt),
@@ -55,34 +93,40 @@ export async function prepareStep(input: {
 
 export async function listFolderStep(input: {
 	id?: string;
+	userId?: string;
+	attachmentScope?: string;
 	path: string;
 }): Promise<ListFolderResult> {
 	"use step";
 	await markPhase(input.id, "library");
-	const result = await getUltraRuntime().library.listFolder(input.path);
+	const result = await libraryFor(input).listFolder(input.path);
 	await markPhase(input.id, "thinking");
 	return result;
 }
 
 export async function readFileStep(input: {
 	id?: string;
+	userId?: string;
+	attachmentScope?: string;
 	path: string;
 }): Promise<ReadFileResult> {
 	"use step";
 	await markPhase(input.id, "library");
-	const result = await readForAgent(getUltraRuntime().library, input.path);
+	const result = await readForAgent(libraryFor(input), input.path);
 	await markPhase(input.id, "thinking");
 	return result;
 }
 
 export async function checkImageStep(input: {
 	id?: string;
+	userId?: string;
+	attachmentScope?: string;
 	prompt: string;
 	images: string[];
 }): Promise<CheckImageOutput> {
 	"use step";
 	await markPhase(input.id, "review");
-	const result = await checkImageArguments(getUltraRuntime().library, input);
+	const result = await checkImageArguments(libraryFor(input), input);
 	// отказ значит, что агент будет исправлять аргументы и думать дальше
 	if (!result.ok) await markPhase(input.id, "thinking");
 	return result;
@@ -106,6 +150,7 @@ export type DrawStepResult =
 export async function drawStep(input: {
 	id?: string;
 	userId: string;
+	attachmentScope?: string;
 	prompt: string;
 	images: string[];
 }): Promise<DrawStepResult> {
@@ -115,7 +160,7 @@ export async function drawStep(input: {
 	let drawn: Awaited<ReturnType<typeof drawImage>>;
 	try {
 		drawn = await drawImage(
-			{ library: runtime.library, edit: runtime.edit },
+			{ library: libraryFor(input), edit: runtime.edit },
 			{
 				prompt: input.prompt,
 				images: input.images,
@@ -159,6 +204,8 @@ drawStep.maxRetries = 0;
 
 export interface CompleteStepInput {
 	id: string;
+	userId?: string;
+	attachmentScope?: string;
 	enhancedPrompt: string;
 	imageKey: string;
 	size: string | null;
@@ -170,23 +217,27 @@ export interface CompleteStepInput {
 
 export async function completeStep(input: CompleteStepInput): Promise<void> {
 	"use step";
-	const closed = await getUltraRuntime().completeGeneration({
-		id: input.id,
-		imageKey: input.imageKey,
-		seed: null,
-		...parseImageSize(input.size),
-		enhancedPrompt: input.enhancedPrompt,
-		durationMs: input.durationMs,
-		llmModel: ULTRA_AGENT_MODEL,
-		llmTokens: input.tokens,
-		enhanceMs: input.durationMs,
-		styleVersion: input.systemVersion,
-		inputImages: input.inputImages,
-	});
-	if (!closed) {
-		console.error(
-			`Генерация ${input.id} уже закрыта, картинка ${input.imageKey} осталась без записи`,
-		);
+	try {
+		const closed = await getUltraRuntime().completeGeneration({
+			id: input.id,
+			imageKey: input.imageKey,
+			seed: null,
+			...parseImageSize(input.size),
+			enhancedPrompt: input.enhancedPrompt,
+			durationMs: input.durationMs,
+			llmModel: ULTRA_AGENT_MODEL,
+			llmTokens: input.tokens,
+			enhanceMs: input.durationMs,
+			styleVersion: input.systemVersion,
+			inputImages: input.inputImages,
+		});
+		if (!closed) {
+			console.error(
+				`Генерация ${input.id} уже закрыта, картинка ${input.imageKey} осталась без записи`,
+			);
+		}
+	} finally {
+		await deleteAttachmentScope(input);
 	}
 }
 
@@ -197,29 +248,35 @@ export async function completeStep(input: CompleteStepInput): Promise<void> {
  */
 export async function failStep(input: {
 	id: string;
+	userId?: string;
+	attachmentScope?: string;
 	failure: UltraFailure;
 	durationMs: number;
 }): Promise<void> {
 	"use step";
 	const runtime = getUltraRuntime();
 	const { failure } = input;
-	console.error(
-		`Ultra error (${ULTRA_AGENT_MODEL}): ${failure.code}: ${failure.message}`,
-	);
-	await runtime.failGeneration({
-		id: input.id,
-		error: new UltraError(failure.code, failure.message),
-		enhancedPrompt: failure.prompt,
-		durationMs: input.durationMs,
-		llmModel: ULTRA_AGENT_MODEL,
-		inputImages: failure.inputImages,
-	});
-	if (failure.code === "codex_auth_required") {
-		// пометка входа мёртвым скрывает «Ультра» до «Проверить» или нового входа в админке
-		try {
-			await runtime.recordCodexError(`${failure.code}: ${failure.message}`);
-		} catch (error) {
-			console.error("Не удалось пометить вход Codex:", error);
+	try {
+		console.error(
+			`Ultra error (${ULTRA_AGENT_MODEL}): ${failure.code}: ${failure.message}`,
+		);
+		await runtime.failGeneration({
+			id: input.id,
+			error: new UltraError(failure.code, failure.message),
+			enhancedPrompt: failure.prompt,
+			durationMs: input.durationMs,
+			llmModel: ULTRA_AGENT_MODEL,
+			inputImages: failure.inputImages,
+		});
+		if (failure.code === "codex_auth_required") {
+			// пометка входа мёртвым скрывает «Ультра» до «Проверить» или нового входа в админке
+			try {
+				await runtime.recordCodexError(`${failure.code}: ${failure.message}`);
+			} catch (error) {
+				console.error("Не удалось пометить вход Codex:", error);
+			}
 		}
+	} finally {
+		await deleteAttachmentScope(input);
 	}
 }

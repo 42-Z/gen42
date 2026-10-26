@@ -1,5 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { grantDailyCredits } from "../lib/credits";
+import { deleteImage, listObjects } from "../lib/storage";
+import { cleanupAttachments } from "../lib/ultra/attachment-upload";
 
 function hasValidSecret(req: Request): boolean {
 	const secret = process.env.CRON_SECRET;
@@ -23,8 +25,19 @@ export const cronRoutes = {
 			}
 
 			const granted = await grantDailyCredits();
-			console.log(`[cron] Ежедневные кредиты начислены: ${granted}`);
-			return Response.json({ granted });
+			let attachmentsDeleted = 0;
+			try {
+				attachmentsDeleted = await cleanupAttachments({
+					list: listObjects,
+					delete: deleteImage,
+				});
+			} catch (error) {
+				console.error("[cron] Не удалось убрать старые вложения:", error);
+			}
+			console.log(
+				`[cron] Ежедневные кредиты начислены: ${granted}; вложений удалено: ${attachmentsDeleted}`,
+			);
+			return Response.json({ granted, attachmentsDeleted });
 		},
 	},
 };

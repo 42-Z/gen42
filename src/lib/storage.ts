@@ -31,6 +31,12 @@ export async function getImageUrl(
 	});
 }
 
+/** Подписанная ссылка на загрузку объекта: браузер делает по ней PUT */
+export function presignUpload(key: string, expiresIn: number): string {
+	const file = s3Client.file(key);
+	return file.presign({ method: "PUT", expiresIn });
+}
+
 export async function deleteImage(key: string): Promise<void> {
 	const file = s3Client.file(key);
 	await file.delete();
@@ -39,6 +45,7 @@ export async function deleteImage(key: string): Promise<void> {
 export interface StoredObject {
 	key: string;
 	size: number;
+	lastModified: Date | null;
 }
 
 /** Все объекты под префиксом (постранично) */
@@ -51,7 +58,11 @@ export async function listObjects(prefix: string): Promise<StoredObject[]> {
 			...(continuationToken ? { continuationToken } : {}),
 		});
 		for (const item of page.contents ?? []) {
-			objects.push({ key: item.key, size: item.size ?? 0 });
+			objects.push({
+				key: item.key,
+				size: item.size ?? 0,
+				lastModified: item.lastModified ? new Date(item.lastModified) : null,
+			});
 		}
 		continuationToken = page.isTruncated
 			? page.nextContinuationToken

@@ -71,6 +71,12 @@ const REC = {
 	duration: 5,
 };
 
+/** 1×1 PNG для проверки приложенного файла */
+const REF_PNG = Buffer.from(
+	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+	"base64",
+);
+
 /** Подставной API: ровно то, что читают экраны */
 async function mockApi(
 	page: Page,
@@ -123,6 +129,16 @@ async function mockApi(
 					.filter((r) => r.status === "completed")
 					.reverse(),
 			);
+		if (p === "/api/attachments/sign")
+			return json({
+				key: "attachments/u1/g1/ref.png",
+				name: "ref.png",
+				url: "/api/mock-s3/ref.png",
+			});
+		if (p === "/api/mock-s3/ref.png")
+			return new Response(null, { status: 200 });
+		if (p === "/api/attachments/complete")
+			return json({ ok: true, file: { name: "ref.png", kind: "image" } });
 		if (p === "/api/generations/active") return json({ error: "none" }, 404);
 		if (p === "/api/generations/running")
 			return json(
@@ -481,6 +497,20 @@ try {
 	await pause(page, 900);
 	await page.keyboard.press("Home");
 	await pause(page, 700);
+
+	await page.locator('input[type="file"]').setInputFiles({
+		name: "ref.png",
+		mimeType: "image/png",
+		buffer: REF_PNG,
+	});
+	await pause(page, 300);
+	await shot(page, "07b-attachment");
+	const attachmentPreviews = await page
+		.locator('[aria-label="Вложения"] img')
+		.count();
+	check("вложение: миниатюра", attachmentPreviews, attachmentPreviews === 1);
+	await page.getByRole("button", { name: /Убрать вложение/ }).click();
+	await pause(page, 400);
 
 	await page.getByRole("tab", { name: "Изображение" }).click();
 	await pause(page, 900);

@@ -120,7 +120,8 @@ describe("startGeneration", () => {
 				q.includes("INSERT INTO generations"),
 			);
 			expect(insert).toContain("reasoning");
-			expect(paramsOf("INSERT INTO generations").at(-1)).toBe(reasoning);
+			expect(paramsOf("INSERT INTO generations").at(-2)).toBe(reasoning);
+			expect(paramsOf("INSERT INTO generations").at(-1)).toBeNull();
 		});
 	}
 
@@ -132,9 +133,21 @@ describe("startGeneration", () => {
 				q.includes("INSERT INTO generations"),
 			);
 			expect(insert).toContain("reasoning");
+			expect(paramsOf("INSERT INTO generations").at(-2)).toBeNull();
 			expect(paramsOf("INSERT INTO generations").at(-1)).toBeNull();
 		});
 	}
+
+	test("сохраняет папку вложений запуска", async () => {
+		responses = { "ON CONFLICT (id) DO NOTHING": [{ id: "client-id-42" }] };
+		await startGeneration({
+			...BASE,
+			id: "client-id-42",
+			engine: "ultra",
+			attachmentScope: "scope-01",
+		});
+		expect(paramsOf("INSERT INTO generations").at(-1)).toBe("scope-01");
+	});
 });
 
 describe("потолок идущих генераций", () => {

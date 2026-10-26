@@ -24,10 +24,13 @@ export const usage = {
 };
 
 /** Библиотека в памяти: папка «пятерка» с картинкой и описаниями */
-export function libraryStorage(): LibraryStorage {
+export function libraryStorage(
+	extra: Record<string, Uint8Array> = {},
+): LibraryStorage {
 	const objects: Record<string, Uint8Array> = {
 		"library/пятерка/a.png": TINY_PNG,
 		"library/пятерка/описания.txt": new TextEncoder().encode("a.png — первая"),
+		...extra,
 	};
 	return {
 		list: async (prefix) =>
@@ -78,6 +81,7 @@ function defaultRuntime() {
 		completeGeneration: mock(async (_params: unknown) => true),
 		failGeneration: mock(async (_params: unknown) => true),
 		setPhase: mock(async (_id: string, _phase: string) => {}),
+		deleteAttachmentPrefix: mock(async (_prefix: string) => {}),
 		recordCodexError: mock(async (_message: string) => {}),
 		now: () => 1_700_000_000_000,
 	};

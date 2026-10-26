@@ -1,5 +1,6 @@
 import { toGeneratorQuotes } from "../prompts/style-hints";
 import { traceSpan } from "../tracing";
+import { MAX_TEXT_CHARS, truncateAttachmentText } from "./attachments";
 import { CodexImageError, type EditImageResult } from "./codex-images";
 import { UltraError } from "./errors";
 import type { Library, ReadFileResult, ResolvedImage } from "./library";
@@ -18,7 +19,17 @@ export async function readForAgent(
 	path: string,
 ): Promise<ReadFileResult> {
 	const result = await library.readFile(path);
-	if (!result.ok || result.kind !== "image") return result;
+	if (!result.ok) return result;
+	if (result.kind === "text") {
+		const truncated = truncateAttachmentText(result.text);
+		return {
+			...result,
+			text: truncated.truncated
+				? `${truncated.text}\n\n[текст обрезан: показаны первые ${MAX_TEXT_CHARS} символов из ${truncated.total}]`
+				: result.text,
+			truncated: truncated.truncated,
+		};
+	}
 	const preview = await makePreview(
 		new Uint8Array(Buffer.from(result.base64, "base64")),
 	);

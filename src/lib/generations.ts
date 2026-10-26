@@ -88,6 +88,8 @@ export interface StartGenerationParams {
 	engine: string;
 	model: string;
 	reasoning?: UltraReasoning | null;
+	/** Папка вложений «Ультры» (`attachments/<user>/<scope>/`), привязанная к запуску */
+	attachmentScope?: string | null;
 	width: number;
 	height: number;
 	steps: number;
@@ -122,12 +124,12 @@ export async function startGeneration(
 			const rows = await tx`
       INSERT INTO generations
         (id, user_id, prompt, negative_prompt, model, width, height, steps,
-         engine, cost, status, reasoning)
+         engine, cost, status, reasoning, attachment_scope)
       VALUES
         (${id}, ${params.userId}, ${params.prompt},
          ${params.negativePrompt ?? null}, ${params.model}, ${params.width},
          ${params.height}, ${params.steps}, ${params.engine}, 0, 'running',
-         ${params.reasoning ?? null})
+         ${params.reasoning ?? null}, ${params.attachmentScope ?? null})
       ON CONFLICT (id) DO NOTHING
       RETURNING id
     `;

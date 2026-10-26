@@ -157,6 +157,35 @@ describe("startUltra", () => {
 		});
 	});
 
+	test("папка вложений уходит в запись и воркфлоу", async () => {
+		const deps = makeDeps();
+
+		await startUltra(
+			{
+				userId: "u1",
+				prompt: "по фото",
+				id: "client-id",
+				attachmentScope: "scope-01",
+			},
+			deps,
+		);
+
+		expect(deps.startRecord).toHaveBeenCalledWith({
+			id: "client-id",
+			userId: "u1",
+			prompt: "по фото",
+			reasoning: "high",
+			attachmentScope: "scope-01",
+		});
+		expect(deps.startWorkflow).toHaveBeenCalledWith({
+			id: "gen-1",
+			userId: "u1",
+			prompt: "по фото",
+			reasoning: "high",
+			attachmentScope: "scope-01",
+		});
+	});
+
 	test("сбой закрытия строки не подменяет ответ пользователю", async () => {
 		const deps = makeDeps({
 			startWorkflow: mock(async () => {

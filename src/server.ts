@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { serve } from "bun";
 import { adminRoutes } from "./api/admin";
+import { attachmentRoutes } from "./api/attachments";
 import { authRoutes } from "./api/auth";
 import { codexAdminRoutes } from "./api/codex-admin";
 import { cronRoutes } from "./api/cron";
@@ -62,6 +63,8 @@ const server = serve({
 		...(await workflowDevRoutes()),
 		"/api/auth/*": async (req) => authRoutes["/api/auth/*"](req),
 
+		"/api/attachments/sign": attachmentRoutes["/api/attachments/sign"],
+		"/api/attachments/complete": attachmentRoutes["/api/attachments/complete"],
 		"/api/generate": generateRoutes["/api/generate"],
 		"/api/generations": generateRoutes["/api/generations"],
 		"/api/generations/active": generateRoutes["/api/generations/active"],

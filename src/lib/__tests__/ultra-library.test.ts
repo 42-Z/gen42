@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { attachmentsPrefix } from "../ultra/attachments";
 import {
 	closestNames,
 	Library,
@@ -228,5 +229,59 @@ describe("Library", () => {
 			expect(broken.error).toContain("нет.png");
 			expect(broken.error).toContain("не изображение");
 		}
+	});
+
+	test("вложения: отдельная папка первой в дереве, список, чтение и картинки", async () => {
+		const text = new TextEncoder().encode("референс");
+		const { storage } = makeStorage({
+			"attachments/u1/scope-1/ref.png": PNG,
+			"attachments/u1/scope-1/описание.md": text,
+		});
+		const library = new Library(storage).withAttachments(
+			attachmentsPrefix("u1", "scope-1"),
+			"вложения",
+		);
+		expect(await library.describeTree()).toBe(
+			[
+				"вложения/ — 1 изображение, 1 текст",
+				"пятерка/ — 2 изображения",
+				"скриншоты/ — пусто",
+				"эмблемы/ — 1 изображение",
+			].join("\n"),
+		);
+		expect(await library.listFolder("вложения")).toEqual({
+			ok: true,
+			path: "вложения",
+			files: [
+				{ name: "ref.png", kind: "image" },
+				{ name: "описание.md", kind: "text" },
+			],
+		});
+		expect(await library.readFile("вложения/ref.png")).toMatchObject({
+			ok: true,
+			kind: "image",
+			path: "вложения/ref.png",
+		});
+		expect(await library.readFile("вложения/описание.md")).toEqual({
+			ok: true,
+			kind: "text",
+			path: "вложения/описание.md",
+			text: "референс",
+		});
+		const resolved = await library.resolveImages(["вложения/ref.png"]);
+		expect(resolved.ok && resolved.images[0]?.bytes).toEqual(PNG);
+	});
+
+	test("вложения: без папки запуска нет и чужой scope не читается", async () => {
+		const { storage } = makeStorage({
+			"attachments/u2/scope-2/secret.png": PNG,
+		});
+		const own = new Library(storage).withAttachments(
+			attachmentsPrefix("u1", "scope-1"),
+			"вложения",
+		);
+		expect(await own.describeTree()).not.toContain("вложения/");
+		const foreign = await own.readFile("вложения/secret.png");
+		expect(foreign.ok).toBe(false);
 	});
 });

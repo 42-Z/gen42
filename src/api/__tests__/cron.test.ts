@@ -65,6 +65,9 @@ describe("Cron daily-credits", () => {
 		);
 
 		expect(res.status).toBe(200);
-		expect(await res.json()).toEqual({ granted: 3 });
+		expect(await res.json()).toEqual({
+			granted: 3,
+			attachmentsDeleted: 0,
+		});
 	});
 });
