@@ -190,24 +190,7 @@ export async function getAvailableKey(
 }
 
 export async function getAvailableLlmKey(): Promise<ApiKeyRow> {
-	const keys = (await sql`
-    SELECT * FROM api_keys
-    WHERE provider IN ('poolside', 'inception')
-      AND is_active = TRUE
-      AND (
-        rl_remaining IS NULL
-        OR rl_remaining > 0
-        OR rl_checked_at IS NULL
-        OR rl_checked_at < NOW() - INTERVAL '2 minutes'
-      )
-    ORDER BY rl_remaining DESC NULLS LAST
-    LIMIT 1
-  `) as ApiKeyRow[];
-
-	if (keys.length === 0) {
-		throw new AllKeysExhaustedError();
-	}
-	return keys[0]!;
+	return getAvailableKey("inception");
 }
 
 export async function deactivateKey(
@@ -264,9 +247,8 @@ export async function updateKeyRateLimit(
   `;
 }
 
-export function keyPrefixFor(provider: string): "hf_" | "sky_" | null {
+export function keyPrefixFor(provider: string): "hf_" | null {
 	if (provider === "huggingface") return "hf_";
-	if (provider === "poolside") return "sky_";
 	return null;
 }
 

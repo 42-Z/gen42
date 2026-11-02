@@ -5,11 +5,9 @@ import {
 } from "../src/lib/keys";
 import { callLlm } from "../src/lib/llm";
 
-const arg = process.argv[2] ?? "poolside";
+const arg = process.argv[2] ?? "inception";
 if (!isLlmProvider(arg)) {
-	console.error(
-		`Неизвестный LLM-провайдер: ${arg} (доступны: poolside, inception)`,
-	);
+	console.error(`Неизвестный LLM-провайдер: ${arg} (доступен: inception)`);
 	process.exit(1);
 }
 

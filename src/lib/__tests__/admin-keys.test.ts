@@ -7,8 +7,9 @@ describe("валидация ключей по провайдеру", () => {
 		expect(isValidKeyForProvider("poolside", "hf_abc")).toBe(false);
 	});
 
-	test("sky_-ключ только для poolside", () => {
-		expect(isValidKeyForProvider("poolside", "sky_abc.def")).toBe(true);
+	test("poolside больше не принимается", () => {
+		expect(keyPrefixFor("poolside")).toBeNull();
+		expect(isValidKeyForProvider("poolside", "sky_abc.def")).toBe(false);
 		expect(isValidKeyForProvider("huggingface", "sky_abc")).toBe(false);
 	});
 

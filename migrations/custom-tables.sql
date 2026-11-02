@@ -59,7 +59,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- Провайдеры ключей: huggingface (картинки) | poolside (LLM-обогащение промпта)
+-- Провайдеры ключей: huggingface (картинки) | inception (LLM-обогащение промпта)
 ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS provider VARCHAR(20) NOT NULL DEFAULT 'huggingface';
 ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS rl_limit INTEGER;
 ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS rl_remaining INTEGER;

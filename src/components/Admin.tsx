@@ -40,9 +40,6 @@ export function Admin() {
 	const [newKeyValue, setNewKeyValue] = useState("");
 	const [newLlmKeyName, setNewLlmKeyName] = useState("");
 	const [newLlmKeyValue, setNewLlmKeyValue] = useState("");
-	const [newLlmKeyProvider, setNewLlmKeyProvider] = useState<
-		"poolside" | "inception"
-	>("poolside");
 	const [hfError, setHfError] = useState("");
 	const [llmError, setLlmError] = useState("");
 	const [creditUserId, setCreditUserId] = useState("");
@@ -57,30 +54,18 @@ export function Admin() {
 	async function loadData() {
 		setError("");
 		try {
-			const [usersRes, keysRes, poolsideRes, inceptionRes, statsRes] =
-				await Promise.all([
-					fetch("/api/admin/users"),
-					fetch("/api/admin/keys"),
-					fetch("/api/admin/keys?provider=poolside"),
-					fetch("/api/admin/keys?provider=inception"),
-					fetch("/api/admin/stats"),
-				]);
+			const [usersRes, keysRes, inceptionRes, statsRes] = await Promise.all([
+				fetch("/api/admin/users"),
+				fetch("/api/admin/keys"),
+				fetch("/api/admin/keys?provider=inception"),
+				fetch("/api/admin/stats"),
+			]);
 
 			if (usersRes.ok) setUsers(await usersRes.json());
 			if (keysRes.ok) setKeys(await keysRes.json());
-			const [poolsideList, inceptionList] = await Promise.all([
-				poolsideRes.ok ? poolsideRes.json() : [],
-				inceptionRes.ok ? inceptionRes.json() : [],
-			]);
-			setLlmKeys([...poolsideList, ...inceptionList]);
+			setLlmKeys(inceptionRes.ok ? await inceptionRes.json() : []);
 			if (statsRes.ok) setStats(await statsRes.json());
-			if (
-				!usersRes.ok ||
-				!keysRes.ok ||
-				!poolsideRes.ok ||
-				!inceptionRes.ok ||
-				!statsRes.ok
-			) {
+			if (!usersRes.ok || !keysRes.ok || !inceptionRes.ok || !statsRes.ok) {
 				setError("Часть данных не загрузилась. Попробуйте обновить.");
 			}
 		} catch (err) {
@@ -122,7 +107,7 @@ export function Admin() {
 				body: JSON.stringify({
 					name: newLlmKeyName,
 					key: newLlmKeyValue,
-					provider: newLlmKeyProvider,
+					provider: "inception",
 				}),
 			});
 
@@ -549,27 +534,7 @@ export function Admin() {
 					Ключи LLM
 				</h3>
 
-				<div className="mt-6 grid grid-cols-1 items-end gap-4 sm:grid-cols-[180px_220px_1fr_auto]">
-					<div className="space-y-1.5">
-						<Label htmlFor="llm-provider">Провайдер</Label>
-						<Select
-							value={newLlmKeyProvider}
-							onValueChange={(value) =>
-								setNewLlmKeyProvider(value as "poolside" | "inception")
-							}
-						>
-							<SelectTrigger
-								id="llm-provider"
-								className="w-full rounded-2xl border-border bg-secondary/60"
-							>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent position="popper" side="bottom" align="start">
-								<SelectItem value="poolside">Poolside</SelectItem>
-								<SelectItem value="inception">Inception</SelectItem>
-							</SelectContent>
-						</Select>
-					</div>
+				<div className="mt-6 grid grid-cols-1 items-end gap-4 sm:grid-cols-[220px_1fr_auto]">
 					<div className="space-y-1.5">
 						<Label htmlFor="llm-key-name">Название</Label>
 						<Input
@@ -600,7 +565,6 @@ export function Admin() {
 						<TableHeader>
 							<TableRow>
 								<TableHead>Название</TableHead>
-								<TableHead>Провайдер</TableHead>
 								<TableHead>Ключ</TableHead>
 								<TableHead>Остаток запросов</TableHead>
 								<TableHead>Токены</TableHead>
@@ -612,9 +576,6 @@ export function Admin() {
 							{llmKeys.map((k) => (
 								<TableRow key={k.id} data-key-id={k.id}>
 									<TableCell className="font-semibold">{k.name}</TableCell>
-									<TableCell className="text-xs text-muted-foreground">
-										{k.provider === "inception" ? "Inception" : "Poolside"}
-									</TableCell>
 									<TableCell className="font-mono text-xs text-muted-foreground">
 										{k.key}
 									</TableCell>

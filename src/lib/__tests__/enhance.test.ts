@@ -7,10 +7,10 @@ const GOOD_TEXT =
 	"A colossal cat on a diamond throne, gold chains with a «42» medallion, pugs in leopard coats, fireworks spelling 42, neon banners reading «СЛАВА 42», confetti rain, hyper-detailed cinematic photograph, wide-angle poster composition, epic scale, absurd triumphant kitsch, no watermarks, no signature at all.";
 
 const KEY = {
-	id: "p1",
-	name: "poolside-1",
-	key: "sky_test",
-	provider: "poolside",
+	id: "i1",
+	name: "inception-1",
+	key: "sk_test",
+	provider: "inception",
 } as Awaited<ReturnType<EnhanceDeps["getAvailableLlmKey"]>>;
 
 function makeDeps() {
@@ -39,11 +39,11 @@ describe("enhancePrompt", () => {
 		const { enhancePrompt } = await import("../enhance");
 		const result = await enhancePrompt("кот", deps);
 		expect(result.fallback).toBe(false);
-		expect(result.keyId).toBe("p1");
+		expect(result.keyId).toBe("i1");
 		expect(result.prompt.startsWith("A colossal cat")).toBe(true);
 		expect(result.inputTokens).toBe(100);
 		expect(result.outputTokens).toBe(50);
-		expect(result.model).toBe("poolside/laguna-xs-2.1");
+		expect(result.model).toBe("mercury-3");
 		expect(deps.updateKeyRateLimit).toHaveBeenCalledTimes(1);
 	});
 
@@ -62,7 +62,7 @@ describe("enhancePrompt", () => {
 		const result = await enhancePrompt("бегемот", deps);
 		expect(deps.deactivateKey).not.toHaveBeenCalled();
 		expect(deps.updateKeyRateLimit).toHaveBeenCalledWith(
-			"p1",
+			"i1",
 			expect.objectContaining({ remaining: 0 }),
 		);
 		expect(result.fallback).toBe(false);
@@ -82,7 +82,7 @@ describe("enhancePrompt", () => {
 
 		const { enhancePrompt } = await import("../enhance");
 		const result = await enhancePrompt("кот", deps);
-		expect(deps.deactivateKey).toHaveBeenCalledWith("p1", "invalid key");
+		expect(deps.deactivateKey).toHaveBeenCalledWith("i1", "invalid key");
 		expect(result.fallback).toBe(false);
 	});
 
@@ -185,7 +185,7 @@ describe("enhancePrompt", () => {
 		expect(deps.callLlm).not.toHaveBeenCalled();
 	});
 
-	test("ключ inception даёт модель mercury-2.5", async () => {
+	test("ключ inception даёт модель mercury-3", async () => {
 		deps.getAvailableLlmKey = mock(async () => ({
 			...KEY,
 			id: "i1",
@@ -198,7 +198,7 @@ describe("enhancePrompt", () => {
 		const result = await enhancePrompt("кот", deps);
 		expect(result.fallback).toBe(false);
 		expect(result.keyId).toBe("i1");
-		expect(result.model).toBe("mercury-2.5");
+		expect(result.model).toBe("mercury-3");
 		const call = (
 			deps.callLlm.mock.calls[0] as unknown as [{ provider: string }]
 		)[0];
