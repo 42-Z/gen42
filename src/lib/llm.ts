@@ -1,18 +1,14 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { APICallError, generateText, type JSONValue } from "ai";
 
-export const POOLSIDE_BASE_URL =
-	process.env.POOLSIDE_BASE_URL ?? "https://inference.poolside.ai/v1";
-export const POOLSIDE_MODEL =
-	process.env.POOLSIDE_MODEL ?? "poolside/laguna-s-2.1";
 export const INCEPTION_BASE_URL =
 	process.env.INCEPTION_BASE_URL ?? "https://api.inceptionlabs.ai/v1";
 export const INCEPTION_MODEL = process.env.INCEPTION_MODEL ?? "mercury-3";
 
-export type LlmProviderId = "poolside" | "inception";
+export type LlmProviderId = "inception";
 
 export function isLlmProvider(provider: string): provider is LlmProviderId {
-	return provider === "poolside" || provider === "inception";
+	return provider === "inception";
 }
 
 export interface LlmProviderConfig {
@@ -27,13 +23,6 @@ export interface LlmProviderConfig {
 }
 
 export const LLM_PROVIDERS: Record<LlmProviderId, LlmProviderConfig> = {
-	poolside: {
-		name: "poolside",
-		baseURL: POOLSIDE_BASE_URL,
-		model: POOLSIDE_MODEL,
-		providerOptions: { chat_template_kwargs: { enable_thinking: false } },
-		exhaustedStatuses: [401, 403, 429],
-	},
 	inception: {
 		name: "inception",
 		baseURL: INCEPTION_BASE_URL,

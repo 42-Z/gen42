@@ -9,114 +9,13 @@ function llmResponse(body: unknown, headers: Record<string, string> = {}) {
 	});
 }
 
-const COMPLETION = {
-	id: "chatcmpl-1",
-	object: "chat.completion",
-	model: "poolside/laguna-s-2.1",
-	choices: [
-		{
-			index: 0,
-			message: { role: "assistant", content: "An ultra-detailed scene." },
-			finish_reason: "stop",
-		},
-	],
-	usage: { prompt_tokens: 1200, completion_tokens: 300, total_tokens: 1500 },
-};
-
-describe("Poolside client", () => {
-	afterEach(() => {
-		globalThis.fetch = originalFetch;
-	});
-
-	test("успешный вызов: текст, usage, заголовки, thinking выключен", async () => {
-		let body: any = null;
-		globalThis.fetch = mock(async (_url: string | URL, init?: RequestInit) => {
-			body = JSON.parse(String(init?.body));
-			return llmResponse(COMPLETION, {
-				"x-ratelimit-limit-requests": "60",
-				"x-ratelimit-remaining-requests": "30",
-			});
-		}) as any;
-
-		const { callLlm } = await import("../llm");
-		const result = await callLlm({
-			provider: "poolside",
-			system: "system rules",
-			user: "кот",
-			apiKey: "sky_test",
-		});
-
-		expect(result.text).toBe("An ultra-detailed scene.");
-		expect(result.usage).toEqual({
-			inputTokens: 1200,
-			outputTokens: 300,
-			totalTokens: 1500,
-		});
-		expect(result.rateLimit).toEqual({ limit: 60, remaining: 30 });
-		expect(body.model).toBe("poolside/laguna-s-2.1");
-		expect(body.chat_template_kwargs).toEqual({ enable_thinking: false });
-		expect(body.messages[0]).toEqual({
-			role: "system",
-			content: "system rules",
-		});
-		expect(body.messages[1].role).toBe("user");
-	});
-
-	test("429 -> LlmKeyExhaustedError", async () => {
-		globalThis.fetch = mock(
-			async () =>
-				new Response(JSON.stringify({ error: "rate limited" }), {
-					status: 429,
-					headers: { "content-type": "application/json" },
-				}),
-		) as any;
-		const { callLlm, LlmKeyExhaustedError } = await import("../llm");
-		await expect(
-			callLlm({
-				provider: "poolside",
-				system: "s",
-				user: "u",
-				apiKey: "sky_test",
-			}),
-		).rejects.toThrow(LlmKeyExhaustedError);
-	});
-
-	test("401 -> LlmKeyExhaustedError", async () => {
-		globalThis.fetch = mock(
-			async () =>
-				new Response(JSON.stringify({ error: "unauthorized" }), {
-					status: 401,
-					headers: { "content-type": "application/json" },
-				}),
-		) as any;
-		const { callLlm, LlmKeyExhaustedError } = await import("../llm");
-		await expect(
-			callLlm({
-				provider: "poolside",
-				system: "s",
-				user: "u",
-				apiKey: "sky_test",
-			}),
-		).rejects.toThrow(LlmKeyExhaustedError);
-	});
-
-	test("500 -> LlmCallError", async () => {
-		globalThis.fetch = mock(
-			async () =>
-				new Response(JSON.stringify({ error: "server" }), {
-					status: 500,
-					headers: { "content-type": "application/json" },
-				}),
-		) as any;
-		const { callLlm, LlmCallError } = await import("../llm");
-		await expect(
-			callLlm({
-				provider: "poolside",
-				system: "s",
-				user: "u",
-				apiKey: "sky_test",
-			}),
-		).rejects.toThrow(LlmCallError);
+describe("реестр LLM", () => {
+	test("Poolside удалён, остаётся Inception", async () => {
+		const { isLlmProvider, LLM_PROVIDERS } = await import("../llm");
+		expect(isLlmProvider("inception")).toBe(true);
+		expect(isLlmProvider("poolside")).toBe(false);
+		expect(LLM_PROVIDERS).not.toHaveProperty("poolside");
+		expect(Object.keys(LLM_PROVIDERS)).toEqual(["inception"]);
 	});
 });
 
@@ -174,6 +73,7 @@ describe("Inception client", () => {
 		expect(body.model).toBe("mercury-3");
 		expect(body.reasoning_effort).toBe("low");
 		expect(body.temperature).toBe(0.9);
+		expect(body.chat_template_kwargs).toBeUndefined();
 		expect(body.messages[0]).toEqual({
 			role: "system",
 			content: "system rules",
