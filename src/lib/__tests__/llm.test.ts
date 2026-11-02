@@ -12,7 +12,7 @@ function llmResponse(body: unknown, headers: Record<string, string> = {}) {
 const COMPLETION = {
 	id: "chatcmpl-1",
 	object: "chat.completion",
-	model: "poolside/laguna-xs-2.1",
+	model: "poolside/laguna-s-2.1",
 	choices: [
 		{
 			index: 0,
@@ -53,6 +53,7 @@ describe("Poolside client", () => {
 			totalTokens: 1500,
 		});
 		expect(result.rateLimit).toEqual({ limit: 60, remaining: 30 });
+		expect(body.model).toBe("poolside/laguna-s-2.1");
 		expect(body.chat_template_kwargs).toEqual({ enable_thinking: false });
 		expect(body.messages[0]).toEqual({
 			role: "system",
@@ -129,7 +130,7 @@ function llmError(status: number) {
 const INCEPTION_COMPLETION = {
 	id: "chatcmpl-2",
 	object: "chat.completion",
-	model: "mercury-2.5",
+	model: "mercury-3",
 	choices: [
 		{
 			index: 0,
@@ -145,7 +146,7 @@ describe("Inception client", () => {
 		globalThis.fetch = originalFetch;
 	});
 
-	test("успешный вызов: mercury-2.5, reasoning_effort low, без rate-limit заголовков", async () => {
+	test("успешный вызов: mercury-3, reasoning_effort low, без rate-limit заголовков", async () => {
 		let body: any = null;
 		let url = "";
 		globalThis.fetch = mock(async (input: string | URL, init?: RequestInit) => {
@@ -170,7 +171,7 @@ describe("Inception client", () => {
 		});
 		expect(result.rateLimit).toEqual({ limit: null, remaining: null });
 		expect(url).toBe("https://api.inceptionlabs.ai/v1/chat/completions");
-		expect(body.model).toBe("mercury-2.5");
+		expect(body.model).toBe("mercury-3");
 		expect(body.reasoning_effort).toBe("low");
 		expect(body.temperature).toBe(0.9);
 		expect(body.messages[0]).toEqual({

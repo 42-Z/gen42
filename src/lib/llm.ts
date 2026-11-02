@@ -4,10 +4,10 @@ import { APICallError, generateText, type JSONValue } from "ai";
 export const POOLSIDE_BASE_URL =
 	process.env.POOLSIDE_BASE_URL ?? "https://inference.poolside.ai/v1";
 export const POOLSIDE_MODEL =
-	process.env.POOLSIDE_MODEL ?? "poolside/laguna-xs-2.1";
+	process.env.POOLSIDE_MODEL ?? "poolside/laguna-s-2.1";
 export const INCEPTION_BASE_URL =
 	process.env.INCEPTION_BASE_URL ?? "https://api.inceptionlabs.ai/v1";
-export const INCEPTION_MODEL = process.env.INCEPTION_MODEL ?? "mercury-2.5";
+export const INCEPTION_MODEL = process.env.INCEPTION_MODEL ?? "mercury-3";
 
 export type LlmProviderId = "poolside" | "inception";
 

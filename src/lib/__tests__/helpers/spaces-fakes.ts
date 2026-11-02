@@ -10,7 +10,7 @@ import type { SpacesRuntime } from "../../spaces/workflow-runtime";
 export const ENHANCED: EnhanceResult = {
 	prompt: "A pug on a golden throne, rainbow and gold",
 	keyId: "llm-1",
-	model: "mercury-2.5",
+	model: "mercury-3",
 	styleVersion: "abcd1234abcd1234",
 	inputTokens: 100,
 	outputTokens: 50,

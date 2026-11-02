@@ -43,7 +43,7 @@ describe("enhancePrompt", () => {
 		expect(result.prompt.startsWith("A colossal cat")).toBe(true);
 		expect(result.inputTokens).toBe(100);
 		expect(result.outputTokens).toBe(50);
-		expect(result.model).toBe("poolside/laguna-xs-2.1");
+		expect(result.model).toBe("poolside/laguna-s-2.1");
 		expect(deps.updateKeyRateLimit).toHaveBeenCalledTimes(1);
 	});
 
@@ -185,7 +185,7 @@ describe("enhancePrompt", () => {
 		expect(deps.callLlm).not.toHaveBeenCalled();
 	});
 
-	test("ключ inception даёт модель mercury-2.5", async () => {
+	test("ключ inception даёт модель mercury-3", async () => {
 		deps.getAvailableLlmKey = mock(async () => ({
 			...KEY,
 			id: "i1",
@@ -198,7 +198,7 @@ describe("enhancePrompt", () => {
 		const result = await enhancePrompt("кот", deps);
 		expect(result.fallback).toBe(false);
 		expect(result.keyId).toBe("i1");
-		expect(result.model).toBe("mercury-2.5");
+		expect(result.model).toBe("mercury-3");
 		const call = (
 			deps.callLlm.mock.calls[0] as unknown as [{ provider: string }]
 		)[0];

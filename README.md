@@ -42,9 +42,9 @@ bun test               # тесты
 | `CRON_SECRET` | Секрет ежедневного крона кредитов: Vercel шлёт его как `Bearer` в `/api/cron/daily-credits`; локально нужен только для проверки роута |
 | `S3_*` | Доступ к хранилищу картинок (ключ, секрет, endpoint, регион, бакет) |
 | `POOLSIDE_BASE_URL` | Необязательно. База OpenAI-совместимого API для обогащения промпта (по умолчанию Poolside) |
-| `POOLSIDE_MODEL` | Необязательно. Модель обогащения (по умолчанию `poolside/laguna-xs-2.1`) |
+| `POOLSIDE_MODEL` | Необязательно. Модель обогащения (по умолчанию `poolside/laguna-s-2.1`) |
 | `INCEPTION_BASE_URL` | Необязательно. База OpenAI-совместимого API Inception Labs (по умолчанию `https://api.inceptionlabs.ai/v1`) |
-| `INCEPTION_MODEL` | Необязательно. Модель обогащения Inception (по умолчанию `mercury-2.5`) |
+| `INCEPTION_MODEL` | Необязательно. Модель обогащения Inception (по умолчанию `mercury-3`) |
 | `CODEX_ORIGINATOR` | Необязательно. Заголовок `originator` для запросов подписки (по умолчанию значение пакета; если Codex его не принимает, `codex_cli_rs`) |
 | `CODEX_CLIENT_VERSION` | Необязательно. Версия Codex CLI для запроса списка моделей (по умолчанию `0.160.0`) |
 | `BRAINTRUST_API_KEY` | Обязателен. Ключ Braintrust: трассировка LLM-вызовов и evaluation (эксперименты) — вся система наблюдаемости живёт там; без ключа приложение не работает |
